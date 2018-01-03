@@ -1,0 +1,306 @@
+---
+title: "Expression specificity scores"
+author: "Jason Torres"
+date: "December 27, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+library("Homo.sapiens")
+library("GenomicRanges")
+library('rtracklayer')
+
+
+serv.dir <- "/Users/jtorres/FUSE5/"
+work.dir <- serv.dir %&% "projects/t2d_classification/"
+afile.dir <- work.dir %&% "analysis_files/"
+gtex.dir <- serv.dir %&% "datasets/GTEx/v7/"
+
+```
+
+Commented out following section as needed to evaluate different data sets and generate gene length dataframe file only once
+
+```{r}
+
+# Approach 1 for obtaining gene lengths 
+# File obtained from UCSC Table Browser 
+#ensg.df <- fread("cat " %&% serv.dir %&% "datasets/ucsc/Ensembl_Genes.txt.gz" %&% " | zmore")
+#ens.vec <- ensg.df$name2 %>% unique(.)
+#pb <- txtProgressBar(min=0,max=length(ens.vec),style=3)
+#gene.length.v1 <- map(1:length(ens.vec),function(i){
+#  setTxtProgressBar(pb,i)
+#  ens <- ens.vec[i]
+#  sub <- filter(ensg.df,name2==ens)
+#  #sub.gr <- GRanges(seqnames=sub$chrom,IRanges(sub$cdsStart,sub$cdsEnd),sub$strand)
+  #sum(width(reduce(sub.gr)))
+#  sub.gr <- GRanges(seqnames=sub$chrom,IRanges(sub$txStart,sub$txEnd),sub$strand)
+#  sum(width(reduce(sub.gr)))
+#}) %>% as.integer(.) 
+
+#ensid.v1.df <- data.frame(ensid=ens.vec,gene.length.v1,stringsAsFactors = FALSE)
+
+
+# Approach 2 for obtaining gene lengths 
+gtf.gr <- import("~/Downloads/gencode.v19.genes.v7.patched_contigs.gtf")
+gtf.df <- as.data.frame(gtf.gr,stringsAsFactors=FALSE)
+
+#ens.vec <- gtf.df$gene_id %>% unique(.)
+#pb <- txtProgressBar(min=0,max=length(ens.vec),style=3)
+#gene.length.v2 <- map(1:length(ens.vec),function(i){
+#  setTxtProgressBar(pb,i)
+#  print(i)
+#  ens <- ens.vec[i]
+#  sub <- filter(gtf.df,gene_id==ens,type=="gene")
+#  #sub.gr <- GRanges(seqnames=sub$chrom,IRanges(sub$cdsStart,sub$cdsEnd),sub$strand)
+#  #sum(width(reduce(sub.gr)))
+#  sub.gr <- GRanges(seqnames="chr"%&%sub$seqnames,IRanges(sub$start,sub$end),sub$strand)
+#  sum(width(reduce(sub.gr)))
+#}) %>% as.integer(.) 
+
+#ensid.v2.df <- data.frame(ensid=ens.vec,gene.length.v2,stringsAsFactors = FALSE)
+
+#test.df <- ensid.v2.df
+#test.df$ensid <- map(test.df$ensid,function(id){strsplit(id,split=".",fixed=TRUE)[[1]][1]}) %>% as.character(.)
+#test2.df <- inner_join(ensid.v1.df,test.df,by="ensid")
+
+# 
+
+```
+
+Note of the gene that interect, lengths seem to be mostly concordant, however, the "ENSGR" genes (i.e. lincRNAs) are not present in the v1 ENSEMBLE gene file, so opt for ensid.v2.df for TPM normalization 
+
+```{r}
+
+write.table(ensid.v2.df,file=afile.dir%&%"gencode.v19.gene_lengths.txt",
+            sep="\t",quote=FALSE,row.names=FALSE)
+ensid.v2.df <- read.table(afile.dir%&%"gencode.v19.gene_lengths.txt",header=TRUE,
+                          stringsAsFactors=FALSE)
+```
+
+
+
+# Oxford Islets (Unstranded)
+
+```{r}
+
+#vcf.dir <- "/well/mccarthy/projects/118_islets_vandeBunt_plosgen_2015/genotypes/"
+# Id file info obtained from header line in any file from vcf.dir 
+id.df <- fread(work.dir %&% "input_data/oxford-islet-ids.txt")
+id.vec <- id.df$ID
+#exp.dir <- "/well/got2d/rna-seq/data/Oxford_islets/unstranded_libraries/"
+# Count data copied from exp.dir data above 
+unstranded.df <- fread(work.dir %&% "input_data/28.03.2017.unstranded_libraries.gene.counts.tsv")
+stranded.df <- fread(work.dir %&% "input_data/17.03.2017.stranded_libraries.gene.counts.tsv")
+islet.df <- inner_join(unstranded.df,stranded.df,by="GeneID") %>% 
+  dplyr::select(.,one_of("GeneID","GeneName.x",id.vec))
+
+#Warning message:
+#Unknown variables: `H262`, `ISL-79`, `R032`, `R036` 
+# These IDs are not available in the count matrices 
+
+ensids <- islet.df$GeneID
+symb.vec <-islet.df$GeneName.x
+ensid.vec <- ensids #map(ensids,function(e){strsplit(e,".",fixed=TRUE)[[1]][1]}) %>% 
+#as.character(.)
+pb <- txtProgressBar(min=0,max=length(ensid.vec),style=3)
+gl.vec <- map(1:length(ensid.vec),function(i){
+  setTxtProgressBar(pb,i)
+  ens <- ensid.vec[i]
+  #filter(ensid.df,ensid==ens)$gene.length
+  filter(ensid.v2.df,ensid==ens)$gene.length
+}) %>% as.integer(.) 
+
+gl.df <- data.frame(ensembl=ensids,symbol=symb.vec,ensid=ensid.vec,gene.length=gl.vec,
+                    stringsAsFactors = FALSE)
+
+# Note that LincRNAs are missing from Ensembl Gene Reference file (n=47 lincRNAs)
+
+```
+
+
+## TPM Normalization 
+
+
+```{r}
+
+gl.kb.vec <- gl.vec /1000 # gene lengths in kilo bases 
+step1.mat <- dplyr::select(islet.df,-one_of("GeneID","GeneName.x")) %>% as.matrix(.)
+row.names(step1.mat) <- islet.df$GeneID
+#step2.mat <- (step1.mat / gl.vec) %>% na.omit(.)
+step2.mat <- (step1.mat / gl.kb.vec) %>% na.omit(.)
+
+norm.factors <- colSums(step2.mat) / 1e6
+
+for (i in 1:dim(step2.mat)[2]){
+  nf <- norm.factors[i]
+  step2.mat[,i] <- step2.mat[,i] / nf 
+}
+
+pb <- txtProgressBar(min=0,max=length(row.names(step2.mat)),style=3)
+GeneName=map(1:length(row.names(step2.mat)),function(i){
+  setTxtProgressBar(pb,i)
+  id <- row.names(step2.mat)[i];
+  filter(islet.df,GeneID==id)$GeneName.x}) %>% as.character(.)
+
+islet.tpm.df <- cbind(GeneID=row.names(step2.mat),
+                      GeneName,
+                        as.data.frame(step2.mat))
+islet.tpm.df$GeneID <- as.character(islet.tpm.df$GeneID)
+islet.tpm.df$GeneName <- as.character(islet.tpm.df$GeneName)
+
+write.table(islet.tpm.df,file=afile.dir%&%"islet_expression_tpm.txt",
+            sep="\t",quote=F,row.names=F)
+islet.tpm.df <- fread(afile.dir%&%"islet_expression_tpm.txt")
+
+```
+
+
+# GTEx 
+
+Get tissue IDs of interest, read expression count file, create tissue count matrices  
+
+```{r}
+
+samp.df <- fread(gtex.dir %&% "GTEx_v7_Annotations_SampleAttributesDS.txt")
+unique(samp.df$SMTSD)
+mus.ids <- filter(samp.df,SMTSD=="Muscle - Skeletal")$SAMPID
+adi.ids <- filter(samp.df,SMTSD=="Adipose - Subcutaneous")$SAMPID
+liv.ids <- filter(samp.df,SMTSD=="Liver")$SAMPID
+
+expr.df <- fread(gtex.dir %&% "expression/GTEx_Analysis_2016-01-15_v7_RNASeQCv1.1.8_gene_reads.gct")
+# Note: ran the above lines in the server due to the memory requirements, after subsetting, ran remaining analysis here 
+
+mus.df <- dplyr::select(expr.df,one_of("Name","Description",mus.ids))
+adi.df <- dplyr::select(expr.df,one_of("Name","Description",adi.ids))
+liv.df <- dplyr::select(expr.df,one_of("Name","Description",liv.ids))
+write.table(mus.df,file=gtex.dir%&%"expression/muscle_counts.txt",
+            sep="\t",quote=F,row.names=F)
+write.table(adi.df,file=gtex.dir%&%"expression/adipose_counts.txt",
+            sep="\t",quote=F,row.names=F)
+write.table(liv.df,file=gtex.dir%&%"expression/liver_counts.txt",
+            sep="\t",quote=F,row.names=F)
+mus.df <- fread(gtex.dir%&%"expression/muscle_counts.txt")
+adi.df <- fread(gtex.dir%&%"expression/adipose_counts.txt")
+liv.df <- fread(gtex.dir%&%"expression/liver_counts.txt")
+
+```
+
+## GTEx TPM Normalization 
+
+```{r}
+
+all(mus.df$Name == adi.df$Name) & all(mus.df$Name ==liv.df$Name) # Check 
+
+ensid.vec <- mus.df$Name
+symb.vec <-mus.df$Description
+
+pb <- txtProgressBar(min=0,max=length(ensid.vec),style=3)
+gl.vec <- map(1:length(ensid.vec),function(i){
+  setTxtProgressBar(pb,i)
+  ens <- ensid.vec[i]
+  #filter(ensid.df,ensid==ens)$gene.length
+  filter(ensid.v2.df,ensid==ens)$gene.length
+}) %>% as.integer(.)
+
+
+```
+
+```{r}
+
+gtex_tpm_normalize <- function(df,gl.vec,tissue.name){
+  print(tissue.name);print("")
+  gl.kb.vec <- gl.vec /1000 # gene lengths in kilo bases 
+  step1.mat <- dplyr::select(df,-one_of("Name","Description")) %>% as.matrix(.)
+  row.names(step1.mat) <- df$Name
+  step2.mat <- (step1.mat / gl.kb.vec) %>% na.omit(.)
+  
+  norm.factors <- colSums(step2.mat) / 1e6
+  
+  for (i in 1:dim(step2.mat)[2]){
+    nf <- norm.factors[i]
+    step2.mat[,i] <- step2.mat[,i] / nf 
+  }
+  
+  pb <- txtProgressBar(min=0,max=length(row.names(step2.mat)),style=3)
+  GeneName=map(1:length(row.names(step2.mat)),function(i){
+    setTxtProgressBar(pb,i)
+    id <- row.names(step2.mat)[i];
+    filter(df,Name==id)$Description}) %>% as.character(.)
+  
+  tpm.df <- cbind(GeneID=row.names(step2.mat),
+                        GeneName,
+                          as.data.frame(step2.mat))
+  tpm.df$GeneID <- as.character(tpm.df$GeneID)
+  tpm.df$GeneName <- as.character(tpm.df$GeneName)
+  
+  write.table(tpm.df,file=afile.dir%&%tissue.name%&%"_expression_tpm.txt",
+              sep="\t",quote=F,row.names=F)
+  return(tpm.df)
+}
+
+mus.tpm.df <- gtex_tpm_normalize(mus.df,gl.vec,"muscle")
+adi.tpm.df <- gtex_tpm_normalize(adi.df,gl.vec,"adipose")
+liv.tpm.df <- gtex_tpm_normalize(liv.df,gl.vec,"liver")
+
+mus.tpm.df <- fread(afile.dir%&%"muscle"%&%"_expression_tpm.txt")  
+adi.tpm.df <- fread(afile.dir%&%"adipose"%&%"_expression_tpm.txt")  
+liv.tpm.df <- fread(afile.dir%&%"liver"%&%"_expression_tpm.txt")  
+
+
+```
+
+
+# Expression specificity scores 
+
+
+```{r}
+
+all(islet.tpm.df$GeneID %in% mus.tpm.df$GeneID)
+all(mus.tpm.df$GeneID %in% islet.tpm.df$GeneID)
+all(adi.tpm.df$GeneID == mus.tpm.df$GeneID)
+all(liv.tpm.df$GeneID == mus.tpm.df$GeneID)
+
+
+build_ess_df <- function(){
+  ess.df <- c() 
+  ens.vec <- islet.tpm.df$GeneID
+  pb <- txtProgressBar(min=0,max=length(ens.vec),style=3)
+  loop <- map(1:length(ens.vec),function(i){
+    setTxtProgressBar(pb,i)
+    ens <- ens.vec[i]
+    ensname <- filter(islet.tpm.df,GeneID==ens)$GeneName
+    islet.vec <- filter(islet.tpm.df,GeneID==ens) %>% dplyr::select(.,-one_of("GeneID","GeneName")) %>% as.numeric(.)
+    mus.vec <- filter(mus.tpm.df,GeneID==ens) %>% dplyr::select(.,-one_of("GeneID","GeneName")) %>% as.numeric(.)
+    adi.vec <- filter(adi.tpm.df,GeneID==ens) %>% dplyr::select(.,-one_of("GeneID","GeneName")) %>% as.numeric(.)
+    liv.vec <- filter(liv.tpm.df,GeneID==ens) %>% dplyr::select(.,-one_of("GeneID","GeneName")) %>% as.numeric(.)
+    tot <- median(islet.vec) + median(mus.vec) + median(adi.vec) + median(liv.vec) 
+    islet.score <- median(islet.vec) / tot 
+    muscle.score <- median(mus.vec) / tot 
+    adipose.score <- median(adi.vec) / tot 
+    liver.score <- median(liv.vec) / tot 
+    build.df <- data.frame(GeneID=ens,GeneName=ensname,islet.score,muscle.score,adipose.score,liver.score,stringsAsFactors=FALSE)
+    ess.df <- rbind(ess.df,build.df)
+  })
+  return(ess.df)
+}
+
+ess.df <- build_ess_df()
+
+write.table(ess.df,file=afile.dir%&%"expression_specificity_scores.txt",
+            sep="\t",quote=F,row.names=F)
+
+
+
+```
+
