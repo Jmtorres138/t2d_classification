@@ -19,10 +19,11 @@ library("data.table")
 library("tidyverse")
 library("GenomicRanges")
 library("viridis")
+library("gridExtra")
 
-#serv.dir <- "/Users/jtorres/FUSE/"
-serv.dir <- "/Users/jtorres/Google Drive/Science/" 
-work.dir <- serv.dir %&% "Projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/multi_tissue_joint_analysis/"
+serv.dir <- "/Users/jtorres/FUSE5/"
+#serv.dir <- "/Users/jtorres/Google Drive/Science/" 
+work.dir <- serv.dir %&% "projects/t2d_classification/method_A/"
 file.dir <- work.dir %&% "analysis_files/"
 plot.dir <- work.dir %&% "plots/"
 
@@ -33,12 +34,9 @@ Read data files
 
 ```{r}
 
-block99.df <- fread(work.dir%&%"tempo_data/multi_results/results_blocks.txt",sep="\t")
-fcred99.df <- fread(work.dir%&%"tempo_data/multi_results/results_func-cred-sets.txt",sep="\t")
+block99.df <- fread(work.dir%&%"multi_results/results_blocks.txt",sep="\t")
+fcred99.df <- fread(work.dir%&%"/multi_results/results_func-cred-sets.txt",sep="\t")
 full.df <- fread(file.dir %&% "full_best-joint_ppa-prop.txt")
-condensed.df <- fread(file.dir %&% "condensed_best-joint_ppa-prop.txt")
-
-
 
 ```
 
