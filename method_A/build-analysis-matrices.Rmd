@@ -19,12 +19,12 @@ library("data.table")
 library("tidyverse")
 library("GenomicRanges")
 
-#serv.dir <- "/Users/jtorres/FUSE/" # November Server SHUTDOWN!!! 
-serv.dir <- "/Users/jtorres/Google Drive/Science/" 
+serv.dir <- "/Users/jtorres/FUSE5/"  
+#serv.dir <- "/Users/jtorres/Google Drive/Science/" 
 
-work.dir <- serv.dir %&% "Projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/multi_tissue_joint_analysis/"
+work.dir <- serv.dir %&% "projects/t2d_classification/method_A/"
 
-cred.dir <- work.dir %&% "tempo_data/"
+cred.dir <- work.dir 
 write.dir <- work.dir %&% "analysis_files/"
 
 
@@ -144,11 +144,11 @@ get_compact_df <- function(full.df){
 ```{r}
 
 full.df <- get_full_df(fcred99.multi.df)
-condensed.df <- get_condensed_df(full.df)
-compact.df <- get_compact_df(full.df)
+#condensed.df <- get_condensed_df(full.df)
+#compact.df <- get_compact_df(full.df)
 write.table(x=full.df,file=write.dir%&%"full_best-joint_ppa-prop.txt",sep="\t",quote=FALSE,row.names=FALSE)
-write.table(x=condensed.df,file=write.dir%&%"condensed_best-joint_ppa-prop.txt",sep="\t",quote=FALSE,row.names=FALSE)
-write.table(x=compact.df,file=write.dir%&%"compact_best-joint_ppa-prop.txt",sep="\t",quote=FALSE,row.names=FALSE)
+#write.table(x=condensed.df,file=write.dir%&%"condensed_best-joint_ppa-prop.txt",sep="\t",quote=FALSE,row.names=FALSE)
+#write.table(x=compact.df,file=write.dir%&%"compact_best-joint_ppa-prop.txt",sep="\t",quote=FALSE,row.names=FALSE)
 
 ```
 
