@@ -1,0 +1,154 @@
+---
+title: "Create analysis matrices"
+author: "Jason Torres"
+date: "11/20/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+library("data.table")
+library("tidyverse")
+library("GenomicRanges")
+
+#serv.dir <- "/Users/jtorres/FUSE/" # November Server SHUTDOWN!!! 
+serv.dir <- "/Users/jtorres/Google Drive/Science/" 
+
+work.dir <- serv.dir %&% "Projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/multi_tissue_joint_analysis/"
+
+cred.dir <- work.dir %&% "tempo_data/"
+write.dir <- work.dir %&% "analysis_files/"
+
+
+
+```
+
+
+Build credible set dataframes 
+
+
+```{r}
+
+block99.multi.df <- fread(cred.dir %&% "multi_results/" %&% "results_blocks.txt",sep="\t")
+fcred99.multi.df <- fread(cred.dir %&% "multi_results/" %&% "results_func-cred-sets.txt",sep="\t")
+
+block99.isl.df <- fread(cred.dir %&% "islet_results/" %&% "results_blocks.txt",sep="\t")
+fcred99.isl.df <- fread(cred.dir %&% "islet_results/" %&% "results_func-cred-sets.txt",sep="\t")
+
+```
+
+
+# Functions 
+
+
+Get annotation matrix 
+
+```{r}
+
+get_full_df <- function(cred.df){
+   loc.vec <- unique(cred.df$Locus.ID)
+  annot.vec <- names(cred.df)[10:length(names(cred.df))]
+  
+  out.df <- c() 
+  print(length(loc.vec))
+  pb <- txtProgressBar(min=0,max=length(loc.vec),style=3)
+  for (i in 1:length(loc.vec)){
+    setTxtProgressBar(pb,i)
+    loc <- loc.vec[i]
+    temp.df <- filter(cred.df,Locus.ID==loc)
+    cumppa <- sum(temp.df$PPA)
+    myrow <- c(loc)
+    for (annot in annot.vec){
+      index <- match(annot,names(temp.df))
+      sub.df <- temp.df[,c(1:9,index),]
+      annotppa <- sum(sub.df$PPA[as.logical(sub.df[,10])]) / cumppa
+      myrow <- c(myrow,annotppa)
+    }
+    other <- (1-sum(unique(as.numeric(myrow[2:(length(myrow))]))))
+    other <- ifelse(other>=0,other,0)
+    myrow <- c(myrow,other)
+    cumsum <- sum((as.numeric(myrow[2:(length(myrow))])))
+    myrow[2:length(myrow)] <- as.numeric(myrow[2:length(myrow)]) / cumsum # scale to give proper proportion
+    names(myrow) <- c("Locus.ID",annot.vec,"other")
+    myrow <- as.data.frame(t(as.matrix(myrow)))
+    out.df <- rbind(out.df,myrow)
+  }
+  out.df <- as.data.frame(out.df)
+  row.names(out.df) <- NULL
+  indx <- sapply(out.df, is.factor)
+  out.df[indx] <- lapply(out.df[indx], function(x) as.numeric(as.character(x)))
+  out.df$Locus.ID <- loc.vec
+  return(out.df)
+}
+
+get_condensed_df <- function(full.df){
+  out.df <- c()
+  pb <- txtProgressBar(min=0,max=dim(full.df)[1],style=3)
+  for (i in 1:dim(full.df)[1]){
+    setTxtProgressBar(pb,i)
+    sub.df <- full.df[i,]
+    islet_specific <- sum(as.numeric(dplyr::select(sub.df,matches("islet_specific"))))
+    islet_shared <- sum(as.numeric(dplyr::select(sub.df,matches("islet_shared"))  %>% dplyr::select(.,-matches("islet_shared_repressed"))))
+    liver_specific <- sum(as.numeric(dplyr::select(sub.df,matches("liver_specific"))))
+    muscle_specific <- sum(as.numeric(dplyr::select(sub.df,matches("muscle_specific"))))
+    adipose_specific <- sum(as.numeric(dplyr::select(sub.df,matches("adipose_specific"))))
+    #tissue_agnostic <- sum(as.numeric(dplyr::select(sub.df,one_of("coding","distance_tss_0_5000","islet_shared_repressed"))))
+    tissue_agnostic <- sum(as.numeric(dplyr::select(sub.df,
+                                                    one_of("coding","distance_tss_0_5000"))))
+    #other <- sum(as.numeric(dplyr::select(sub.df,one_of("other"))))
+    other <- sum(as.numeric(dplyr::select(sub.df,one_of("other","islet_shared_repressed"))))
+    Locus.ID <- sub.df$Locus.ID
+    build.df <- data.frame(Locus.ID,islet_specific,islet_shared,liver_specific,muscle_specific,adipose_specific,tissue_agnostic,other)
+    out.df <- rbind(out.df,build.df)
+  }
+  out.df$Locus.ID <- as.character(out.df$Locus.ID)
+  return(out.df)
+}
+
+
+get_compact_df <- function(full.df){
+  out.df <- c()
+  pb <- txtProgressBar(min=0,max=dim(full.df)[1],style=3)
+  for (i in 1:dim(full.df)[1]){
+    setTxtProgressBar(pb,i)
+    sub.df <- full.df[i,]
+    islet_regulatory <- sum(as.numeric(dplyr::select(sub.df,matches("islet")) %>% dplyr::select(.,-one_of("islet_specific_bivalent_tss","islet_shared_repressed")) )) 
+      
+    islet_bivalent_tss <- sum(as.numeric(dplyr::select(sub.df,one_of("islet_specific_bivalent_tss"))))
+    
+    liver <- sum(as.numeric(dplyr::select(sub.df,matches("liver"))))
+    muscle <- sum(as.numeric(dplyr::select(sub.df,matches("muscle"))))
+    adipose <- sum(as.numeric(dplyr::select(sub.df,matches("adipose"))))
+
+    Locus.ID <- sub.df$Locus.ID
+    build.df <- data.frame(Locus.ID,islet_regulatory,islet_bivalent_tss,liver,muscle,adipose)
+    out.df <- rbind(out.df,build.df)
+  }
+  out.df$Locus.ID <- as.character(out.df$Locus.ID)
+  return(out.df)
+}
+
+
+```
+
+
+
+```{r}
+
+full.df <- get_full_df(fcred99.multi.df)
+condensed.df <- get_condensed_df(full.df)
+compact.df <- get_compact_df(full.df)
+write.table(x=full.df,file=write.dir%&%"full_best-joint_ppa-prop.txt",sep="\t",quote=FALSE,row.names=FALSE)
+write.table(x=condensed.df,file=write.dir%&%"condensed_best-joint_ppa-prop.txt",sep="\t",quote=FALSE,row.names=FALSE)
+write.table(x=compact.df,file=write.dir%&%"compact_best-joint_ppa-prop.txt",sep="\t",quote=FALSE,row.names=FALSE)
+
+```
+
