@@ -1,0 +1,597 @@
+---
+title: "PCA and clustering analysis"
+author: "Jason Torres"
+date: "11/21/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+library("data.table")
+library("tidyverse")
+library("GenomicRanges")
+library("viridis")
+
+#serv.dir <- "/Users/jtorres/FUSE/"
+serv.dir <- "/Users/jtorres/Google Drive/Science/" 
+work.dir <- serv.dir %&% "Projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/multi_tissue_joint_analysis/"
+file.dir <- work.dir %&% "analysis_files/"
+plot.dir <- work.dir %&% "plots/"
+
+```
+
+
+Read data files 
+
+```{r}
+
+block99.df <- fread(work.dir%&%"tempo_data/multi_results/results_blocks.txt",sep="\t")
+fcred99.df <- fread(work.dir%&%"tempo_data/multi_results/results_func-cred-sets.txt",sep="\t")
+full.df <- fread(file.dir %&% "full_best-joint_ppa-prop.txt")
+condensed.df <- fread(file.dir %&% "condensed_best-joint_ppa-prop.txt")
+
+
+
+```
+
+
+# PCA 
+
+Uncentered analysis 
+
+```{r}
+
+loc.ids <- full.df$Locus.ID
+
+full.df <- fread(file.dir %&% "full_best-joint_ppa-prop.txt")
+df <- dplyr::select(full.df,-one_of("Locus.ID")) %>% scale(.,center=FALSE,scale=FALSE)
+
+
+pr.out <- prcomp(df,scale=FALSE)
+pr.out$sdev # standard deviations of each principal compoment
+pr.var <- pr.out$sdev^2 # Getting the variance explained by each PC 
+pve<-pr.var/sum(pr.var)
+cumulsum<- cumsum(pve)
+pve.df <- data.frame(PC=c(1:length(pve)),pve,cumulsum)
+
+```
+
+Centered analysis 
+
+```{r}
+
+full.df <- fread(file.dir %&% "full_best-joint_ppa-prop.txt")
+df.cent <- dplyr::select(full.df,-one_of("Locus.ID")) %>% scale(.,center=TRUE,scale=TRUE)
+
+
+pr.out.cent <- prcomp(df.cent,scale=TRUE)
+pr.out.cent$sdev # standard deviations of each principal compoment
+pr.var.cent <- pr.out.cent$sdev^2 # Getting the variance explained by each PC 
+pve<-pr.var.cent/sum(pr.var.cent)
+cumulsum<- cumsum(pve)
+cent.pve.df <- data.frame(PC=c(1:length(pve)),pve,cumulsum)
+
+```
+
+
+
+Add more columns with plotting information 
+
+```{r}
+
+refseq <- map(1:dim(full.df)[1],function(i){
+  loc <- full.df$Locus.ID[i]
+  gene <- filter(block99.df,Locus.ID==loc)$refseq
+}) %>% as.character(.)
+full.df$refseq <- refseq
+full.df$Plot.ID <- full.df$Locus.ID %&% ": " %&% full.df$refseq
+
+```
+
+
+
+## Proportion of Variance Explained Plot 
+
+
+```{r}
+
+
+scree_cumsum_plot <- function(pve.df){
+  pltA <- ggplot(data=pve.df,aes(x=PC)) + 
+    geom_line(aes(y=pve)) + 
+    geom_point(aes(y=pve),size=3,shape=21,fill=rev(viridis(length(pve.df$PC)))) + 
+    scale_y_continuous(limits=c(0,1),breaks=seq(0,1,0.1)) + 
+    scale_x_continuous(limits=c(0,length(pve.df$PC)),breaks=seq(0,length(pve.df$PC),1)) + 
+    theme_light() + 
+    coord_cartesian(ylim=c(0,1),xlim=c(0.5,length(pve.df$PC)+0.5),expand=FALSE) + 
+    xlab("Principal Component") + ylab("Proportion of Variance Explained") + 
+    ggtitle("Variance explained by principal components") + 
+    theme(panel.grid.minor = element_blank(),
+          axis.title = element_text(size=8),
+          plot.title = element_text(size=10))
+  
+  pltB <- ggplot(data=pve.df,aes(x=PC)) + 
+    geom_line(aes(y=cumulsum)) + 
+    geom_point(aes(y=cumulsum),size=3,shape=21,fill=rev(viridis(length(pve.df$PC)))) + 
+    scale_y_continuous(limits=c(0,1),breaks=seq(0,1,0.1)) +
+    scale_x_continuous(limits=c(0,length(pve.df$PC)),breaks=seq(0,length(pve.df$PC),1)) + 
+    theme_light() + 
+    coord_cartesian(ylim=c(0,1),xlim=c(0.5,length(pve.df$PC)+0.5),expand=FALSE) + 
+    xlab("Principal Component") + ylab("Cumulative proportion of variance explained") + 
+    ggtitle("Cumulative variance explained by principal components") + 
+    theme(panel.grid.minor = element_blank(),
+          axis.title = element_text(size=8),
+          plot.title = element_text(size=10))
+
+  grid.arrange(pltA,pltB,nrow=2)  
+}
+
+pltA <- scree_cumsum_plot(pve.df)
+pltB <- scree_cumsum_plot(cent.pve.df)
+
+ggsave(plot=pltA,filename=plot.dir%&%"pca_scree_cumsum_uncentered.png",
+       height=6,width=4)
+ggsave(plot=pltB,filename=plot.dir%&%"pca_scree_cumsum_centered.png",
+       height=6,width=4)
+
+```
+
+Based on the scree plots will proceed with the uncentered data frame 
+
+## Loading vector proportion plots 
+
+```{r}
+
+library("RColorBrewer")
+
+loading_plot <- function(pr.output){
+  numb <- dim(pr.output$rotation)[1]
+  pca.prop.df <- pr.output$rotation %>% as.data.frame(.,row.names=FALSE)
+  annot.vec <- gsub("_"," ",row.names(pr.output$rotation))
+  pca.prop.df <- map(1:dim(pca.prop.df)[2],function(i){
+    vec <- abs(as.numeric(pca.prop.df[,i])) # absolute value step 
+    vec <- vec / sum(vec)
+  }) %>% unlist(.) %>% matrix(.,nrow=numb,ncol=numb,byrow=FALSE) %>% as.data.frame(.)
+  
+  names(pca.prop.df) <- "PC" %&% 1:dim(pca.prop.df)[2]
+  
+  reformat.list <- map(1:dim(pca.prop.df)[1],function(i){
+    PC <- names(pca.prop.df) %>% gsub("PC","",.) %>% as.integer(.)
+    Score <- as.numeric(pca.prop.df[i,])
+    #PC <- rep(i,length(Score))
+    Annotation <- rep(annot.vec[i],length(Score))
+    sub.df <- data.frame(PC,Score,Annotation,stringsAsFactors = FALSE)
+  }) 
+  
+  out.df <- c()
+  for (i in 1:length(reformat.list)){
+    sub.df <- reformat.list[[i]]
+    out.df <- rbind(out.df,sub.df)
+  }
+  ggplot(data=out.df,aes(x=PC,y=Score,fill=Annotation)) + 
+          geom_bar(stat="identity",color="black",size=0.2) + 
+          scale_y_continuous(breaks=seq(0,1,0.1)) + 
+          scale_x_continuous(breaks=seq(0,length(unique(out.df$PC)),1)) + 
+          scale_fill_manual(values=colorRampPalette(brewer.pal(11,                                  "Spectral"))(length(unique(out.df$PC)) )) + 
+          ggtitle("PC Loading Scores for Genomic Annotations") + 
+          ylab("Loading Proportion")
+}
+
+pltLA <- loading_plot(pr.out)
+pltLB <- loading_plot(pr.out.cent)
+
+ggsave(plot=pltLA,filename=plot.dir%&%"pca_loading_uncentered.png",
+       height=6,width=8)
+ggsave(plot=pltLB,filename=plot.dir%&%"pca_loading_centered.png",
+       height=6,width=8)
+
+```
+
+
+## PCA plots 
+
+
+```{r}
+
+library("ggrepel")
+
+pca_annotated_plot <- function(data.df,pca.out,pcX,pcY,annot){
+  pca.df <- as.data.frame(pca.out$x) 
+  pca.df$Locus.ID <- data.df$Locus.ID
+  pca.df <- inner_join(data.df,pca.df,by="Locus.ID")
+  
+  index <- match(annot,names(pca.df))
+  vec <- pca.df[,index]
+  names(vec) <- pca.df$Plot.ID
+  keep.vec <- sort(vec,decreasing=TRUE)[1:10]
+  keep.names <- names(keep.vec)
+  
+  sub.df <- filter(pca.df,Plot.ID %in% keep.names)
+  
+  ggplot(data=pca.df,aes_string(x=pcX,y=pcY)) + 
+    geom_point(shape=21,size=2,color="black",
+               aes_string(fill=annot)) +
+    scale_fill_viridis(option="plasma") + 
+    geom_label_repel(data=sub.df,
+                     aes_string(x=pcX,y=pcY,label="Plot.ID"),
+                     size=1.5,
+                     fontface="bold",
+                     fill="ghostwhite",
+                     box.padding = unit(0.1,"lines"), 
+                     point.padding = unit(0.1,"lines"),
+                     alpha=0.7,label.size=0.1) + 
+    theme_bw()  
+}
+
+
+pcpltA <- pca_annotated_plot(full.df,pr.out,"PC1","PC2","distance_tss_0_5000")
+ggsave(plot=pcpltA,filename=plot.dir%&%"pca_uncentered_pc1_pc2_dist.png",height=4,width=6)
+
+pcpltB <- pca_annotated_plot(full.df,pr.out,"PC1","PC2","islet_shared_repressed")
+ggsave(plot=pcpltB,filename=plot.dir%&%"pca_uncentered_pc1_pc2_isl-shar-rep.png",height=4,width=6)
+
+pcpltC <- pca_annotated_plot(full.df,pr.out,"PC1","PC2","other")
+ggsave(plot=pcpltC,filename=plot.dir%&%"pca_uncentered_pc1_pc2_other.png",height=4,width=6)
+
+pcpltD <- pca_annotated_plot(full.df,pr.out,"PC3","PC4","islet_shared_strong_enhancer")
+ggsave(plot=pcpltD,filename=plot.dir%&%"pca_uncentered_pc3_pc4_isl-shar-strenh.png",height=4,width=6)
+
+pcpltE <- pca_annotated_plot(full.df,pr.out,"PC3","PC4","islet_specific_strong_enhancer")
+ggsave(plot=pcpltE,filename=plot.dir%&%"pca_uncentered_pc3_pc4_isl-spec-strenh.png",height=4,width=6)
+
+```
+
+Centered 
+
+
+```{r}
+
+pcpltAA <- pca_annotated_plot(full.df,pr.out.cent,"PC1","PC2","distance_tss_0_5000")
+ggsave(plot=pcpltAA,filename=plot.dir%&%"pca_centered_pc1_pc2_dist.png",height=4,width=6)
+
+```
+
+
+## Removing TSS distance from PCA analysis 
+
+Uncentered analysis 
+
+```{r}
+
+full.df <- fread(file.dir %&% "full_best-joint_ppa-prop.txt")
+df <- dplyr::select(full.df,-one_of("Locus.ID","distance_tss_0_5000","coding")) %>% scale(.,center=FALSE,scale=FALSE)
+refseq <- map(1:dim(full.df)[1],function(i){
+  loc <- full.df$Locus.ID[i]
+  gene <- filter(block99.df,Locus.ID==loc)$refseq
+}) %>% as.character(.)
+full.df$refseq <- refseq
+full.df$Plot.ID <- full.df$Locus.ID %&% ": " %&% full.df$refseq
+
+pr.out <- prcomp(df,scale=FALSE)
+pr.out$sdev # standard deviations of each principal compoment
+pr.var <- pr.out$sdev^2 # Getting the variance explained by each PC 
+pve<-pr.var/sum(pr.var)
+cumulsum<- cumsum(pve)
+pve.df <- data.frame(PC=c(1:length(pve)),pve,cumulsum)
+
+pltA2 <- scree_cumsum_plot(pve.df)
+ggsave(plot=pltA2,filename=plot.dir%&%"pca_scree_cumsum_uncentered_NODIST.png",
+       height=6,width=4)
+
+pltLA3 <- loading_plot(pr.out)
+ggsave(plot=pltLA3,filename=plot.dir%&%"pca_loading_uncentered_NODIST.png",
+       height=6,width=8)
+
+pcpltB2 <- pca_annotated_plot(full.df,pr.out,"PC1","PC2","islet_shared_repressed")
+ggsave(plot=pcpltB2,filename=plot.dir%&%"pca_uncentered_pc1_pc2_isl-shar-rep_NODIST.png",height=4,width=6)
+
+pcpltC2 <- pca_annotated_plot(full.df,pr.out,"PC1","PC2","other")
+ggsave(plot=pcpltC2,filename=plot.dir%&%"pca_uncentered_pc1_pc2_other_NODIST.png",height=4,width=6)
+
+pcpltD2 <- pca_annotated_plot(full.df,pr.out,"PC1","PC2","islet_specific_strong_enhancer")
+ggsave(plot=pcpltD2,filename=plot.dir%&%"pca_uncentered_pc1_pc2_isl-spec-strenh_NODIST.png",height=4,width=6)
+
+```
+
+
+
+## Removing only islet_shared_repressed (Uncentered/unscaled)
+
+```{r}
+
+full.df <- fread(file.dir %&% "full_best-joint_ppa-prop.txt")
+df <- dplyr::select(full.df,-one_of("Locus.ID","islet_shared_repressed")) %>% scale(.,center=FALSE,scale=FALSE)
+refseq <- map(1:dim(full.df)[1],function(i){
+  loc <- full.df$Locus.ID[i]
+  gene <- filter(block99.df,Locus.ID==loc)$refseq
+}) %>% as.character(.)
+full.df$refseq <- refseq
+full.df$Plot.ID <- full.df$Locus.ID %&% ": " %&% full.df$refseq
+
+pr.out <- prcomp(df,scale=FALSE)
+pr.out$sdev # standard deviations of each principal compoment
+pr.var <- pr.out$sdev^2 # Getting the variance explained by each PC 
+pve<-pr.var/sum(pr.var)
+cumulsum<- cumsum(pve)
+pve.df <- data.frame(PC=c(1:length(pve)),pve,cumulsum)
+
+pltA <- scree_cumsum_plot(pve.df)
+ggsave(plot=pltA,filename=plot.dir%&%"pca_scree_cumsum_uncentered_NO-ISR.png",
+       height=6,width=4)
+
+pltB <- loading_plot(pr.out)
+ggsave(plot=pltB,filename=plot.dir%&%"pca_loading_uncentered_NO-ISR.png",
+       height=6,width=8)
+
+pcplt <- pca_annotated_plot(full.df,pr.out,"PC1","PC2","distance_tss_0_5000")
+ggsave(plot=pcplt,filename=plot.dir%&%"pca_uncentered_pc1_pc2_disttss_NO-ISR.png",height=4,width=6)
+pcplt <- pca_annotated_plot(full.df,pr.out,"PC1","PC2","other")
+ggsave(plot=pcplt,filename=plot.dir%&%"pca_uncentered_pc1_pc2_other_NO-ISR.png",height=4,width=6)
+
+```
+
+
+## Removing distance, coding, islet_shared_repressed, and other  (Uncentered/unscaled)
+
+```{r}
+
+full.df <- fread(file.dir %&% "full_best-joint_ppa-prop.txt")
+df <- dplyr::select(full.df,-one_of("Locus.ID","islet_shared_repressed","distance_tss_0_5000",
+                                    "coding","other")) %>% scale(.,center=FALSE,scale=FALSE)
+refseq <- map(1:dim(full.df)[1],function(i){
+  loc <- full.df$Locus.ID[i]
+  gene <- filter(block99.df,Locus.ID==loc)$refseq
+}) %>% as.character(.)
+full.df$refseq <- refseq
+full.df$Plot.ID <- full.df$Locus.ID %&% ": " %&% full.df$refseq
+
+pr.out <- prcomp(df,scale=FALSE)
+pr.out$sdev # standard deviations of each principal compoment
+pr.var <- pr.out$sdev^2 # Getting the variance explained by each PC 
+pve<-pr.var/sum(pr.var)
+cumulsum<- cumsum(pve)
+pve.df <- data.frame(PC=c(1:length(pve)),pve,cumulsum)
+
+pltA <- scree_cumsum_plot(pve.df)
+ggsave(plot=pltA,filename=plot.dir%&%"pca_scree_cumsum_uncentered_NO-ISR-dist-coding-other.png",
+       height=6,width=4)
+
+pltB <- loading_plot(pr.out)
+ggsave(plot=pltB,filename=plot.dir%&%"pca_loading_uncentered_No-ISR-dist-coding-other.png",
+       height=6,width=8)
+
+pcplt <- pca_annotated_plot(full.df,pr.out,"PC1","PC2","islet_shared_strong_enhancer")
+ggsave(plot=pcplt,filename=plot.dir%&%"pca_uncentered_pc1_pc2_isl-shar-strenh_NO-ISR-dist-coding-other.png",height=4,width=6)
+pcplt <- pca_annotated_plot(full.df,pr.out,"PC1","PC2","islet_specific_strong_enhancer")
+ggsave(plot=pcplt,filename=plot.dir%&%"pca_uncentered_pc1_pc2_isl-spec-strenh_NO-ISR-dist-coding-other.png",height=4,width=6)
+pcplt <- pca_annotated_plot(full.df,pr.out,"PC3","PC6","adipose_specific_strong_enhancer")
+ggsave(plot=pcplt,filename=plot.dir%&%"pca_uncentered_pc3_pc6_adi-spec-strenh_NO-ISR-dist-coding-other.png",height=4,width=6)
+pcplt <- pca_annotated_plot(full.df,pr.out,"PC3","PC6","muscle_specific_weak_enhancer")
+ggsave(plot=pcplt,filename=plot.dir%&%"pca_uncentered_pc3_pc6_mus-spec-weakenh_NO-ISR-dist-coding-other.png",height=4,width=6)
+```
+
+
+## Removing distance, coding, islet_shared_repressed, and other  (centered/scaled)
+
+```{r}
+
+full.df <- fread(file.dir %&% "full_best-joint_ppa-prop.txt")
+df <- dplyr::select(full.df,-one_of("Locus.ID","islet_shared_repressed","distance_tss_0_5000",
+                                    "coding","other")) %>% scale(.,center=TRUE,scale=TRUE)
+refseq <- map(1:dim(full.df)[1],function(i){
+  loc <- full.df$Locus.ID[i]
+  gene <- filter(block99.df,Locus.ID==loc)$refseq
+}) %>% as.character(.)
+full.df$refseq <- refseq
+full.df$Plot.ID <- full.df$Locus.ID %&% ": " %&% full.df$refseq
+
+pr.out <- prcomp(df,scale=TRUE)
+pr.out$sdev # standard deviations of each principal compoment
+pr.var <- pr.out$sdev^2 # Getting the variance explained by each PC 
+pve<-pr.var/sum(pr.var)
+cumulsum<- cumsum(pve)
+pve.df <- data.frame(PC=c(1:length(pve)),pve,cumulsum)
+
+pltA <- scree_cumsum_plot(pve.df)
+ggsave(plot=pltA,filename=plot.dir%&%"pca_scree_cumsum_centered_NO-ISR-dist-coding-other.png",
+       height=6,width=4)
+
+pltB <- loading_plot(pr.out)
+ggsave(plot=pltB,filename=plot.dir%&%"pca_loading_centered_No-ISR-dist-coding-other.png",
+       height=6,width=8)
+
+pcplt <- pca_annotated_plot(full.df,pr.out,"PC1","PC2","islet_shared_strong_enhancer")
+ggsave(plot=pcplt,filename=plot.dir%&%"pca_centered_pc1_pc2_isl-shar-strenh_NO-ISR-dist-coding-other.png",height=4,width=6)
+pcplt <- pca_annotated_plot(full.df,pr.out,"PC1","PC2","islet_specific_strong_enhancer")
+ggsave(plot=pcplt,filename=plot.dir%&%"pca_centered_pc1_pc2_isl-spec-strenh_NO-ISR-dist-coding-other.png",height=4,width=6)
+pcplt <- pca_annotated_plot(full.df,pr.out,"PC1","PC2","adipose_specific_strong_enhancer")
+ggsave(plot=pcplt,filename=plot.dir%&%"pca_centered_pc1_pc2_adi-spec-strenh_NO-ISR-dist-coding-other.png",height=4,width=6)
+pcplt <- pca_annotated_plot(full.df,pr.out,"PC1","PC2","liver_specific_strong_enhancer")
+ggsave(plot=pcplt,filename=plot.dir%&%"pca_centered_pc1_pc2_liv-spec-strenh_NO-ISR-dist-coding-other.png",height=4,width=6)
+pcplt <- pca_annotated_plot(full.df,pr.out,"PC1","PC2","muscle_specific_weak_enhancer")
+ggsave(plot=pcplt,filename=plot.dir%&%"pca_centered_pc1_pc2_mus-spec-weakenh_NO-ISR-dist-coding-other.png",height=4,width=6)
+pcplt <- pca_annotated_plot(full.df,pr.out,"PC1","PC2","islet_specific_bivalent_tss")
+ggsave(plot=pcplt,filename=plot.dir%&%"pca_centered_pc1_pc2_isl-spec-bivtss_NO-ISR-dist-coding-other.png",height=4,width=6)
+pcplt <- pca_annotated_plot(full.df,pr.out,"PC1","PC2","islet_shared_promoter")
+ggsave(plot=pcplt,filename=plot.dir%&%"pca_centered_pc1_pc2_isl-share-strprom_NO-ISR-dist-coding-other.png",height=4,width=6)
+
+```
+
+## COMPACT DATA FRAME ANALYSIS: Removing distance, coding, islet_shared_repressed, and other  (centered/scaled)
+
+```{r}
+
+full.df <- fread(file.dir %&% "compact_best-joint_ppa-prop.txt")
+df <- dplyr::select(compact.df,-one_of("Locus.ID","islet_shared_repressed","distance_tss_0_5000",
+                                    "coding","other")) %>% scale(.,center=TRUE,scale=TRUE)
+refseq <- map(1:dim(full.df)[1],function(i){
+  loc <- full.df$Locus.ID[i]
+  gene <- filter(block99.df,Locus.ID==loc)$refseq
+}) %>% as.character(.)
+full.df$refseq <- refseq
+full.df$Plot.ID <- full.df$Locus.ID %&% ": " %&% full.df$refseq
+
+pr.out <- prcomp(df,scale=TRUE)
+pr.out$sdev # standard deviations of each principal compoment
+pr.var <- pr.out$sdev^2 # Getting the variance explained by each PC 
+pve<-pr.var/sum(pr.var)
+cumulsum<- cumsum(pve)
+pve.df <- data.frame(PC=c(1:length(pve)),pve,cumulsum)
+
+pltA <- scree_cumsum_plot(pve.df)
+ggsave(plot=pltA,filename=plot.dir%&%"pca_scree_cumsum_centered_COMPACT.png",
+       height=6,width=4)
+
+pltB <- loading_plot(pr.out)
+ggsave(plot=pltB,filename=plot.dir%&%"pca_loading_centered_COMPACT.png",
+       height=6,width=8)
+
+pcplt <- pca_annotated_plot(full.df,pr.out,"PC1","PC2","adipose")
+ggsave(plot=pcplt,filename=plot.dir%&%"pca_centered_pc1_pc2_adipose_COMPACT.png",height=4,width=6)
+pcplt <- pca_annotated_plot(full.df,pr.out,"PC1","PC2","islet_regulatory")
+ggsave(plot=pcplt,filename=plot.dir%&%"pca_centered_pc1_pc2_isl-reg_COMPACT.png",height=4,width=6)
+pcplt <- pca_annotated_plot(full.df,pr.out,"PC1","PC2","liver")
+ggsave(plot=pcplt,filename=plot.dir%&%"pca_centered_pc1_pc2_liver_COMPACT.png",height=4,width=6)
+pcplt <- pca_annotated_plot(full.df,pr.out,"PC1","PC2","muscle")
+ggsave(plot=pcplt,filename=plot.dir%&%"pca_centered_pc1_pc2_muscle_COMPACT.png",height=4,width=6)
+pcplt <- pca_annotated_plot(full.df,pr.out,"PC1","PC2","islet_bivalent_tss")
+ggsave(plot=pcplt,filename=plot.dir%&%"pca_centered_pc1_pc2_islt-biv_COMPACT.png",height=4,width=6)
+
+
+```
+
+
+
+
+# Hierarchical clustering 
+
+
+
+
+```{r}
+
+library("ggdendro")
+
+full.df <- fread(file.dir %&% "full_best-joint_ppa-prop.txt")
+df <- dplyr::select(full.df,-one_of("Locus.ID","islet_shared_repressed","distance_tss_0_5000",
+                                    "coding","other")) %>% scale(.,center=TRUE,scale=TRUE) %>% as.data.frame(.,stringsAsFactors=TRUE)
+refseq <- map(1:dim(full.df)[1],function(i){
+  loc <- full.df$Locus.ID[i]
+  gene <- filter(block99.df,Locus.ID==loc)$refseq
+}) %>% as.character(.)
+df$refseq <- refseq
+df$Plot.ID <- full.df$Locus.ID %&% ": " %&% df$refseq
+
+dist.df <- dplyr::select(df,-one_of("refseq","Plot.ID")) %>% as.data.frame(.)
+row.names(dist.df) <- df$Plot.ID
+
+#dist.df <- dist.df[1:60,]
+dist.df <- dist.df[1:406,]
+
+data.dist <- dist(dist.df)
+plot(hclust(data.dist),main="Complete Linkage",xlab="",ylab="")
+
+
+hc <- hclust(dist(dist.df),method = "complete")
+#ggdendrogram(hc,rotate=FALSE,size=2)
+
+dhc <- as.dendrogram(hc)
+ddata <- dendro_data(dhc,type="rectangle")
+lab.df <- label(ddata)
+
+Max.Annot <- as.character(map(as.character(lab.df$label),function(id){
+  i <- match(id,row.names(dist.df))
+  vec <- dist.df[i,]
+  vecmax <- max(vec)
+  coli <-match(vecmax,vec)
+  maxannot <- names(dist.df)[coli]
+  return(maxannot)
+}))
+
+lab.df$Max.Annot <- Max.Annot
+
+p <- ggplot(segment(ddata)) + 
+  geom_segment(aes(x = x, y = y, xend = xend, yend = yend)) + 
+  coord_flip() + 
+  geom_label(data=lab.df,aes(x=x,y=y-4,label=label,fill=Max.Annot),
+             label.size=0.1,size=2) + 
+  scale_y_reverse(expand = c(0.2, 0)) + 
+  scale_fill_brewer(palette="Spectral") + 
+  theme_bw()
+#ggsave(plot=p,filename=plot.dir%&%"cluster_scaled_dummy.png",height=15,width=15,limitsize=FALSE)
+ggsave(plot=p,filename=plot.dir%&%"cluster_scaled.png",height=40,width=10,limitsize=FALSE)
+```
+
+## COMPACT 
+
+```{r}
+
+library("ggdendro")
+
+compact.df <- fread(file.dir %&% "compact_best-joint_ppa-prop.txt")
+df <- dplyr::select(compact.df,-one_of("Locus.ID","islet_shared_repressed","distance_tss_0_5000",
+                                    "coding","other")) %>% scale(.,center=TRUE,scale=TRUE) %>% as.data.frame(.,stringsAsFactors=TRUE)
+refseq <- map(1:dim(compact.df)[1],function(i){
+  loc <- compact.df$Locus.ID[i]
+  gene <- filter(block99.df,Locus.ID==loc)$refseq
+}) %>% as.character(.)
+df$refseq <- refseq
+df$Plot.ID <- compact.df$Locus.ID %&% ": " %&% df$refseq
+
+dist.df <- dplyr::select(df,-one_of("refseq","Plot.ID")) %>% as.data.frame(.)
+row.names(dist.df) <- df$Plot.ID
+
+#dist.df <- dist.df[1:60,]
+dist.df <- dist.df[1:406,]
+
+data.dist <- dist(dist.df)
+plot(hclust(data.dist),main="Complete Linkage",xlab="",ylab="")
+
+
+hc <- hclust(dist(dist.df),method = "complete")
+#ggdendrogram(hc,rotate=FALSE,size=2)
+
+dhc <- as.dendrogram(hc)
+ddata <- dendro_data(dhc,type="rectangle")
+lab.df <- label(ddata)
+
+Max.Annot <- as.character(map(as.character(lab.df$label),function(id){
+  i <- match(id,row.names(dist.df))
+  #vec <- dist.df[i,]
+  vec <- compact.df[i,2:dim(compact.df)[2]]
+  vecmax <- max(vec)
+  coli <-match(vecmax,vec)
+  #maxannot <- names(dist.df)[coli]
+  maxannot <- names(compact.df)[coli+1]
+  return(maxannot)
+}))
+
+lab.df$Max.Annot <- Max.Annot
+
+p <- ggplot(segment(ddata)) + 
+  geom_segment(aes(x = x, y = y, xend = xend, yend = yend)) + 
+  coord_flip() + 
+  geom_label(data=lab.df,aes(x=x,y=y-4,label=label,fill=Max.Annot),
+             label.size=0.1,size=2) + 
+  scale_y_reverse(expand = c(0.2, 0)) + 
+  scale_fill_brewer(palette="Spectral") + 
+  theme_bw()
+
+ #ggsave(plot=p,filename=plot.dir%&%"cluster_scaled_dummy_COMPACT.png",height=15,width=15,limitsize=FALSE)
+ ggsave(plot=p,filename=plot.dir%&%"cluster_scaled_COMPACT_updated.png",height=40,width=20,limitsize=FALSE)
+ 
+ #
+```
+
+
+
+
+
