@@ -32,11 +32,12 @@ build_ess_df <- function(my.start,my.end){
   ess.df <- c() 
   ens.vec <- islet.tpm.df$GeneID
   maxval = my.end-my.start
-  pb <- txtProgressBar(min=0,max=maxval,style=3)
+  #pb <- txtProgressBar(min=0,max=maxval,style=3)
   count = 0
   for (i in my.start:my.end){
     count <- count + 1 
-    setTxtProgressBar(pb,count)
+    print(count)
+    #setTxtProgressBar(pb,count)
     ens <- ens.vec[i]
     ensname <- filter(islet.tpm.df,GeneID==ens)$GeneName
     islet.vec <- filter(islet.tpm.df,GeneID==ens) %>% dplyr::select(.,-one_of("GeneID","GeneName")) %>% as.numeric(.)
