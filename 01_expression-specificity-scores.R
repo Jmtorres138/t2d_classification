@@ -32,8 +32,10 @@ build_ess_df <- function(my.start,my.end){
   ess.df <- c() 
   ens.vec <- islet.tpm.df$GeneID
   pb <- txtProgressBar(min=0,max=(my.end-my.start),style=3)
+  count = 0
   for (i in my.start:my.end){
-    setTxtProgressBar(pb,i)
+    count <- count + 1 
+    setTxtProgressBar(pb,count)
     ens <- ens.vec[i]
     ensname <- filter(islet.tpm.df,GeneID==ens)$GeneName
     islet.vec <- filter(islet.tpm.df,GeneID==ens) %>% dplyr::select(.,-one_of("GeneID","GeneName")) %>% as.numeric(.)
