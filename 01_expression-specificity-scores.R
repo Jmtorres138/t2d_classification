@@ -15,8 +15,8 @@ gtex.dir <- serv.dir %&% "datasets/GTEx/v7/"
 
 args <- commandArgs(trailingOnly=TRUE)
 
-my.start <- args[1]
-my.end <- args[2]
+my.start <- as.integer(args[1])
+my.end <- as.integer(args[2])
 
 ensid.v2.df <- read.table(afile.dir%&%"gencode.v19.gene_lengths.txt",header=TRUE,
                           stringsAsFactors=FALSE)
@@ -32,12 +32,11 @@ build_ess_df <- function(my.start,my.end){
   ess.df <- c() 
   ens.vec <- islet.tpm.df$GeneID
   maxval = my.end-my.start
-  #pb <- txtProgressBar(min=0,max=maxval,style=3)
+  pb <- txtProgressBar(min=0,max=maxval,style=3)
   count = 0
   for (i in my.start:my.end){
     count <- count + 1 
-    print(count)
-    #setTxtProgressBar(pb,count)
+    setTxtProgressBar(pb,count)
     ens <- ens.vec[i]
     ensname <- filter(islet.tpm.df,GeneID==ens)$GeneName
     islet.vec <- filter(islet.tpm.df,GeneID==ens) %>% dplyr::select(.,-one_of("GeneID","GeneName")) %>% as.numeric(.)
