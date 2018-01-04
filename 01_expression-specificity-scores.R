@@ -51,7 +51,7 @@ build_ess_df <- function(my.start,my.end){
   return(ess.df)
 }
 
-ess.df <- build_ess_df()
+ess.df <- build_ess_df(my.start,my.end)
 
 write.table(ess.df,file=afile.dir %&%"expression_specificity_scores_indices_" %&% my.start %&% "-" %&% my.end %&% ".txt",
             sep="\t",quote=F,row.names=F)
