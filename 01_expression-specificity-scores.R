@@ -7,10 +7,6 @@
 
 library("tidyverse")
 library("data.table")
-library("Homo.sapiens")
-library("GenomicRanges")
-library('rtracklayer')
-
 
 serv.dir <- "/well/mccarthy/users/jason/"
 work.dir <- serv.dir %&% "projects/t2d_classification/"
