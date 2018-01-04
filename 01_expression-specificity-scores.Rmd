@@ -276,7 +276,7 @@ build_ess_df <- function(){
   ess.df <- c() 
   ens.vec <- islet.tpm.df$GeneID
   pb <- txtProgressBar(min=0,max=length(ens.vec),style=3)
-  loop <- map(1:length(ens.vec),function(i){
+  for (i in 1:length(ens.vec)){
     setTxtProgressBar(pb,i)
     ens <- ens.vec[i]
     ensname <- filter(islet.tpm.df,GeneID==ens)$GeneName
@@ -291,7 +291,7 @@ build_ess_df <- function(){
     liver.score <- median(liv.vec) / tot 
     build.df <- data.frame(GeneID=ens,GeneName=ensname,islet.score,muscle.score,adipose.score,liver.score,stringsAsFactors=FALSE)
     ess.df <- rbind(ess.df,build.df)
-  })
+  }
   return(ess.df)
 }
 
