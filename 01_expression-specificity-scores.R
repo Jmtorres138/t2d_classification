@@ -31,7 +31,8 @@ liv.tpm.df <- fread(afile.dir%&%"liver"%&%"_expression_tpm.txt")
 build_ess_df <- function(my.start,my.end){
   ess.df <- c() 
   ens.vec <- islet.tpm.df$GeneID
-  pb <- txtProgressBar(min=0,max=(my.end-my.start),style=3)
+  maxval = my.end-my.start
+  pb <- txtProgressBar(min=0,max=maxval,style=3)
   count = 0
   for (i in my.start:my.end){
     count <- count + 1 
