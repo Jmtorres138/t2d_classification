@@ -1,0 +1,134 @@
+---
+title: "Divvy coding PPA"
+author: "Jason Torres"
+date: "January 8, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+library("Homo.sapiens")
+
+serv.dir <- "/Users/jtorres/FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "method_A/"
+out.dir <- work.dir %&% "analysis_files/"
+ess.dir <- proj.dir %&% "analysis_files/"
+
+ess.df <- fread(ess.dir %&% "expression_specificity_scores.txt")
+blk.df <- fread(work.dir %&% "multi_results/results_blocks.txt")
+ppa.df <- fread(out.dir %&%"full_best-joint_ppa-prop.txt")
+
+
+sym.ids <- unique(keys(Homo.sapiens, keytype = "SYMBOL"))
+sym.df <- select(Homo.sapiens,key=sym.ids,keytype="SYMBOL",
+                 columns=c("ENSEMBL")) 
+
+```
+
+
+# Determine number of loci will not be able to be directly evaluated (will uniformly divvy ppa for these loci)
+
+```{r}
+
+locid_to_symbol <- function(locid){
+  return(filter(blk.df,Locus.ID==locid)$refseq %>% as.character(.))
+}
+
+
+check <- map(ppa.df$Locus.ID,function(locid){
+  sym <- locid_to_symbol(locid)
+  sub <- filter(ess.df,GeneName==sym)
+  if (dim(sub)[1] == 0){
+    ensid <- filter(sym.df,SYMBOL==sym)$ENSEMBL %&% "." 
+    if (length(ensid) > 1){
+      sub1 <- filter(ess.df,grepl(pattern=ensid[1],GeneID,fixed=TRUE))
+      sub2 <- filter(ess.df,grepl(pattern=ensid[2],GeneID,fixed=TRUE))
+      sub <- rbind(sub1,sub2)
+    } else{
+      sub <- filter(ess.df,grepl(pattern=ensid,GeneID,fixed=TRUE))
+    }
+  }
+  if (dim(sub)[1] == 1){
+    return(NA)
+  } else{
+    print(c(locid,sym))
+    return(filter(ppa.df,Locus.ID==locid)$coding)
+  }}) %>% as.numeric(.) %>% na.omit(.)
+
+
+```
+
+
+There are 23 loci that can't be linked to an ensid with ESS information, however, the max PPA is only 0.10 and the median and mean are 0 and 0.12, respectively. Therefore, don't expect this will have a meaningful effect on the results (especially since PPA will be divvied uniformly)
+
+# Divvy coding PPA 
+
+
+```{r}
+
+divvy_coding_ppa <- function(locid){
+  sym <- locid_to_symbol(locid)
+  sub <- filter(ess.df,GeneName==sym)
+  if (dim(sub)[1] == 0){
+    ensid <- filter(sym.df,SYMBOL==sym)$ENSEMBL %&% "." 
+    if (length(ensid) > 1){
+      sub1 <- filter(ess.df,grepl(pattern=ensid[1],GeneID,fixed=TRUE))
+      sub2 <- filter(ess.df,grepl(pattern=ensid[2],GeneID,fixed=TRUE))
+      sub <- rbind(sub1,sub2)
+    } else{
+      sub <- filter(ess.df,grepl(pattern=ensid,GeneID,fixed=TRUE))
+    }
+  }
+  codeval <- filter(ppa.df,Locus.ID==locid)$coding
+  if (dim(sub)[1] == 1){
+    score.vec <- c(sub$islet.score,sub$muscle.score,sub$adipose.score,sub$liver.score)
+  } else{
+    score.vec <- c(0.25,0.25,0.25,0.25)
+  }
+  divvy.vec <- codeval * score.vec
+  out.df <- data.frame(Locus.ID=locid,islet.coding=divvy.vec[1],muscle.coding=divvy.vec[2],
+                       adipose.coding=divvy.vec[3],liver.coding=divvy.vec[4],stringsAsFactors = FALSE)  
+}
+
+
+build_coding_divvy_df <- function(){
+  locids <- ppa.df$Locus.ID
+  out.df <- c()
+  pb <- txtProgressBar(min=0,max=length(locids),style=3)
+  for (i in 1:length(locids)){
+    setTxtProgressBar(pb,i)
+    locid <- locids[i]
+    build.df <- divvy_coding_ppa(locid)
+    out.df <- rbind(out.df,build.df)
+  }
+  return(out.df)
+}
+
+
+
+```
+
+
+```{r}
+
+divvy.df <- build_coding_divvy_df()
+
+aug.df <- inner_join(divvy.df,ppa.df,by="Locus.ID") %>% dplyr::select(.,-one_of("coding"))
+
+write.table(aug.df,out.dir %&%"full_best-joint_ppa-prop_divvy-coding.txt",sep="\t",row.names=FALSE,quote=FALSE)
+
+
+```
+
+
