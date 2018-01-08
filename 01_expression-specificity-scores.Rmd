@@ -106,7 +106,7 @@ islet.df <- inner_join(unstranded.df,stranded.df,by="GeneID") %>%
   dplyr::select(.,one_of("GeneID","GeneName.x",id.vec))
 
 #Warning message:
-#Unknown variables: `H262`, `ISL-79`, `R032`, `R036` 
+#Unknown variables: `H262`, `ISL-79`, `R032`, `R036` # Legacy samples, much lower read depths, wouldn't want to use these anyways, use the 114 
 # These IDs are not available in the count matrices 
 
 ensids <- islet.df$GeneID
@@ -303,4 +303,33 @@ write.table(ess.df,file=afile.dir%&%"expression_specificity_scores.txt",
 
 
 ```
+
+
+# Sanity check 
+
+```{r}
+
+ref.isl.df1 <- fread(afile.dir %&% "17.03.2017.stranded_libraries.gene.tpm.tsv")
+ref.isl.df2 <- fread(afile.dir %&% "28.03.2017.unstranded_libraries.gene.tpm.tsv")
+str(ref.isl.df1)
+ref.isl.df <- inner_join(ref.isl.df1,ref.isl.df2,by="GeneID") %>% dplyr::select(.,one_of("GeneID","GeneName.x",id.vec))
+
+g <- "ENSG00000237851.1"
+x <- filter(ref.isl.df,GeneID==g) %>% dplyr::select(.,-one_of("GeneID","GeneName","GeneName.x")) %>% as.numeric(.)
+y <- filter(islet.tpm.df,GeneID==g) %>% dplyr::select(.,-one_of("GeneID","GeneName","GeneName.x")) %>% as.numeric(.)
+
+g.vec <- islet.tpm.df$GeneID[islet.tpm.df$GeneID %in% ref.isl.df$GeneID] 
+pb <- txtProgressBar(min=0,max=1000,style=3)
+r2.vec <- map(1:1000,function(i){
+  setTxtProgressBar(pb,i)
+  g <- g.vec[i]
+  x <- filter(ref.isl.df,GeneID==g) %>% dplyr::select(.,-one_of("GeneID","GeneName","GeneName.x")) %>% as.numeric(.)
+  y <- filter(islet.tpm.df,GeneID==g) %>% dplyr::select(.,-one_of("GeneID","GeneName","GeneName.x")) %>% as.numeric(.)
+  cor.test(x,y)$estimate %>% as.numeric(.)
+}) %>% as.numeric()
+
+
+```
+
+
 
