@@ -1,0 +1,284 @@
+---
+title: "Untitled"
+author: "Jason Torres"
+date: "1/14/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Setup 
+
+```{r}
+set.seed(1)
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+library("Homo.sapiens")
+
+
+serv.dir1 <- "/Users/jtorres/FUSE/"
+serv.dir2 <- "/Users/jtorres/FUSE5/"
+
+proj.dir <- serv.dir2 %&% "projects/t2d_classification/"
+
+```
+
+Load in GWAS file and calculate MAF for each SNP in the dataset 
+
+```{r}
+
+gwas.dir <- serv.dir1 %&% "reference/gwas/diamante-ukbb_hrc/"
+gwas.df <- fread(gwas.dir %&% "ukbb_diamante-euro.bed") # will take a while to load, 0.681 GB file 
+names(gwas.df) <- c("CHR","POS0","POS","SNPID","Freq","Z","PVAL","NCASE","NCONTROL")
+
+pb <- txtProgressBar(min=0,max=dim(gwas.df)[1],style=3)
+gwas.df$MAF <- map(1:dim(gwas.df)[1],function(i){
+  setTxtProgressBar(pb,i)
+  freq <- gwas.df$Freq[i]
+  return(min(freq,1-freq))
+}) %>% as.numeric(.)
+
+#g.df <- dplyr::select(gwas.df,SNPID,MAF); g.df <- g.df[!duplicated(g.df),]
+
+rare.snps <- filter(gwas.df, MAF < 0.005)$SNPID
+low.freq.snps <- filter(gwas.df, MAF >= 0.005 & MAF < 0.05)$SNPID
+high.freq.snps <- filter(gwas.df, MAF >= 0.05)$SNPID
+
+```
+
+
+# Prepare eqtl SNP vectors 
+
+
+GTEx (Liver, Adipose, Muscle)
+
+
+```{r}
+
+gtex.dir <- serv.dir2 %&% "datasets/GTEx/v7/eqtl/GTEx_Analysis_v7_eQTL/"
+
+liv.df <- fread("cat " %&% gtex.dir %&% "Liver.v7.signif_variant_gene_pairs.txt.gz" %&% " | zmore")
+mus.df <- fread("cat " %&% gtex.dir %&% "Muscle_Skeletal.v7.signif_variant_gene_pairs.txt.gz" %&% " | zmore")
+adi.df <- fread("cat " %&% gtex.dir %&% "Adipose_Subcutaneous.v7.signif_variant_gene_pairs.txt.gz" %&% " | zmore")
+
+pb <- txtProgressBar(min=0,max=dim(liv.df)[1],style=3)
+liv.eqtls <- map(1:length(liv.df$variant_id),function(i){
+  setTxtProgressBar(pb,i)
+  vec <- liv.df$variant_id[i] %>% strsplit(.,split="_")
+  id <- "chr" %&% vec[[1]][1] %&% ":" %&% vec[[1]][2]
+}) %>% as.character(.)
+
+pb <- txtProgressBar(min=0,max=dim(mus.df)[1],style=3)
+mus.eqtls <- map(1:length(mus.df$variant_id),function(i){
+  setTxtProgressBar(pb,i)
+  vec <- mus.df$variant_id[i] %>% strsplit(.,split="_")
+  id <- "chr" %&% vec[[1]][1] %&% ":" %&% vec[[1]][2]
+}) %>% as.character(.)
+
+pb <- txtProgressBar(min=0,max=dim(adi.df)[1],style=3)
+adi.eqtls <- map(1:length(adi.df$variant_id),function(i){
+  setTxtProgressBar(pb,i)
+  vec <- adi.df$variant_id[i] %>% strsplit(.,split="_")
+  id <- "chr" %&% vec[[1]][1] %&% ":" %&% vec[[1]][2]
+}) %>% as.character(.)
+
+```
+
+
+Islet (Oxford)
+
+```{r}
+
+islet.dir <- serv.dir1 %&% "reference/islet/eqtls/oxford/nominal_pass/output/"
+islet.df <- fread("cat " %&% islet.dir %&% "snp_keyfile_fdr05.txt.gz" %&% " | zmore")
+pb <- txtProgressBar(min=0,max=dim(islet.df)[1],style=3)
+islet.eqtls <- map(1:dim(islet.df)[1],function(i){
+  setTxtProgressBar(pb,i)
+  vec <- c(islet.df$CHR[i],islet.df$POS[i])
+  id <- vec[1] %&% ":" %&% vec[2]
+}) %>% as.character(.)
+
+
+```
+
+
+
+# Developing enrichment functions 
+
+
+Enrichment functions 
+
+```{r}
+
+get_overlap <- function(query.vec,eqtl.vec){
+  sum(query.vec %in% eqtl.vec)
+}
+
+get_maf_matched_null_vec <- function(query.vec){
+  sub.df <- filter(gwas.df,SNPID%in%query.vec)
+  non.dup.df <- sub.df[!duplicated(sub.df$SNPID),]  # dup.df <- sub.df[duplicated(sub.df$SNPID),]
+  maf.vec <- non.dup.df$MAF
+  rare.count <- sum(maf.vec < 0.005)
+  low.freq.count <- sum(maf.vec >= 0.005 & maf.vec < 0.05) # MAF >= 0.005 & MAF < 0.05
+  high.freq.count <- sum(maf.vec >= 0.05) # MAF >= 0.05 
+  rare.samp <- sample(rare.snps,size=rare.count,replace=FALSE)
+  low.freq.samp <- sample(low.freq.snps,size=low.freq.count,replace=FALSE)
+  high.freq.samp <- sample(high.freq.snps,size=high.freq.count,replace=FALSE)
+  null.vec <- c(rare.samp,low.freq.samp,high.freq.samp)
+  return(null.vec)
+}
+
+enrich_test <- function(query.vec,eqtl.vec,iter){
+  obs <- get_overlap(query.vec,eqtl.vec)
+  null.counts <- c()
+  pb <- txtProgressBar(min=0,max=iter,style=3)
+  for (i in 1:iter){
+    setTxtProgressBar(pb,i)
+    null.vec <- get_maf_matched_null_vec(query.vec)
+    nullcount <- get_overlap(null.vec,eqtl.vec)
+    null.counts <- append(null.counts,nullcount)
+  }
+  pval <- (sum(null.counts >= obs) + 1)/ (iter + 1)
+  fac <- obs / mean(null.counts)
+  out.df <- data.frame(observed=obs,enrichment=fac,pvalue=pval,stringsAsFactors = FALSE)
+}
+
+enrich_test_across_tissue <- function(query.vec,iter){
+  print("islets..."); df1 <- enrich_test(query.vec,islet.eqtls,iter)
+  print("liver..."); df2 <- enrich_test(query.vec,liv.eqtls,iter)
+  print("adipose..."); df3 <- enrich_test(query.vec,adi.eqtls,iter)
+  print("muscle..."); df4 <- enrich_test(query.vec,mus.eqtls,iter)
+  out.df <- rbind(tissue=c("islet","liver","adipose","mucle"),df1,df2,df3,df4)
+  out.df$tissue <- as.character(out.df$tissue)
+  return(out.df)
+}
+
+```
+
+
+Testing 
+
+```{r}
+
+fcred.dir <- serv.dir2 %&% "projects/t2d_classification/method_A/multi_results/"
+fcred.df <- fread(fcred.dir %&% "results_func-cred-sets.txt")
+all.fcred.snps <- fcred.df$SNPID %>% unique(.) # length = 117522
+
+test.vec <- gwas.df$SNPID[sample(1:dim(gwas.df)[1],117522)]
+
+test.df <- enrich_test_across_tissue(test.vec,iter=100)
+enrich.df <- enrich_test_across_tissue(all.fcred.snps,iter=100)
+
+
+```
+
+
+
+# Determine thresholds 
+
+```{r}
+
+ppa.df <- fread(serv.dir2 %&% "projects/t2d_classification/method_A/analysis_files/" %&% "full_best-joint_ppa-prop_divvy-coding.txt")
+
+collapse_ppa_df <- function(ppa.df){
+  part.ppa.df <- c()
+  pb <- txtProgressBar(min=0,max=dim(ppa.df)[1],style=3)
+  for (i in 1:dim(ppa.df)[1]){
+    setTxtProgressBar(pb,i)
+    r <- ppa.df[i,] %>% as.data.frame(.)
+    na.vec <- (1:dim(r)[2])[is.na(r) %>% as.logical(.)]
+    r[,na.vec] <- 0
+    islet <- dplyr::select(r,one_of("islet.coding","islet_specific_strong_enhancer",
+                                    "islet_specific_gene_transcription","islet_specific_bivalent_tss",
+                                    "islet_shared_strong_enhancer","islet_shared_promoter")) %>% as.numeric(.) %>% sum(.)
+    adipose <- dplyr::select(r,one_of("adipose.coding","adipose_specific_strong_enhancer")) %>% as.numeric(.) %>% sum(.)
+    liver <- dplyr::select(r,one_of("liver.coding","liver_specific_strong_enhancer",
+                                    "liver_specific_genic_enhancer")) %>% as.numeric(.) %>% sum(.)
+    muscle <- dplyr::select(r,one_of("muscle.coding","muscle_specific_weak_enhancer",
+                                     "muscle_specific_genic_enhancer")) %>% as.numeric(.) %>% sum(.)
+    build.df <- data.frame(Locus.ID=r$Locus.ID,islet,liver,adipose,muscle,stringsAsFactors=FALSE)
+    part.ppa.df <- rbind(part.ppa.df,build.df)
+  } 
+  return(part.ppa.df)
+}
+
+evaluate_threshold <- function(x,collapse.df,iter){
+  # x is evaluated threshold
+  classified <- map(collapse.df$Locus.ID,function(id){
+    sub <- filter(collapse.df,Locus.ID==id) %>% dplyr::select(-one_of("Locus.ID")) %>% 
+      sort(.,decreasing=TRUE) %>% as.data.frame(.)
+    tiss <- names(sub)[1]
+    val <- sub[,1]
+    tiss <- ifelse(val>=x,tiss,"unclassified")
+    return(tiss)
+  }) %>% as.character(.)
+  islet.loci <- collapse.df$Locus.ID[classified=="islet"]
+  liver.loci <- collapse.df$Locus.ID[classified=="liver"]
+  adipose.loci <- collapse.df$Locus.ID[classified=="adipose"]
+  muscle.loci <- collapse.df$Locus.ID[classified=="muscle"]
+  islet.snps <- filter(fcred.df,Locus.ID %in% islet.loci)$SNPID
+  liver.snps <- filter(fcred.df,Locus.ID %in% liver.loci)$SNPID
+  adipose.snps <- filter(fcred.df,Locus.ID %in% adipose.loci)$SNPID
+  muscle.snps <- filter(fcred.df,Locus.ID %in% muscle.loci)$SNPID
+  df1 <- enrich_test(islet.snps,islet.eqtls,iter)
+  df2 <- enrich_test(liver.snps,liv.eqtls,iter)
+  df3 <- enrich_test(adipose.snps,adi.eqtls,iter)
+  df4 <- enrich_test(muscle.snps,mus.eqtls,iter)
+  df0 <- data.frame(tissue=c("islet","liver","adipose","muscle"))
+  out.df <- rbind(df1,df2,df3,df4)
+  out.df <- cbind(df0,out.df)
+  out.df$tissue <- as.character(out.df$tissue)
+  out.df$threshold <- rep(x,dim(out.df)[1])
+  return(out.df)
+}
+
+evaluate_thresholds <- function(x.vec=seq(0,1,0.05),collapse.df,iter){
+  out.df <- c()
+  for (x in x.vec){
+    print(x)
+    build.df <- evaluate_threshold(x,collapse.df,iter)
+    out.df <- rbind(out.df,build.df)
+  }
+  return(out.df)
+}
+
+reformat_threshold_df <- function(thresh.df){
+  out.df <- c()
+  x.vec <- thresh.df$threshold %>% unique(.) %>% sort(.)
+  pb <- txtProgressBar(min=0,max=length(x.vec),style=3)
+  for (i in 1:length(x.vec)){
+    setTxtProgressBar(pb,i)
+    x <- x.vec[i]
+    sub <- filter(thresh.df,threshold==x) %>% as.data.frame(.)
+    build.df <- data.frame(threshold=x,islet=filter(sub,tissue=="islet")$enrichment,
+                           liver=filter(sub,tissue=="liver")$enrichment,
+                           adipose=filter(sub,tissue=="adipose")$enrichment,
+                           muscle=filter(sub,tissue=="muscle")$enrichment)
+    #build.df <- data.frame(threshold=x,islet=-log(filter(sub,tissue=="islet")$pvalue,base=10),
+    #                       liver=-log(filter(sub,tissue=="liver")$pvalue,base=10),
+    #                       adipose=-log(filter(sub,tissue=="adipose")$pvalue,base=10),
+    #                       muscle=-log(filter(sub,tissue=="muscle")$pvalue,base=10))
+    out.df <- rbind(out.df,build.df)
+  }
+  return(out.df)
+}
+
+
+collapse.df <- collapse_ppa_df(ppa.df)
+
+thresh.df <- evaluate_thresholds(x.vec=seq(0,1,0.05),collapse.df,iter=100)
+plot.df <- reformat_threshold_df(thresh.df)
+
+```
+
+
+
+
+
+
