@@ -1,0 +1,67 @@
+---
+title: "Expression specificity scores"
+author: "Jason Torres"
+date: "December 27, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+
+
+
+serv.dir <- "/Users/jtorres/FUSE5/"
+work.dir <- serv.dir %&% "projects/t2d_classification/"
+afile.dir <- work.dir %&% "analysis_files/"
+
+```
+
+
+Compile files 
+
+
+```{r}
+
+build_full_ess_df <- function(){
+  dir.files <- list.files(afile.dir)
+  ess.files <- dir.files[grepl("_indices_",dir.files)]
+  out.df <- c()
+  pb <- txtProgressBar(min=0,max=length(ess.files),style = 3)
+  for (i in 1:length(ess.files)){
+    setTxtProgressBar(pb,i)
+    f <- afile.dir %&% ess.files[i]
+    build.df <- fread(f)
+    out.df <- rbind(out.df,build.df)
+  }
+  out.df <- out.df[!duplicated(out.df),]
+}
+
+
+ess.df <- build_full_ess_df()
+
+
+
+```
+
+
+
+```{r}
+
+
+write.table(ess.df,file=afile.dir%&%"expression_specificity_scores.txt",
+            sep="\t",quote=F,row.names=F)
+
+
+
+```
+
