@@ -29,6 +29,8 @@ proj.dir <- serv.dir2 %&% "projects/t2d_classification/"
 
 ```
 
+
+
 Load in GWAS file and calculate MAF for each SNP in the dataset 
 
 ```{r}
@@ -166,14 +168,14 @@ Testing
 
 ```{r}
 
-fcred.dir <- serv.dir2 %&% "projects/t2d_classification/method_A/multi_results/"
-fcred.df <- fread(fcred.dir %&% "results_func-cred-sets.txt")
-all.fcred.snps <- fcred.df$SNPID %>% unique(.) # length = 117522
+#fcred.dir <- serv.dir2 %&% "projects/t2d_classification/method_A/multi_results/"
+#fcred.df <- fread(fcred.dir %&% "results_func-cred-sets.txt")
+#all.fcred.snps <- fcred.df$SNPID %>% unique(.) # length = 117522
 
-test.vec <- gwas.df$SNPID[sample(1:dim(gwas.df)[1],117522)]
+#test.vec <- gwas.df$SNPID[sample(1:dim(gwas.df)[1],117522)]
 
-test.df <- enrich_test_across_tissue(test.vec,iter=100)
-enrich.df <- enrich_test_across_tissue(all.fcred.snps,iter=100)
+#test.df <- enrich_test_across_tissue(test.vec,iter=100)
+#enrich.df <- enrich_test_across_tissue(all.fcred.snps,iter=100)
 
 
 ```
@@ -184,44 +186,21 @@ enrich.df <- enrich_test_across_tissue(all.fcred.snps,iter=100)
 
 ```{r}
 
-ppa.df <- fread(serv.dir2 %&% "projects/t2d_classification/method_A/analysis_files/" %&% "full_best-joint_ppa-prop_divvy-coding.txt")
 
-collapse_ppa_df <- function(ppa.df){
-  part.ppa.df <- c()
-  pb <- txtProgressBar(min=0,max=dim(ppa.df)[1],style=3)
-  for (i in 1:dim(ppa.df)[1]){
-    setTxtProgressBar(pb,i)
-    r <- ppa.df[i,] %>% as.data.frame(.)
-    na.vec <- (1:dim(r)[2])[is.na(r) %>% as.logical(.)]
-    r[,na.vec] <- 0
-    islet <- dplyr::select(r,one_of("islet.coding","islet_specific_strong_enhancer",
-                                    "islet_specific_gene_transcription","islet_specific_bivalent_tss",
-                                    "islet_shared_strong_enhancer","islet_shared_promoter")) %>% as.numeric(.) %>% sum(.)
-    adipose <- dplyr::select(r,one_of("adipose.coding","adipose_specific_strong_enhancer")) %>% as.numeric(.) %>% sum(.)
-    liver <- dplyr::select(r,one_of("liver.coding","liver_specific_strong_enhancer",
-                                    "liver_specific_genic_enhancer")) %>% as.numeric(.) %>% sum(.)
-    muscle <- dplyr::select(r,one_of("muscle.coding","muscle_specific_weak_enhancer",
-                                     "muscle_specific_genic_enhancer")) %>% as.numeric(.) %>% sum(.)
-    build.df <- data.frame(Locus.ID=r$Locus.ID,islet,liver,adipose,muscle,stringsAsFactors=FALSE)
-    part.ppa.df <- rbind(part.ppa.df,build.df)
-  } 
-  return(part.ppa.df)
-}
-
-evaluate_threshold <- function(x,collapse.df,iter){
+evaluate_threshold <- function(x,input.df,iter){
   # x is evaluated threshold
-  classified <- map(collapse.df$Locus.ID,function(id){
-    sub <- filter(collapse.df,Locus.ID==id) %>% dplyr::select(-one_of("Locus.ID")) %>% 
+  classified <- map(input.df$Locus.ID,function(id){
+    sub <- filter(input.df,Locus.ID==id) %>% dplyr::select(-one_of("Locus.ID")) %>% 
       sort(.,decreasing=TRUE) %>% as.data.frame(.)
     tiss <- names(sub)[1]
     val <- sub[,1]
     tiss <- ifelse(val>=x,tiss,"unclassified")
     return(tiss)
   }) %>% as.character(.)
-  islet.loci <- collapse.df$Locus.ID[classified=="islet"]
-  liver.loci <- collapse.df$Locus.ID[classified=="liver"]
-  adipose.loci <- collapse.df$Locus.ID[classified=="adipose"]
-  muscle.loci <- collapse.df$Locus.ID[classified=="muscle"]
+  islet.loci <- input.df$Locus.ID[classified=="islet"]
+  liver.loci <- input.df$Locus.ID[classified=="liver"]
+  adipose.loci <- input.df$Locus.ID[classified=="adipose"]
+  muscle.loci <- input.df$Locus.ID[classified=="muscle"]
   islet.snps <- filter(fcred.df,Locus.ID %in% islet.loci)$SNPID
   liver.snps <- filter(fcred.df,Locus.ID %in% liver.loci)$SNPID
   adipose.snps <- filter(fcred.df,Locus.ID %in% adipose.loci)$SNPID
@@ -238,11 +217,11 @@ evaluate_threshold <- function(x,collapse.df,iter){
   return(out.df)
 }
 
-evaluate_thresholds <- function(x.vec=seq(0,1,0.05),collapse.df,iter){
+evaluate_thresholds <- function(x.vec=seq(0,1,0.05),input.df,iter){
   out.df <- c()
   for (x in x.vec){
     print(x)
-    build.df <- evaluate_threshold(x,collapse.df,iter)
+    build.df <- evaluate_threshold(x,input.df,iter)
     out.df <- rbind(out.df,build.df)
   }
   return(out.df)
@@ -270,12 +249,25 @@ reformat_threshold_df <- function(thresh.df){
 }
 
 
-collapse.df <- collapse_ppa_df(ppa.df)
+input.df <- collapse_ppa_df(ppa.df)
 
-thresh.df <- evaluate_thresholds(x.vec=seq(0,1,0.05),collapse.df,iter=100)
+thresh.df <- evaluate_thresholds(x.vec=seq(0,1,0.05),input.df,iter=100)
 plot.df <- reformat_threshold_df(thresh.df)
 
 ```
+
+
+# Run enrichment tests 
+
+##  Method A 
+
+
+```{r}
+
+input.df <- fread(proj.dir %&% "method_A/analysis_files/test_input.txt")
+
+```
+
 
 
 
