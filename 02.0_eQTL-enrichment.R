@@ -111,8 +111,7 @@ enrich_test_across_tissue <- function(query.vec,iter){
   return(out.df)
 }
 
-
-evaluate_threshold <- function(x,input.df,iter){
+evaluate_threshold <- function(x,fcred.df,input.df,iter){
   # x is evaluated threshold
   classified <- map(input.df$Locus.ID,function(id){
     sub <- filter(input.df,Locus.ID==id) %>% dplyr::select(-one_of("Locus.ID")) %>% 
@@ -142,16 +141,15 @@ evaluate_threshold <- function(x,input.df,iter){
   return(out.df)
 }
 
-evaluate_thresholds <- function(x.vec=seq(0,1,0.05),input.df,iter){
+evaluate_thresholds <- function(x.vec=seq(0,1,0.05),fcred.df,input.df,iter){
   out.df <- c()
   for (x in x.vec){
-    print(x)
-    build.df <- evaluate_threshold(x,input.df,iter)
+    print("Threshold:");print(x)
+    build.df <- evaluate_threshold(x,fcred.df,input.df,iter)
     out.df <- rbind(out.df,build.df)
   }
   return(out.df)
 }
-
 
 reformat_threshold_df <- function(thresh.df){
   out.df <- c()
@@ -173,6 +171,8 @@ reformat_threshold_df <- function(thresh.df){
   }
   return(out.df)
 }
+
+
 
 
 

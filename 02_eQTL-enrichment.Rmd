@@ -20,12 +20,14 @@ set.seed(1)
 library("tidyverse")
 library("data.table")
 library("Homo.sapiens")
-
+library("RColorBrewer")
+library("grid");library("gridExtra")
 
 serv.dir1 <- "/Users/jtorres/FUSE/"
 serv.dir2 <- "/Users/jtorres/FUSE5/"
 
 proj.dir <- serv.dir2 %&% "projects/t2d_classification/"
+
 
 ```
 
@@ -187,7 +189,7 @@ Testing
 ```{r}
 
 
-evaluate_threshold <- function(x,input.df,iter){
+evaluate_threshold <- function(x,fcred.df,input.df,iter){
   # x is evaluated threshold
   classified <- map(input.df$Locus.ID,function(id){
     sub <- filter(input.df,Locus.ID==id) %>% dplyr::select(-one_of("Locus.ID")) %>% 
@@ -217,11 +219,11 @@ evaluate_threshold <- function(x,input.df,iter){
   return(out.df)
 }
 
-evaluate_thresholds <- function(x.vec=seq(0,1,0.05),input.df,iter){
+evaluate_thresholds <- function(x.vec=seq(0,1,0.05),fcred.df,input.df,iter){
   out.df <- c()
   for (x in x.vec){
-    print(x)
-    build.df <- evaluate_threshold(x,input.df,iter)
+    print("Threshold:");print(x)
+    build.df <- evaluate_threshold(x,fcred.df,input.df,iter)
     out.df <- rbind(out.df,build.df)
   }
   return(out.df)
@@ -235,24 +237,60 @@ reformat_threshold_df <- function(thresh.df){
     setTxtProgressBar(pb,i)
     x <- x.vec[i]
     sub <- filter(thresh.df,threshold==x) %>% as.data.frame(.)
-    build.df <- data.frame(threshold=x,islet=filter(sub,tissue=="islet")$enrichment,
+    build.df1 <- data.frame(threshold=x,
+                           islet=filter(sub,tissue=="islet")$enrichment,
                            liver=filter(sub,tissue=="liver")$enrichment,
                            adipose=filter(sub,tissue=="adipose")$enrichment,
                            muscle=filter(sub,tissue=="muscle")$enrichment)
-    #build.df <- data.frame(threshold=x,islet=-log(filter(sub,tissue=="islet")$pvalue,base=10),
-    #                       liver=-log(filter(sub,tissue=="liver")$pvalue,base=10),
-    #                       adipose=-log(filter(sub,tissue=="adipose")$pvalue,base=10),
-    #                       muscle=-log(filter(sub,tissue=="muscle")$pvalue,base=10))
+    build.df2 <- data.frame(threshold=x,
+                           islet.nlpval=-log(filter(sub,tissue=="islet")$pvalue,base=10),
+                           liver.nlpval=-log(filter(sub,tissue=="liver")$pvalue,base=10),
+                           adipose.nlpval=-log(filter(sub,tissue=="adipose")$pvalue,base=10),
+                           muscle.nlpval=-log(filter(sub,tissue=="muscle")$pvalue,base=10))
+    build.df <- inner_join(build.df1,build.df2,by="threshold")
     out.df <- rbind(out.df,build.df)
   }
   return(out.df)
 }
 
 
+```
 
 
+```{r}
+
+select_classifier_threshold_plot <- function(plot.df){
+  islet.col <- "green"; adipose.col <- "gold"; muscle.col <- "red"; liver.col <- "brown"
+  val <- -log(0.05,base=10)
+  sub.df <- filter(sub.df,islet.nlpval>val&liver.nlpval>val&adipose.nlpval>val&muscle.nlpval>val)
+  plt <- ggplot(data=sub.df,aes(x=threshold)) + 
+    geom_line(aes(y=islet),col=islet.col) + geom_point(aes(y=islet,size=islet.nlpval),shape=21,fill=islet.col) + 
+    geom_line(aes(y=adipose),col=adipose.col) + geom_point(aes(y=adipose,size=adipose.nlpval),shape=21,fill=adipose.col) +     
+    geom_line(aes(y=muscle),col=muscle.col) + geom_point(aes(y=muscle,size=muscle.nlpval),shape=21,fill=muscle.col) +     
+    geom_line(aes(y=liver),col=liver.col) + geom_point(aes(y=liver,size=liver.nlpval),shape=21,fill=liver.col) + 
+    theme_bw() + theme(legend.position ="none") + ggtitle("Tissue eQTL enrichments by threshold") + ylab("enrichment")
+  
+  max.islet <- arrange(sub.df,desc(islet))$threshold[1]
+  max.adipose <- arrange(sub.df,desc(adipose))$threshold[1]
+  max.muscle <- arrange(sub.df,desc(muscle))$threshold[1]
+  max.liver <- arrange(sub.df,desc(liver))$threshold[1]
+  
+  selected.thresh <- mean(c(max.islet,max.adipose,max.muscle,max.liver))
+  
+  plot2.df <- data.frame(tissue=c("islet","liver","adipose","muscle"),max.threshold=c(max.islet,max.liver,max.adipose,max.muscle),
+                         col=c(islet.col,liver.col,adipose.col,muscle.col),stringsAsFactors = FALSE)
+  plt2 <- ggplot(data=plot2.df,aes(x=tissue,y=max.threshold)) +
+    geom_bar(stat="identity",color="black",fill=c(adipose.col,islet.col,liver.col,muscle.col)) + 
+    geom_hline(yintercept = selected.thresh,linetype=2) + 
+    ggtitle("Selected threshold: " %&% selected.thresh) + theme_bw()
+  
+  out.plt<-grid.arrange(plt,plt2)
+  #plt2
+  return(out.plt)
+}
 
 ```
+
 
 
 # Run enrichment tests 
@@ -262,9 +300,15 @@ reformat_threshold_df <- function(thresh.df){
 
 ```{r}
 
+fcred.dir <- serv.dir2 %&% "projects/t2d_classification/method_A/multi_results/"
+fcred.df <- fread(fcred.dir %&% "results_func-cred-sets.txt")
 input.df <- fread(proj.dir %&% "method_A/analysis_files/test_input.txt")
-thresh.df <- evaluate_thresholds(x.vec=seq(0,1,0.05),input.df,iter=100)
+#thresh.df <- evaluate_thresholds(x.vec=seq(0,1,0.05),fcred.df,input.df,iter=10)
+thresh.df <- fread(proj.dir %&% "temp_thresh.txt")
 plot.df <- reformat_threshold_df(thresh.df)
+
+plt <- select_classifier_threshold_plot(plot.df) 
+ggsave(plt,filename = proj.dir%&%"plots/methodA_select-thresh-eqlt.pdf",width=6,height=8)
 
 ```
 
