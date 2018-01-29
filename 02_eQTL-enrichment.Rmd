@@ -249,10 +249,8 @@ reformat_threshold_df <- function(thresh.df){
 }
 
 
-input.df <- collapse_ppa_df(ppa.df)
 
-thresh.df <- evaluate_thresholds(x.vec=seq(0,1,0.05),input.df,iter=100)
-plot.df <- reformat_threshold_df(thresh.df)
+
 
 ```
 
@@ -265,6 +263,8 @@ plot.df <- reformat_threshold_df(thresh.df)
 ```{r}
 
 input.df <- fread(proj.dir %&% "method_A/analysis_files/test_input.txt")
+thresh.df <- evaluate_thresholds(x.vec=seq(0,1,0.05),input.df,iter=100)
+plot.df <- reformat_threshold_df(thresh.df)
 
 ```
 
