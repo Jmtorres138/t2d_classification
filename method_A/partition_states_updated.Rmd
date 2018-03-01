@@ -57,16 +57,16 @@ gr_to_df <- function(gr){
 }
 
 partition_split <- function(query.vec = strong.enhancers, key.term = "strong_enhancer"){
-  df1 <- filter(isl.df,V4 %in% query.vec) %>% select(one_of("V1","V2","V3"))
+  df1 <- filter(isl.df,V4 %in% query.vec) %>% dplyr::select(one_of("V1","V2","V3"))
   gr1 <-GRanges(seqnames=df1$V1,IRanges(start=df1$V2,end=df1$V3)) %>% disjoin(.)
   
-  df2 <- filter(adi.df,V4 %in% query.vec) %>% select(one_of("V1","V2","V3"))
+  df2 <- filter(adi.df,V4 %in% query.vec) %>% dplyr::select(one_of("V1","V2","V3"))
   gr2 <-GRanges(seqnames=df2$V1,IRanges(start=df2$V2,end=df2$V3)) %>% disjoin(.)
   
-  df3 <- filter(mus.df,V4 %in% query.vec) %>% select(one_of("V1","V2","V3"))
+  df3 <- filter(mus.df,V4 %in% query.vec) %>% dplyr::select(one_of("V1","V2","V3"))
   gr3 <-GRanges(seqnames=df3$V1,IRanges(start=df3$V2,end=df3$V3)) %>% disjoin(.)
   
-  df4 <- filter(liv.df,V4 %in% query.vec) %>% select(one_of("V1","V2","V3"))
+  df4 <- filter(liv.df,V4 %in% query.vec) %>% dplyr::select(one_of("V1","V2","V3"))
   gr4 <-GRanges(seqnames=df4$V1,IRanges(start=df4$V2,end=df4$V3)) %>% disjoin(.)
   
   all.gr <- append(gr1,gr2) %>% append(.,gr3) %>% append(.,gr4) %>% disjoin(.)
@@ -147,23 +147,23 @@ partition_split <- function(query.vec = strong.enhancers, key.term = "strong_enh
   
   # Save shared subset files for future reference 
   # shared.islet.adipose.muscle, shared.islet.adipose.liver, shared.adipose.muscle.liver, shared.islet.adipose, shared.islet.muscle, shared.islet.liver, shared.adipose.muscle, shared.adipose.liver, shared.muscle.liver
-  annot.name <- "shared.islet.adipose.muscle" %&% key.term
+  annot.name <- "shared.islet.adipose.muscle." %&% key.term
   out.df <- gr_to_df(shared.islet.adipose.muscle); out.df$name <- annot.name; write.table(out.df,file=work.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)  
-  annot.name <- "shared.islet.adipose.liver" %&% key.term
+  annot.name <- "shared.islet.adipose.liver." %&% key.term
   out.df <- gr_to_df(shared.islet.adipose.liver); out.df$name <- annot.name; write.table(out.df,file=work.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)    
-  annot.name <- "shared.adipose.muscle.liver" %&% key.term
+  annot.name <- "shared.adipose.muscle.liver." %&% key.term
   out.df <- gr_to_df(shared.adipose.muscle.liver); out.df$name <- annot.name; write.table(out.df,file=work.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)   
-  annot.name <- "shared.islet.adipose" %&% key.term
+  annot.name <- "shared.islet.adipose." %&% key.term
   out.df <- gr_to_df(shared.islet.adipose); out.df$name <- annot.name; write.table(out.df,file=work.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)   
-  annot.name <- "shared.islet.muscle" %&% key.term
+  annot.name <- "shared.islet.muscle." %&% key.term
   out.df <- gr_to_df(shared.islet.muscle); out.df$name <- annot.name; write.table(out.df,file=work.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)      
-  annot.name <- "shared.islet.liver" %&% key.term
+  annot.name <- "shared.islet.liver." %&% key.term
   out.df <- gr_to_df(shared.islet.liver); out.df$name <- annot.name; write.table(out.df,file=work.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)      
-  annot.name <- "shared.adipose.muscle" %&% key.term
+  annot.name <- "shared.adipose.muscle." %&% key.term
   out.df <- gr_to_df(shared.adipose.muscle); out.df$name <- annot.name; write.table(out.df,file=work.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)      
-  annot.name <- "shared.adipose.liver" %&% key.term
+  annot.name <- "shared.adipose.liver." %&% key.term
   out.df <- gr_to_df(shared.adipose.liver); out.df$name <- annot.name; write.table(out.df,file=work.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)      
-  annot.name <- "shared.muscle.liver" %&% key.term
+  annot.name <- "shared.muscle.liver." %&% key.term
   out.df <- gr_to_df(shared.muscle.liver); out.df$name <- annot.name; write.table(out.df,file=work.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)      
   return(fgwas.out.df)
 }
@@ -203,7 +203,7 @@ df8 <- partition_split(genic.enhancer,key.term="low_signal")
 bed.df <- bind_rows(df1,df2,df3,df4,df5,df6,df7,df8)
 
 bed.df$num <- as.integer(gsub("chr","",bed.df$chr)) 
-bed.df <- bed.df %>% arrange(chr,start) %>% select(one_of("chr","start","end","name"))
+bed.df <- bed.df %>% arrange(chr,start) %>% dplyr::select(one_of("chr","start","end","name"))
 write.table(bed.df,file=work.dir%&%"complete_isl-adi-mus-liv.partitioned_updated.bed",quote=F,sep="\t",row.names=F,col.names=F)
 
 
