@@ -53,6 +53,12 @@ states.df <- rbind(shared.df,specific.df)
 
 ```{r}
 
+
+locid_to_symbol <- function(loc.id){
+  return(filter(blk.df,Locus.ID==loc.id)$refseq %>% as.character(.))
+}
+
+
 map_tissue <- function(tiss){
   num <- ifelse(tiss=="islet",1,
                 ifelse(tiss=="muscle",2,
