@@ -72,13 +72,10 @@ handle_coding <- function(loc.id,ppa){
   if (dim(sub)[1] == 1){
     score.vec <- c(sub$islet.score,sub$muscle.score,sub$adipose.score,sub$liver.score)
     if (any(is.na(score.vec)==TRUE)){
-      #score.vec <- c(0.25,0.25,0.25,0.25)
-      score.vec <- c(0.2,0.2,0.2,0.2) # allow remaining to be attributed to "other" category 
+      score.vec <- c(0.25,0.25,0.25,0.25)
     }
   } else{
-    #score.vec <- c(0.25,0.25,0.25,0.25)
-    score.vec <- c(0.2,0.2,0.2,0.2) # allow remaining to be attributed to "other" category 
-
+    score.vec <- c(0.25,0.25,0.25,0.25)
   }
   divvy.vec <- ppa * score.vec    
   return(divvy.vec)
