@@ -1,0 +1,352 @@
+---
+title: "evaluate-divvy-ppa-dfs"
+author: "Jason Torres"
+date: "3/5/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+library("Homo.sapiens")
+
+serv.dir <- "/Users/jtorres/FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "method_A/"
+analysis.dir <- work.dir %&% "analysis_files/"
+plot.dir <- work.dir %&% "plots/"
+
+```
+
+
+```{r}
+
+keep.df <- fread(proj.dir %&% "input_data/" %&% "380.locus.ID.txt")
+keep.vec <- keep.df$Locus.ID_inCREDS
+full.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full.txt") %>% 
+  filter(.,Locus.ID %in% keep.vec)
+# coding and strong enhancers (ie. cse)
+cse.df <- fread(analysis.dir %&% "tissue_ppa_divvy-coding-strongEnhancers.txt") %>%
+  filter(.,Locus.ID %in% keep.vec)
+
+```
+
+
+# Compare full versus reduced versions of the divvy ppa data frame
+
+```{r}
+
+create_plot_df <- function(){
+  loc.ids 
+  df <- rbind(mutate(full.df,method="full"),mutate(cse.df,method="reduced"))
+  loc.ids <- df$Locus.ID %>% unique(.)
+  out.df <- c()
+  pb <- txtProgressBar(min=0,max=length(loc.ids),style=3)
+  for (i in 1:length(loc.ids)){
+    loc.id <- loc.ids[i]
+    setTxtProgressBar(pb,i)
+    sub.df <- filter(df,Locus.ID==loc.id)
+    ppa.score.full <- sub.df[1,2:6] %>% as.numeric(.)
+    ppa.score.reduced <- sub.df[2,2:6] %>% as.numeric(.)
+    tissue <- names(sub.df)[2:6]
+    build.df <- data.frame(Locus.ID=loc.id,tissue,
+                           ppa.score.full,ppa.score.reduced)
+    out.df <- rbind(out.df,build.df)
+  }
+  out.df$Locus.ID <- out.df$Locus.ID %>% as.character(.)
+  out.df$tissue <- out.df$tissue %>% as.character(.)
+  return(out.df)
+}
+
+```
+
+
+Make PPA comparison plot 
+
+
+```{r}
+
+plot.df <- create_plot_df()
+
+pltA <- ggplot(data=plot.df,aes(x=ppa.score.reduced,y=ppa.score.full)) + 
+  geom_point(shape=21,color="black",aes(fill=tissue)) + 
+  facet_wrap(~tissue,nrow=3) + 
+  theme_classic() + 
+  scale_fill_brewer(palette="Set3") + 
+  theme(legend.position = "none") + 
+  xlab('ppa score (reduced)') + 
+  ylab('ppa score (full)') + 
+  ggtitle("Comparison of PPA Scores")
+
+ggsave(plot=pltA,filename=plot.dir%&%"ppa-score-compare.png",
+       height = 6,width=6)
+
+plot.df <- mutate(plot.df,ppa.score.diff=(ppa.score.full-ppa.score.reduced))
+
+pltB <- ggplot(data=plot.df,aes(x=ppa.score.diff)) +
+  geom_histogram(color="black",aes(fill=tissue)) + 
+  facet_wrap(~tissue,nrow=3) +
+  theme_classic() + 
+  scale_fill_brewer(palette = "Set3") + 
+  theme(legend.position = "none") + 
+  xlab("ppa score difference (full-reduced)") + 
+  geom_vline(xintercept = 0,linetype=2) +  
+  ggtitle("Difference in PPA Scores")
+
+ggsave(plot=pltB,filename=plot.dir%&%"ppa-score-difference.png",
+       height = 6,width=6)
+
+
+```
+
+
+## Quantify differences 
+
+
+```{r}
+
+plot.df %>% group_by(.,tissue) %>% summarise(.,mean(ppa.score.diff))
+
+plot.df %>% group_by(.,tissue) %>% summarise(.,median(ppa.score.diff))
+
+plot.df %>% group_by(.,tissue) %>% summarise(.,IQR(ppa.score.diff))
+
+filter(plot.df,tissue=="islet")$ppa.score.diff %>% summary(.)
+filter(plot.df,tissue=="adipose")$ppa.score.diff %>% summary(.)
+filter(plot.df,tissue=="muscle")$ppa.score.diff %>% summary(.)
+filter(plot.df,tissue=="liver")$ppa.score.diff %>% summary(.)
+filter(plot.df,tissue=="other")$ppa.score.diff %>% summary(.)
+
+```
+
+# Stratify by number of SNPs in functional credible set 
+
+
+```{r}
+
+fcred.df <- fread(work.dir %&% "multi_results/results_func-cred-sets.txt")
+
+look_up_number <- function(loc.id){
+  return((filter(fcred.df,Locus.ID==loc.id) %>% dim(.))[1])
+}
+
+pb <- txtProgressBar(min=0,max=dim(plot.df)[1],style=3)
+plot.df$number <- map(1:length(plot.df$Locus.ID),function(i){
+  setTxtProgressBar(pb,i)
+  loc.id <- plot.df$Locus.ID[i]
+  return(look_up_number(loc.id))
+}) %>% as.integer(.)
+
+
+ggplot(data=plot.df,aes(y=ppa.score.diff,x=number)) + 
+  geom_point(shape=21,color="black",aes(fill=tissue)) + 
+  facet_wrap(~tissue,nrow=3) + 
+  theme_classic() + 
+  scale_fill_brewer(palette = "Set3")
+
+cor.test(filter(plot.df,tissue=="islet")$number,
+         filter(plot.df,tissue=="islet")$ppa.score.diff)
+cor.test(filter(plot.df,tissue=="adipose")$number,
+         filter(plot.df,tissue=="adipose")$ppa.score.diff)
+cor.test(filter(plot.df,tissue=="muscle")$number,
+         filter(plot.df,tissue=="muscle")$ppa.score.diff)
+cor.test(filter(plot.df,tissue=="liver")$number,
+         filter(plot.df,tissue=="liver")$ppa.score.diff)
+cor.test(filter(plot.df,tissue=="other")$number,
+         filter(plot.df,tissue=="other")$ppa.score.diff)
+```
+
+Conclusion: The number of SNPs in the credible set doesn't influence the difference in ppa scores, no significant correlation 
+
+# Principal Components Analysis (PCA) Comparison 
+
+Setup 
+
+```{r}
+
+block.df <- fread(work.dir%&%"multi_results/results_blocks.txt",sep="\t")
+
+
+```
+
+
+
+PCA functions
+
+```{r}
+
+library("viridis")
+library("gridExtra")
+library("RColorBrewer")
+library("ggrepel")
+library("grid")
+
+
+make_pca_inputs <- function(ppa.df,centerScale=FALSE){
+  if(centerScale==FALSE){
+    df <- dplyr::select(ppa.df,-one_of("Locus.ID")) %>%
+      scale(.,center=FALSE,scale=FALSE)
+    pr.out <- prcomp(df,scale=FALSE)    
+  } else{
+    df <- dplyr::select(ppa.df,-one_of("Locus.ID")) %>%
+      scale(.,center=TRUE,scale=TRUE)
+    pr.out <- prcomp(df,scale=TRUE)     
+  }
+  pr.out$sdev # standard deviations of each principal compoment
+  pr.var <- pr.out$sdev^2 # Getting the variance explained by each PC 
+  pve<-pr.var/sum(pr.var)
+  cumulsum<- cumsum(pve)
+  pve.df <- data.frame(PC=c(1:length(pve)),pve,cumulsum)
+  
+  refseq <- map(1:dim(ppa.df)[1],function(i){
+    loc <- ppa.df$Locus.ID[i]
+    gene <- filter(block.df,Locus.ID==loc)$refseq
+  }) %>% as.character(.)
+  ppa.df$refseq <- refseq
+  ppa.df$Plot.ID <- ppa.df$Locus.ID %&% ": " %&% ppa.df$refseq 
+  return(list(ppa.df,pr.out,pve.df))
+}
+
+scree_cumsum_plot <- function(pve.df){
+  pltA <- ggplot(data=pve.df,aes(x=PC)) + 
+    geom_line(aes(y=pve)) + 
+    geom_point(aes(y=pve),size=3,shape=21,fill=rev(viridis(length(pve.df$PC)))) + 
+    scale_y_continuous(limits=c(0,1),breaks=seq(0,1,0.1)) + 
+    scale_x_continuous(limits=c(0,length(pve.df$PC)),breaks=seq(0,length(pve.df$PC),1)) + 
+    theme_light() + 
+    coord_cartesian(ylim=c(0,1),xlim=c(0.5,length(pve.df$PC)+0.5),expand=FALSE) + 
+    xlab("Principal Component") + ylab("Proportion of Variance Explained") + 
+    ggtitle("Variance explained by principal components") + 
+    theme(panel.grid.minor = element_blank(),
+          axis.title = element_text(size=8),
+          plot.title = element_text(size=10))
+  
+  pltB <- ggplot(data=pve.df,aes(x=PC)) + 
+    geom_line(aes(y=cumulsum)) + 
+    geom_point(aes(y=cumulsum),size=3,shape=21,fill=rev(viridis(length(pve.df$PC)))) + 
+    scale_y_continuous(limits=c(0,1),breaks=seq(0,1,0.1)) +
+    scale_x_continuous(limits=c(0,length(pve.df$PC)),breaks=seq(0,length(pve.df$PC),1)) + 
+    theme_light() + 
+    coord_cartesian(ylim=c(0,1),xlim=c(0.5,length(pve.df$PC)+0.5),expand=FALSE) + 
+    xlab("Principal Component") + ylab("Cumulative proportion of variance explained") + 
+    ggtitle("Cumulative variance explained by principal components") + 
+    theme(panel.grid.minor = element_blank(),
+          axis.title = element_text(size=8),
+          plot.title = element_text(size=10))
+
+  arrangeGrob(pltA,pltB,nrow=2)  
+}
+
+loading_plot <- function(pr.output){
+  numb <- dim(pr.output$rotation)[1]
+  pca.prop.df <- pr.output$rotation %>% as.data.frame(.,row.names=FALSE)
+  annot.vec <- gsub("_"," ",row.names(pr.output$rotation))
+  pca.prop.df <- map(1:dim(pca.prop.df)[2],function(i){
+    vec <- abs(as.numeric(pca.prop.df[,i])) # absolute value step 
+    vec <- vec / sum(vec)
+  }) %>% unlist(.) %>% matrix(.,nrow=numb,ncol=numb,byrow=FALSE) %>% as.data.frame(.)
+  
+  names(pca.prop.df) <- "PC" %&% 1:dim(pca.prop.df)[2]
+  
+  reformat.list <- map(1:dim(pca.prop.df)[1],function(i){
+    PC <- names(pca.prop.df) %>% gsub("PC","",.) %>% as.integer(.)
+    Score <- as.numeric(pca.prop.df[i,])
+    #PC <- rep(i,length(Score))
+    Annotation <- rep(annot.vec[i],length(Score))
+    sub.df <- data.frame(PC,Score,Annotation,stringsAsFactors = FALSE)
+  }) 
+  
+  out.df <- c()
+  for (i in 1:length(reformat.list)){
+    sub.df <- reformat.list[[i]]
+    out.df <- rbind(out.df,sub.df)
+  }
+  ggplot(data=out.df,aes(x=PC,y=Score,fill=Annotation)) + 
+          geom_bar(stat="identity",color="black",size=0.2) + 
+          scale_y_continuous(breaks=seq(0,1,0.1)) + 
+          scale_x_continuous(breaks=seq(0,length(unique(out.df$PC)),1)) + 
+          scale_fill_manual(values=colorRampPalette(brewer.pal(11,                                  "Spectral"))(length(unique(out.df$PC)) )) + 
+          ggtitle("PC Loading Scores for Genomic Annotations") + 
+          ylab("Loading Proportion")
+}
+
+pca_plot <- function(data.df,pca.out,pcX,pcY){
+  pca.df <- as.data.frame(pca.out$x) 
+  pca.df$Locus.ID <- data.df$Locus.ID
+  pca.df <- inner_join(data.df,pca.df,by="Locus.ID")
+  pca.df$max.tissue <- map(1:dim(pca.df)[1],function(i){
+    row.df <- pca.df[i,]
+    sub.df <- dplyr::select(row.df,
+                            one_of("islet","muscle","adipose","liver","other"))
+    index <- match(max(sub.df),sub.df)
+    ties <- sum(sub.df == max(sub.df)) > 1
+    if (ties==FALSE){
+      out.name <- names(sub.df)[index]
+    } else{
+      out.name <- "ties"#names(sub.df)[sample(index,1)]
+    }
+     # in case ties, assign to random in vector to ensure unique (arbitrary)
+  }) %>% as.character(.)
+
+
+  ggplot(data=pca.df,aes_string(x=pcX,y=pcY)) + 
+    geom_point(shape=21,size=2,color="black",
+               aes(fill=max.tissue)) + 
+    scale_fill_manual(values=c("gold1","olivedrab2","brown","red","grey","black")) + 
+    theme_classic()  
+}
+
+
+complete_pca <- function(ppa.df,centerScale,savename){
+  pca.list <- make_pca_inputs(ppa.df,centerScale)
+  scree.plt <- scree_cumsum_plot(pca.list[[3]])
+  load.plt <- loading_plot(pca.list[[2]])
+  pca.plt <- pca_plot(pca.list[[1]],pca.list[[2]],"PC1","PC2")
+  combine.plt <- grid.arrange(scree.plt,load.plt,pca.plt,nrow=1)
+}
+
+
+```
+
+
+
+
+```{r}
+
+pca.list.full <- make_pca_inputs(full.df,centerScale=FALSE) 
+# appended dataframe, pr.out, and pve.df 
+pca.list.full.cent <- make_pca_inputs(full.df,centerScale=TRUE) 
+pca.list.reduced <- make_pca_inputs(cse.df,centerScale=FALSE) 
+pca.list.reduced.cent <- make_pca_inputs(cse.df,centerScale=TRUE) 
+
+```
+
+
+```{r}
+
+scree_cumsum_plot(pca.list.full.cent[[3]])
+
+loading_plot(pca.list.full.cent[[2]])
+
+pca_plot(pca.list.full.cent[[1]],
+                   pca.list.full.cent[[2]],"PC1","PC2")
+
+plt <- complete_pca(full.df,centerScale=TRUE)
+
+```
+
+Centering seems to yield a more balanced representation in the loading plots
+
+
+
+
+
