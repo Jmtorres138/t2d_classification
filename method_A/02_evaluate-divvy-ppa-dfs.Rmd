@@ -25,6 +25,10 @@ work.dir <- proj.dir %&% "method_A/"
 analysis.dir <- work.dir %&% "analysis_files/"
 plot.dir <- work.dir %&% "plots/"
 
+block.df <- fread(work.dir%&%"multi_results/results_blocks.txt",sep="\t")
+fcred.df <- fread(work.dir %&% "multi_results/results_func-cred-sets.txt")
+
+
 ```
 
 
@@ -46,7 +50,6 @@ cse.df <- fread(analysis.dir %&% "tissue_ppa_divvy-coding-strongEnhancers.txt") 
 ```{r}
 
 create_plot_df <- function(){
-  loc.ids 
   df <- rbind(mutate(full.df,method="full"),mutate(cse.df,method="reduced"))
   loc.ids <- df$Locus.ID %>% unique(.)
   out.df <- c()
@@ -126,14 +129,51 @@ filter(plot.df,tissue=="muscle")$ppa.score.diff %>% summary(.)
 filter(plot.df,tissue=="liver")$ppa.score.diff %>% summary(.)
 filter(plot.df,tissue=="other")$ppa.score.diff %>% summary(.)
 
+
+refseq <- map(plot.df$Locus.ID,function(loc.id){
+  filter(block.df,Locus.ID==loc.id)$refseq
+}) %>% as.character(.)
+
+plot.df <- cbind(refseq,plot.df)
+plot.df$refseq <- as.character(plot.df$refseq)
+
+
+arrange(plot.df,desc(ppa.score.diff)) %>% filter(tissue=="islet") %>%
+  head(20) # See which are boosted by the full model 
+arrange(plot.df,ppa.score.diff) %>% filter(tissue=="islet") %>%
+  head(20) # See which are boosted by the reduced model
+
+arrange(plot.df,desc(ppa.score.diff)) %>% filter(tissue=="adipose") %>%
+  head(20) # See which are boosted by the full model 
+arrange(plot.df,ppa.score.diff) %>% filter(tissue=="adipose") %>%
+  head(20) # See which are boosted by the reduced model
+
+arrange(plot.df,desc(ppa.score.diff)) %>% filter(tissue=="liver") %>%
+  head(20) # See which are boosted by the full model 
+arrange(plot.df,ppa.score.diff) %>% filter(tissue=="liver") %>%
+  head(20) # See which are boosted by the reduced model
+
+filter(plot.df,refseq=="CDC123")
+filter(fcred.df,Locus.ID=="126")
+
+
+filter(plot.df,refseq=="PPARG",Locus.ID=="30_1")
+filter(fcred.df,Locus.ID=="30_1")
+
+(filter(full.df,other<0.50) %>% dim(.))[1] # 314 loci with other scores < 0.50
+(filter(cse.df,other<0.50) %>% dim(.))[1] # 148 loci with other scores < 0.50
+
+(filter(full.df,other<0.10) %>% dim(.))[1] # 237 loci with other scores < 0.50
+(filter(cse.df,other<0.10) %>% dim(.))[1] # 67 loci with other scores < 0.50
+
 ```
+
 
 # Stratify by number of SNPs in functional credible set 
 
 
 ```{r}
 
-fcred.df <- fread(work.dir %&% "multi_results/results_func-cred-sets.txt")
 
 look_up_number <- function(loc.id){
   return((filter(fcred.df,Locus.ID==loc.id) %>% dim(.))[1])
@@ -165,19 +205,38 @@ cor.test(filter(plot.df,tissue=="other")$number,
          filter(plot.df,tissue=="other")$ppa.score.diff)
 ```
 
-Conclusion: The number of SNPs in the credible set doesn't influence the difference in ppa scores, no significant correlation 
 
-# Principal Components Analysis (PCA) Comparison 
-
-Setup 
+Comparsion between other and combined tissue group 
 
 ```{r}
 
-block.df <- fread(work.dir%&%"multi_results/results_blocks.txt",sep="\t")
+comb.df <- rbind(data.frame(full.df,method="full",stringsAsFactors=FALSE),
+                 data.frame(cse.df,method="reduced",stringsAsFactors=FALSE))
+pb <- txtProgressBar(min=0,max=dim(comb.df)[1],style=3)
+comb.df$number <- map(1:length(comb.df$Locus.ID),function(i){
+  setTxtProgressBar(pb,i)
+  loc.id <- comb.df$Locus.ID[i]
+  return(look_up_number(loc.id))
+}) %>% as.integer(.)
+
+ggplot(data=filter(comb.df,method=="full"),aes(number,other)) + geom_point()
+ggplot(data=filter(comb.df,method=="reduced"),aes(number,other)) + geom_point()
+
+cor.test(filter(comb.df,method=="full")$number,
+         filter(comb.df,method=="full")$other) 
+
+cor.test(filter(comb.df,method=="reduced")$number,
+         filter(comb.df,method=="reduced")$other) 
 
 
 ```
 
+There is a slight correlation between the number of snps in credible set and other score 
+0.11, pval=0.03 (reduced ); 
+
+Conclusion: The number of SNPs in the credible set doesn't influence the difference in ppa scores between full and reduced methods, altough slight correlation with number of snps and value of the "other" score
+
+# Principal Components Analysis (PCA) Comparison 
 
 
 PCA functions
@@ -299,11 +358,60 @@ pca_plot <- function(data.df,pca.out,pcX,pcY){
 
 
   ggplot(data=pca.df,aes_string(x=pcX,y=pcY)) + 
-    geom_point(shape=21,size=2,color="black",
+    geom_point(shape=21,alpha=0.8,
+               size=2,color="black",
                aes(fill=max.tissue)) + 
     scale_fill_manual(values=c("gold1","olivedrab2","brown","red","grey","black")) + 
     theme_classic()  
 }
+
+pca_plot_annotated <- function(data.df,pca.out,pcX,pcY){
+  pca.df <- as.data.frame(pca.out$x) 
+  pca.df$Locus.ID <- data.df$Locus.ID
+  pca.df <- inner_join(data.df,pca.df,by="Locus.ID")
+  pca.df$max.tissue <- map(1:dim(pca.df)[1],function(i){
+    row.df <- pca.df[i,]
+    sub.df <- dplyr::select(row.df,
+                            one_of("islet","muscle","adipose","liver","other"))
+    index <- match(max(sub.df),sub.df)
+    ties <- sum(sub.df == max(sub.df)) > 1
+    if (ties==FALSE){
+      out.name <- names(sub.df)[index]
+    } else{
+      out.name <- "ties"#names(sub.df)[sample(index,1)]
+    }
+     # in case ties, assign to random in vector to ensure unique (arbitrary)
+  }) %>% as.character(.)
+
+  islet.df <- filter(pca.df,max.tissue=="islet") %>% 
+    arrange(.,desc(islet)) %>% head(10)
+  adipose.df <- filter(pca.df,max.tissue=="adipose") %>% 
+    arrange(.,desc(adipose)) %>% head(10)
+  liver.df <- filter(pca.df,max.tissue=="liver") %>% 
+    arrange(.,desc(liver)) %>% head(10)
+  muscle.df <- filter(pca.df,max.tissue=="muscle") %>% 
+    arrange(.,desc(muscle)) %>% head(10)
+  other.df <- filter(pca.df,max.tissue=="other") %>% 
+    arrange(.,desc(other)) %>% head(10)
+  
+  ggplot(data=pca.df,aes_string(x=pcX,y=pcY)) + 
+    geom_point(shape=21,alpha=0.8,
+               size=2,color="black",
+               aes(fill=max.tissue)) + 
+    scale_fill_manual(values=c("gold1","olivedrab2","brown","red","grey","black")) + 
+    theme_classic() + 
+    geom_label_repel(data=other.df,aes(x=PC1,y=PC2,label=refseq),
+                     size=1.5,fill="grey",alpha=0.8) + 
+    geom_label_repel(data=islet.df,aes(x=PC1,y=PC2,label=refseq),
+                     size=1.5,fill="olivedrab2",alpha=0.8) +   
+    geom_label_repel(data=adipose.df,aes(x=PC1,y=PC2,label=refseq),
+                     size=1.5,fill="gold1",alpha=0.8) + 
+    geom_label_repel(data=liver.df,aes(x=PC1,y=PC2,label=refseq),
+                     size=1.5,fill="brown",alpha=0.8) +
+    geom_label_repel(data=muscle.df,aes(x=PC1,y=PC2,label=refseq),
+                     size=1.5,fill="red",alpha=0.8)
+}
+
 
 
 complete_pca <- function(ppa.df,centerScale,savename){
@@ -347,6 +455,31 @@ plt <- complete_pca(full.df,centerScale=TRUE)
 Centering seems to yield a more balanced representation in the loading plots
 
 
+```{r}
 
+
+complete_pca(filter(full.df,other<=0.10),centerScale=FALSE)
+complete_pca(filter(cse.df,other<=0.10),centerScale=FALSE)
+
+```
+
+
+```{r}
+
+pca.list.full.pruned <- make_pca_inputs(filter(full.df,other<=0.1),
+                                 centerScale=FALSE)  
+pca.list.reduced.pruned <- make_pca_inputs(filter(cse.df,other<=0.1),
+                                    centerScale=FALSE) 
+
+
+prune1.plt <- pca_plot_annotated(pca.list.full.pruned[[1]],
+                   pca.list.full.pruned[[2]],"PC1","PC2")
+
+
+prune2.plt <- pca_plot_annotated(pca.list.reduced.pruned[[1]],
+                   pca.list.reduced.pruned[[2]],"PC1","PC2")
+
+
+```
 
 
