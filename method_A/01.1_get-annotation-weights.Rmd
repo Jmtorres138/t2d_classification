@@ -1,0 +1,144 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+library("Homo.sapiens")
+
+got2d.dir <- "/home/jason/science/servers/FUSE/"
+serv.dir <- "/home/jason/science/servers/FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "method_A/"
+out.dir <- work.dir %&% "analysis_files/"
+res.dir <- work.dir %&% "multi_results/"
+input.dir <- proj.dir %&% "analysis_files/"
+
+fgwas.dir <- got2d.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/" %&%
+  "cross_tissue/"
+
+#fgwas.out.dir <- fgwas.dir %&% "fgwas_output/"
+
+annotation.keyfile <- NULL # fgwas.dir %&% "plots/plot-key.csv"
+if (!is.null(annotation.keyfile)){
+  key.df <- fread(annotation.keyfile,sep=",",sep2=" ")
+}
+
+```
+
+```{r}
+
+annot_process <- function(fname){
+  df <- fread(fname)
+  df$CI_lo <- gsub("<","",df$CI_lo); df$CI_lo <- gsub("fail",NA,df$CI_lo); df$CI_lo <- as.numeric(df$CI_lo)
+  df$CI_hi <- gsub(">","",df$CI_hi); df$CI_hi <- gsub("fail",NA,df$CI_hi); df$CI_hi <- as.numeric(df$CI_hi)
+  return(df)
+}
+
+build_param_df <- function(fgwas.out.dir,tissue,name.vec=NULL){
+  files <- list.files(fgwas.out.dir)
+  param.files <- files[grepl(".params",files,fixed=TRUE)]
+  param.files <- param.files[!grepl("+",param.files,fixed=TRUE)]
+  param.files <- param.files[!grepl("drop",param.files,fixed=TRUE)]  
+  param.files <- param.files[!grepl("best-joint-model",param.files,fixed=TRUE)]  
+  param.files <- param.files[!grepl("SINGLE_fgwas_run_loci-partition.params",
+                                    param.files,fixed=TRUE)]  
+
+  out.df <- c()
+  for (f in param.files){
+    stack.df <- annot_process(fgwas.out.dir%&%f)
+    out.df <- rbind(out.df,stack.df)
+  }
+  out.df <- filter(out.df,parameter!="pi_region")
+  out.df <- arrange(out.df,desc(estimate))
+  enriched <- filter(out.df, CI_lo>0,estimate>0,CI_hi>0)
+  depleted <- filter(out.df, CI_lo<0,estimate<0,CI_hi<0)
+  print("There are " %&% dim(out.df)[1] %&% " annotations")
+  print("There are " %&% dim(enriched)[1] %&% " annotations that are marginally ENRICHED")
+  print("There are " %&% dim(depleted)[1] %&% " annotations that are marginally DEPLETED")
+  #out.df <- rbind(enriched,depleted)
+  if (!is.null(annotation.keyfile)){
+    out.df <- update_names(out.df,key.df)
+  }
+  out.df$tissue <- tissue 
+  return(out.df)
+}
+
+```
+
+
+```{r}
+strong.enhancers <- c("9_Active_enhancer_1","10_Active_enhancer_2")
+weak.enhancers <- c("11_Weak_enhancer")
+repressed.regions <- c("16_Repressed_polycomb", "17_Weak_repressed_polycomb")
+promoters <- c("1_Active_TSS","2_Weak_TSS","3_Flanking_TSS")
+gene.transcription <- c("5_Strong_transcription","6_Weak_transcription")
+bivalent.tss <- c("14_Bivalent_poised_TSS")
+genic.enhancer <- c("8_Genic_enhancer")
+low.signal <- c("18_Quiescent_low_signal")
+coding <- c("coding")
+
+annot.names <- c("strong.enhancers","weak.enhancers","repressed.regions","promoters",
+               "gene.transcription","bivalent.tss","genic.enhancer","low.signal",
+               "coding")
+annot.list <- list(strong.enhancers,weak.enhancers,repressed.regions,promoters,
+               gene.transcription,bivalent.tss,genic.enhancer,low.signal,coding)
+
+```
+
+
+```{r}
+
+liv.df <- build_param_df(fgwas.dir%&%"fgwas_output_liver/","liver")
+adi.df <- build_param_df(fgwas.dir%&%"fgwas_output_adipose/","adipose")
+mus.df <- build_param_df(fgwas.dir%&%"fgwas_output_muscle/","muscle")
+isl.df <- build_param_df(fgwas.dir%&%"fgwas_output_islet/","islet")
+all.df <- rbind(isl.df,adi.df,mus.df,liv.df)
+all.df$parameter <- gsub("_ln","",all.df$parameter)
+
+get_weight <- function(all.df,annot.group){
+  sub <-filter(all.df,parameter%in%annot.group)
+  med <- sub$estimate %>% median(.)
+  weight <- med
+  return(weight)
+}
+
+build_weight_df <- function(all.df,annot.names,annot.list){
+  out.df <- c()
+  for (i in 1:length(annot.names)){
+    annot <- annot.names[i]
+    annot.group <- annot.list[[i]]
+    weight <- get_weight(all.df,annot.group)
+    build.df <- data.frame("annotation"=annot,"weight"=weight,stringsAsFactors = FALSE)
+    out.df <- rbind(out.df,build.df)
+  }
+  return(out.df)
+}
+
+
+write.table(x=)
+
+
+```
+
+
+```{r}
+
+w.df <- build_weight_df(all.df,annot.names,annot.list)
+
+write.table(x=w.df,file = out.dir%&%"weight-enrich.txt",sep="\t",quote=F,row.names=F)
+
+```
+
+
