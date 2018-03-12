@@ -127,6 +127,8 @@ handle_annotation <- function(annot.df, annot.name, ppa){
   return(divvy.vec)
 }
 
+
+
 divvy_ppa_snp <- function(loc.id,snp.id,mode="full",weights){
   # set weights=NULL if unweighted, else assign weight.vector 
   sub.df <- filter(fcred.df,Locus.ID==loc.id,SNPID==snp.id)
@@ -225,5 +227,12 @@ write.table(x=part.cse.df,file=out.dir%&%"tissue_ppa_divvy-coding-strongEnhancer
 
 ```
 
+
+Sanity checks
+```{r}
+
+# chr1 40031800 40036800   liver_specific_genic_enhancer
+
+```
 
 

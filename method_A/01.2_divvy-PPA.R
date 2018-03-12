@@ -22,7 +22,16 @@ sym.df <- select(Homo.sapiens,key=sym.ids,keytype="SYMBOL",
 ess.dir <- proj.dir %&% "analysis_files/"
 ess.df <- fread(ess.dir %&% "expression_specificity_scores.txt")
 
+weight.df <- fread(out.dir %&% "weight-enrich.txt")
 
+
+weight.df <- fread(out.dir %&% "weight-enrich.txt")
+weight.vec <- c(filter(weight.df,annotation=="coding")$weight,
+                filter(weight.df,annotation=="strong.enhancers")$weight,
+                filter(weight.df,annotation=="weak.enhancers")$weight,
+                filter(weight.df,annotation=="gene.transcription")$weight,
+                filter(weight.df,annotation=="promoters")$weight,
+                filter(weight.df,annotation=="genic.enhancer")$weight)
 
 
 
@@ -97,7 +106,10 @@ handle_annotation <- function(annot.df, annot.name, ppa){
   return(divvy.vec)
 }
 
-divvy_ppa_snp <- function(loc.id,snp.id,mode="full"){
+
+
+divvy_ppa_snp <- function(loc.id,snp.id,mode="full",weights){
+  # set weights=NULL if unweighted, else assign weight.vector 
   sub.df <- filter(fcred.df,Locus.ID==loc.id,SNPID==snp.id)
   chrom <- sub.df$CHR; pos <- sub.df$POS; 
   ppa <- sub.df$PPA; coding <- sub.df$coding
@@ -112,14 +124,18 @@ divvy_ppa_snp <- function(loc.id,snp.id,mode="full"){
   genetrans.vec <- handle_annotation(annot.df,"gene_transcription",ppa)
   prom.vec <- handle_annotation(annot.df,"promoter",ppa)
   genenh.vec <- handle_annotation(annot.df,"genic_enhancer",ppa)
+  if (is.null(weights)==FALSE){
+    coding.vec <- coding.vec * weights[1]
+    strongenh.vec <- strongenh.vec * weights[2]
+    weakenh.vec <- weakenh.vec * weights[3]
+    genetrans.vec <- genetrans.vec * weights[4]
+    prom.vec <- prom.vec * weights[5]
+    genenh.vec <- genenh.vec * weights[6]
+  }
   if (mode=="full"){
     score.vec <- coding.vec + strongenh.vec + weakenh.vec + genenh.vec + prom.vec + genetrans.vec
   } else if(mode=="coding+strongenhancers"){
     score.vec <- coding.vec + strongenh.vec 
-  } else if(mode=="coding+strongenhancers+promoters"){
-    score.vec <- coding.vec + strongenh.vec + prom.vec 
-  } else if(mode=="coding+enhancers+promoters"){
-    score.vec <- coding.vec + strongenh.vec + weakenh.vec + genenh.vec + prom.vec
   } else{
     print("Need to enter acceptable mode")
   }
@@ -134,7 +150,7 @@ divvy_ppa_snp <- function(loc.id,snp.id,mode="full"){
   return(out.df)
 }
 
-divvy_ppa_loc <- function(loc.id,mode="full"){
+divvy_ppa_loc <- function(loc.id,mode="full",weights){
   sub.df <- filter(fcred.df,Locus.ID==loc.id)
   out.df <- c()
   pb <- txtProgressBar(min=0,max=dim(sub.df)[1],style=3)
@@ -143,7 +159,7 @@ divvy_ppa_loc <- function(loc.id,mode="full"){
     #print(i)
     setTxtProgressBar(pb,i)
     snp.id <- sub.df$SNPID[i]
-    build.df <- divvy_ppa_snp(loc.id,snp.id,mode)
+    build.df <- divvy_ppa_snp(loc.id,snp.id,mode,weights)
     out.df <- rbind(out.df,build.df)
   }
   mat <- as.matrix(out.df)
@@ -159,7 +175,7 @@ divvy_ppa_loc <- function(loc.id,mode="full"){
   return(out.df)
 }
 
-build_ppa_partition_df <- function(mode="full"){
+build_ppa_partition_df <- function(mode="full",weights=NULL){
   loc.ids <- fcred.df$Locus.ID %>% unique(.)
   out.df <- c()
   pb <- txtProgressBar(min=0,max=length(loc.ids),style=3)
@@ -167,11 +183,13 @@ build_ppa_partition_df <- function(mode="full"){
     setTxtProgressBar(pb,i)
     loc.id <- loc.ids[i]
     print(loc.id)
-    build.df <- divvy_ppa_loc(loc.id,mode)
+    build.df <- divvy_ppa_loc(loc.id,mode,weights)
     out.df <- rbind(out.df,build.df)
   }
   return(out.df)
 }
+
+
 
 
 
@@ -180,9 +198,11 @@ build_ppa_partition_df <- function(mode="full"){
 
 
 part.full.df <- build_ppa_partition_df(mode="full")
+part.fullW.df <- build_ppa_partition_df(mode="full",weight.vec)
 part.cse.df <- build_ppa_partition_df(mode="coding+strongenhancers")
 
 write.table(x=part.full.df,file=out.dir%&%"tissue_ppa_divvy-full.txt",sep="\t",quote=FALSE,row.names=FALSE)
+write.table(x=part.fullW.df,file=out.dir%&%"tissue_ppa_divvy-fullWeighted.txt",sep="\t",quote=FALSE,row.names=FALSE)
 write.table(x=part.cse.df,file=out.dir%&%"tissue_ppa_divvy-coding-strongEnhancers.txt",
             sep="\t",quote=FALSE,row.names=FALSE)
 
