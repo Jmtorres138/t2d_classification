@@ -1,0 +1,263 @@
+---
+title: "06.3_functional-cred-plots.Rmd"
+author: "Jason Torres"
+date: "November 2, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Create summary plots for all conditionally independent loci functional credible sets 
+
+# Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+library("data.table")
+library("tidyverse")
+library("GenomicRanges")
+library("viridis")
+
+#serv.dir <- "/Users/jtorres/FUSE/"
+serv.dir <- "/Users/jtorres/Google Drive/Science/" 
+work.dir <- serv.dir %&% "Projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/multi_tissue_joint_analysis/"
+file.dir <- work.dir %&% "analysis_files/"
+  
+plot.dir <- work.dir %&% "plots/"
+
+```
+
+Read data files 
+
+```{r}
+
+block99.df <- fread(work.dir%&%"tempo_data/multi_results/results_blocks.txt",sep="\t")
+fcred99.df <- fread(work.dir%&%"tempo_data/multi_results/results_func-cred-sets.txt",sep="\t")
+full.df <- fread(file.dir %&% "full_best-joint_ppa-prop.txt")
+condensed.df <- fread(file.dir %&% "condensed_best-joint_ppa-prop.txt")
+
+```
+
+
+
+Functions 
+
+```{r}
+
+reformat_ppa_df <- function(ppa.df,fcred.df){
+  format.df <- c() 
+  pb <- txtProgressBar(min=0,max=dim(ppa.df)[1],style=3)
+  for (i in 1:dim(ppa.df)[1]){
+    myrow <- ppa.df[i,] %>% as.data.frame(.)
+    setTxtProgressBar(pb,i)
+    Locus.ID <- rep(myrow$Locus.ID,length(2:length(myrow)))
+    Annotation <- names(myrow)[2:length(myrow)]
+    Proportion <- as.numeric(myrow[2:length(myrow)])
+    stack.df <- data.frame(Locus.ID,Annotation,Proportion)
+    format.df <- rbind(format.df,stack.df)
+  }
+  format.df$Annotation <- factor(format.df$Annotation,levels=names(ppa.df)[2:dim(ppa.df)[2]])
+  
+  Symbol <- c()
+  pb <- txtProgressBar(min=0,max=dim(format.df)[1],style=3)
+  for (i in 1:dim(format.df)[1]){
+    setTxtProgressBar(pb,i)
+    loc <- format.df$Locus.ID[i]
+    symb <- filter(fcred.df,Locus.ID==loc)$symbol[1]
+    Symbol <- c(Symbol,symb)
+  }
+  format.df <- cbind(Symbol,format.df)  
+  return(format.df)
+}
+
+# This function only works when annotations match those in the fcred file 
+append_snpcount_info <- function(format.df,fcred.df){
+  # Append SNP Count information 
+  SNPCOUNT <- c()
+  pb <- txtProgressBar(min=0,max=dim(format.df)[1],style=3)
+  for (i in 1:dim(format.df)[1]){
+    setTxtProgressBar(pb,i)
+    loc <- format.df[i,]$Locus.ID
+    annot <- format.df[i,]$Annotation
+    temp.df <- filter(fcred.df,Locus.ID==loc)
+    if (annot !="other"){
+      index <- match(annot,names(fcred.df))
+      #print(c(index,loc))
+      snpcount <- sum(temp.df[,index])
+    } else{
+      snpcount <- dim(temp.df)[1] - 
+        sum(as.integer(as.matrix(temp.df[,8:dim(temp.df)[2]])))
+      if (snpcount < 0){
+        snpcount <- 0 
+      }
+    }
+    SNPCOUNT <- c(SNPCOUNT,snpcount)
+  }
+  format.df$SNPCOUNT <- SNPCOUNT
+  return(format.df)
+}
+
+get_reg_df <- function(format.df, group.vec){
+  loc.vec <- unique(format.df$Locus.ID)
+  reg.df <- c()
+  pb <- txtProgressBar(min=0,max=length(loc.vec),style=3)
+  for (i in 1:length(loc.vec)){
+    setTxtProgressBar(pb,i)
+    loc <- loc.vec[i]
+    temp.df <- filter(format.df,Locus.ID==loc,
+                      Annotation %in% group.vec)
+    reg.prop <- sum(temp.df$Proportion)
+    gene <- filter(format.df,Locus.ID==loc)$Symbol[1]
+    stack.df <- data.frame(Symbol=gene,Locus.ID=loc,reg.prop)
+    reg.df <- rbind(reg.df,stack.df)
+  }
+  reg.df <- arrange(reg.df,desc(reg.prop))
+  PlotID <- paste0(reg.df$Locus.ID,": ",reg.df$Symbol)
+  reg.df <- cbind(PlotID,reg.df)
+  return(reg.df)
+}
+
+annot_group_relevel <- function(format.df, reg.df){
+  PlotID <- paste0(format.df$Locus.ID,": ",format.df$Symbol)
+  format.df <- cbind(PlotID,format.df)
+  format.df$PlotID <- factor(format.df$PlotID,levels=reg.df$PlotID)
+  #format.df$Locus.ID <- factor(format.df$Locus.ID,levels=reg.df$Locus.ID)  
+  return(format.df)
+}
+
+prepare_plot_df <- function(relevel.df,reg.df,group.vec,num=50){
+  keep.ids <- reg.df$PlotID[1:num]
+  plot.df <- filter(relevel.df,PlotID %in% keep.ids)
+  annot.vec <- unique(plot.df$Annotation)
+  nonindex.vec <- as.character(annot.vec[!(annot.vec %in% group.vec)])
+  annot.vec <- c(group.vec,nonindex.vec)
+  plot.df$Annotation <- factor(plot.df$Annotation,levels=annot.vec)
+  return(plot.df)
+}
+
+get_color_vector <- function(plot.df,group.vec,virpal="plasma"){
+  annot.vec <- unique(as.character(plot.df$Annotation))
+  nonindex.vec <- annot.vec[!(annot.vec %in% group.vec)]
+  cols <- rev(viridis(30,option=virpal))
+  index.cols <- cols[1:length(group.vec)]
+  nonindex.cols <- cols[(length(cols)-length(nonindex.vec)+1):
+                      length(cols)]
+  col.vec <- c(index.cols,nonindex.cols)
+  return(col.vec)
+}
+
+complete_prep_list <- function(ppa.df,fcred.df,group.vec,
+                               num=50,snpinfo=FALSE,virpal="plasma"){
+  step1 <- reformat_ppa_df(ppa.df,fcred.df)
+  if (snpinfo==TRUE){
+    step1 <- append_snpcount_info(step1,fcred.df)
+  }
+  reg.df <- get_reg_df(step1,group.vec)
+  step2 <- annot_group_relevel(step1,reg.df)
+  plot.df <- prepare_plot_df(step2,reg.df,group.vec,num)
+  col.vec <- get_color_vector(plot.df,group.vec,virpal)
+  return(list(plot.df,col.vec))
+}
+
+
+```
+
+
+
+```{r}
+
+
+ppa_plot <- function(plot.df,col.vec,subtitle=""){
+  
+  new.levs <- gsub("_"," ",levels(plot.df$Annotation))
+  plot.df$Annotation <- factor(gsub("_"," ",plot.df$Annotation),levels=new.levs)
+  
+  plot.df$PlotID <- factor(plot.df$PlotID, 
+                           levels=rev(levels(plot.df$PlotID)))
+  plt <- ggplot(data=plot.df,aes(x=PlotID,
+                                 y=Proportion,fill=Annotation)) + 
+            geom_bar(stat="identity",color="black",size=0.2) + 
+            scale_y_continuous(breaks=seq(0,1,0.1)) + 
+            xlab("Locus") + 
+            coord_flip() + 
+            #scale_y_reverse() + 
+            scale_fill_manual(values=col.vec) +
+            ggtitle("Proportion of PPA attributable to each annotation\n" %&% subtitle)
+  return(plt)
+}
+
+snpcount_plot <- function(format.df){
+  plt <- ggplot(data=format.df,aes(x=PlotID,y=SNPCOUNT,fill=Annotation)) + 
+            geom_bar(stat="identity",color="black",size=0.2) + 
+            scale_y_continuous(breaks=seq(0,5000,200)) + 
+            xlab("Locus")+
+            coord_flip() + 
+            scale_fill_brewer(palette="Spectral") +
+            ggtitle("Proportion of SNP count attributable to each annotation")  
+  return(plt)
+}
+
+```
+
+
+# Generate PPA Proportion plots 
+
+## Analysis of "full" set of annotations from multi-tissue fgwas analysis 
+
+```{r}
+
+group.annots <- names(full.df)[grepl("islet_specific",names(full.df))] 
+group.annots <- group.annots[!(grepl("repressed",group.annots))] 
+plot.list <- complete_prep_list(full.df,fcred99.df,group.vec=group.annots)
+pltA <- ppa_plot(plot.list[[1]],plot.list[[2]],"Islet specific")
+ggsave(plot=pltA,filename=plot.dir%&%"top50-fcred-99-ppa_islet-specific.png",
+       height=10,width=10)
+
+
+group.annots <- names(full.df)[grepl("islet_shared",names(full.df))] 
+group.annots <- group.annots[!(grepl("repressed",group.annots))] 
+plot.list <- complete_prep_list(full.df,fcred99.df,group.vec=group.annots)
+pltB <- ppa_plot(plot.list[[1]],plot.list[[2]],"Islet shared")
+ggsave(plot=pltB,filename=plot.dir%&%"top50-fcred-99-ppa_islet-shared.png",
+       height=10,width=10)
+
+group.annots <- names(full.df)[grepl("adipose_specific",names(full.df))] 
+group.annots <- group.annots[!(grepl("repressed",group.annots))] 
+plot.list <- complete_prep_list(full.df,fcred99.df,group.vec=group.annots)
+pltC <- ppa_plot(plot.list[[1]],plot.list[[2]],"Adipose specific")
+ggsave(plot=pltC,filename=plot.dir%&%"top50-fcred-99-ppa_adipose-specific.png",
+       height=10,width=10)
+
+group.annots <- names(full.df)[grepl("liver_specific",names(full.df))] 
+group.annots <- group.annots[!(grepl("repressed",group.annots))] 
+plot.list <- complete_prep_list(full.df,fcred99.df,group.vec=group.annots)
+pltD <- ppa_plot(plot.list[[1]],plot.list[[2]],"Liver specific")
+ggsave(plot=pltD,filename=plot.dir%&%"top50-fcred-99-ppa_liver-specific.png",
+       height=10,width=10)
+
+group.annots <- names(full.df)[grepl("muscle_specific",names(full.df))] 
+group.annots <- group.annots[!(grepl("repressed",group.annots))] 
+plot.list <- complete_prep_list(full.df,fcred99.df,group.vec=group.annots)
+pltE <- ppa_plot(plot.list[[1]],plot.list[[2]],"Muscle specific")
+ggsave(plot=pltE,filename=plot.dir%&%"top50-fcred-99-ppa_muscle-specific.png",
+       height=10,width=10)
+
+group.annots <- c("coding","distance_tss_0_5000")
+plot.list <- complete_prep_list(full.df,fcred99.df,group.vec=group.annots)
+pltF <- ppa_plot(plot.list[[1]],plot.list[[2]],"Tissue Agnostic")
+ggsave(plot=pltF,filename=plot.dir%&%"top50-fcred-99-ppa_tissue-agnostic.png",
+       height=10,width=10)
+
+group.annots <- c("other","islet_shared_repressed")
+plot.list <- complete_prep_list(full.df,fcred99.df,group.vec=group.annots)
+pltG <- ppa_plot(plot.list[[1]],plot.list[[2]],"Other/Uncharacterized")
+ggsave(plot=pltG,filename=plot.dir%&%"top50-fcred-99-ppa_other.png",
+       height=10,width=10)
+```
+
+
+
+
