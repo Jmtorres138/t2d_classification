@@ -127,9 +127,6 @@ build_weight_df <- function(all.df,annot.names,annot.list){
 }
 
 
-write.table(x=)
-
-
 ```
 
 
