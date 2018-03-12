@@ -1,0 +1,154 @@
+---
+title: "Untitled"
+author: "Jason Torres"
+date: "3/12/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+library("wrapr")
+library("grid")
+library("gridExtra")
+
+serv.dir <- "/Users/jtorres/FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "method_A/"
+analysis.dir <- work.dir %&% "analysis_files/"
+plot.dir <- work.dir %&% "plots/"
+
+block.df <- fread(work.dir%&%"multi_results/results_blocks.txt",sep="\t")
+fcred.df <- fread(work.dir %&% "multi_results/results_func-cred-sets.txt")
+
+
+```
+
+
+```{r}
+
+keep.df <- fread(proj.dir %&% "input_data/" %&% "380.locus.ID.txt")
+keep.vec <- keep.df$Locus.ID_inCREDS
+full.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full.txt") %>% 
+  filter(.,Locus.ID %in% keep.vec)
+wfull.df <- fread(analysis.dir %&% "tissue_ppa_divvy-fullWeighted.txt
+") %>% filter(.,Locus.ID %in% keep.vec)
+# coding and strong enhancers (ie. cse)
+cse.df <- fread(analysis.dir %&% "tissue_ppa_divvy-coding-strongEnhancers.txt") %>%
+  filter(.,Locus.ID %in% keep.vec)
+
+```
+
+
+
+```{r}
+
+stringToQuoser <- function(varName) {
+  wrapr::let(c(VARNAME = varName), quo(VARNAME))
+}
+
+reformat_ppa_df <- function(ppa.df,fcred.df){
+  format.df <- c() 
+  pb <- txtProgressBar(min=0,max=dim(ppa.df)[1],style=3)
+  for (i in 1:dim(ppa.df)[1]){
+    myrow <- ppa.df[i,] %>% as.data.frame(.)
+    setTxtProgressBar(pb,i)
+    Locus.ID <- rep(myrow$Locus.ID,length(2:length(myrow)))
+    Annotation <- names(myrow)[2:length(myrow)]
+    Proportion <- as.numeric(myrow[2:length(myrow)])
+    stack.df <- data.frame(Locus.ID,Annotation,Proportion)
+    format.df <- rbind(format.df,stack.df)
+  }
+  format.df$Annotation <- factor(format.df$Annotation,levels=names(ppa.df)[2:dim(ppa.df)[2]])
+  
+  Symbol <- c()
+  pb <- txtProgressBar(min=0,max=dim(format.df)[1],style=3)
+  for (i in 1:dim(format.df)[1]){
+    setTxtProgressBar(pb,i)
+    loc <- format.df$Locus.ID[i]
+    symb <- filter(fcred.df,Locus.ID==loc)$symbol[1]
+    Symbol <- c(Symbol,symb)
+  }
+  format.df <- cbind(Symbol,format.df)  
+  return(format.df)
+}
+
+
+```
+
+
+```{r}
+
+ppa_plot <- function(ppa.df,col.vec=c("olivedrab2","red","gold1","brown","grey"),
+                     rankby="islet",number=NULL,leg=TRUE){
+  rank.by <- stringToQuoser(rankby)
+  append.df <- ppa.df
+  append.df$PlotID <- map(ppa.df$Locus.ID,function(loc.id){
+    loc.id %&% ": " %&% filter(block.df,Locus.ID==loc.id)$refseq
+  }) %>% as.character(.)
+  
+  format.df <- reformat_ppa_df(ppa.df,fcred.df)
+  PlotID <- paste0(format.df$Locus.ID,": ",format.df$Symbol)
+  plot.df <- cbind(PlotID,format.df)
+
+  
+  ranklevs <- arrange(append.df,(!!rank.by))$PlotID
+  plot.df$PlotID <- factor(plot.df$PlotID,levels=ranklevs)
+  
+
+  plot.df$PlotID <- factor(plot.df$PlotID, 
+                           levels=levels(plot.df$PlotID))
+  
+  if(is.null(number)==FALSE){
+    keep.ids <- arrange(append.df,desc(!!rank.by))$PlotID[1:number]
+    plot.df <- filter(plot.df,PlotID %in% keep.ids)
+  }
+  
+  plt <- ggplot(data=plot.df,aes(x=PlotID,
+                                 y=Proportion,fill=Annotation)) + 
+            geom_bar(stat="identity",color="black",size=0.2) + 
+            scale_y_continuous(breaks=seq(0,1,0.1)) + 
+            xlab("Locus") + 
+            coord_flip() + 
+            #scale_y_reverse() + 
+            scale_fill_manual(values=col.vec) +
+            ggtitle("Proportion of PPA attributable to each annotation\n" %&% rankby)
+  if(leg==FALSE){
+    plt <- plt + theme(legend.position = "none")
+  }
+  
+  return(plt)
+}
+
+all_tissues_plot <- function(ppa.df,number=NULL,col.vec=c("olivedrab2","red","gold1","brown","grey")){
+  plt1 <- ppa_plot(full.df,col.vec,rankby="islet",number,leg=FALSE)
+  plt2 <- ppa_plot(full.df,col.vec,rankby="muscle",number,leg=FALSE)
+  plt3 <- ppa_plot(full.df,col.vec,rankby="adipose",number,leg=FALSE)
+  plt4 <- ppa_plot(full.df,col.vec,rankby="liver",number,leg=FALSE)
+  plt5 <- ppa_plot(full.df,col.vec,rankby="other",number,leg=TRUE)  
+  grob <- arrangeGrob(plt1,plt2,plt3,plt4,plt5,nrow=1)
+}
+
+```
+
+
+
+
+```{r}
+
+
+grob <- all_tissues_plot(full.df,number=50)
+ggsave(plot=grob,filename=plot.dir%&%"stacked_barplots_full.pdf",width=25,height=15)
+
+```
+
+
