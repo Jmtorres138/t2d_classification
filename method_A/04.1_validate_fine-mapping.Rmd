@@ -1,0 +1,458 @@
+---
+title: "Untitled"
+author: "Jason Torres"
+date: "11/23/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+library("data.table")
+library("tidyverse")
+library("GenomicRanges")
+library("viridis")
+
+#serv.dir <- "/Users/jtorres/FUSE/"
+serv.dir <- "/Users/jtorres/Google Drive/Science/" 
+work.dir <- serv.dir %&% "Projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/multi_tissue_joint_analysis/"
+file.dir <- work.dir %&% "analysis_files/"
+plot.dir <- work.dir %&% "plots/"
+
+```
+
+
+Read data files 
+
+```{r}
+
+block99.df <- fread(work.dir%&%"tempo_data/multi_results/results_blocks.txt",sep="\t")
+fcred99.df <- fread(work.dir%&%"tempo_data/multi_results/results_func-cred-sets.txt",sep="\t")
+full.df <- fread(file.dir %&% "full_best-joint_ppa-prop.txt")
+compact.df <- fread(file.dir %&% "compact_best-joint_ppa-prop.txt")
+
+```
+
+
+
+# Assign genes to groups 
+
+
+```{r}
+
+
+assign_group <- function(df){
+  id.vec <- df$Locus.ID  
+  eval.df <- dplyr::select(df,-one_of("Locus.ID"))
+  grp <- map(1:length(id.vec),function(i){
+    vec <- eval.df[i,]
+    maxval <- max(vec)
+    ifelse(maxval==0,NA,names(eval.df)[match(maxval,vec)])
+  }) %>% as.character(.)
+  maxval <- map(1:length(id.vec),function(i){
+    vec <- eval.df[i,]
+    maxval <- max(vec)
+  }) %>% as.numeric(.)
+  grp.df <- data.frame(Locus.ID=id.vec,maxval=maxval,group=grp,stringsAsFactors=FALSE)
+  refseq <- map(id.vec,function(id){filter(block99.df,Locus.ID==id)$refseq}) %>% as.character(.)
+  grp.df$refseq <- refseq
+  return(grp.df)
+}
+
+group.df <- assign_group(compact.df)
+genes.adi <- filter(group.df,group=="adipose")$refseq %>% unique(.)
+genes.liv <- filter(group.df,group=="liver")$refseq %>% unique(.)
+genes.mus <- filter(group.df,group=="muscle")$refseq %>% unique(.)
+genes.isl.reg <- filter(group.df,group=="islet_regulatory")$refseq %>% unique(.)
+genes.isl.biv<- filter(group.df,group=="islet_bivalent_tss")$refseq %>% unique(.)
+
+```
+
+
+# Validation 1 - Dimas/Wood Genes 
+
+
+```{r}
+
+pys.df <- fread(work.dir %&% "tempo_data/dimas-wood.txt")
+IS.genes <- filter(pys.df,is.na(Wood2017)==FALSE | Dimas2014 %in% c("HG","PI","BC"))$Locus %>% unique(.)
+replace.names <- c("KCNQ1_rs163184","HHEX_IDE","CDKN2A_B","KCNQ1_rs231362",
+                   "CDC123_CAMK1D","TSPAN8_LGR5")
+IS.genes <- IS.genes[!(IS.genes %in% replace.names)]
+IS.genes <- c(IS.genes,"KCNQ1","HHEX","IDE","CDKN2A","CDKN2B")
+
+IR.genes <- filter(pys.df,Dimas2014 %in% c("IR"))$Locus %>% unique(.)
+
+PeakIns.genes <- filter(pys.df,Wood2017 %in% c("PeakIns","Both"))$Locus %>% unique(.)
+PeakIns.genes <- PeakIns.genes[!(PeakIns.genes %in% replace.names)]
+PeakIns.genes <- c(PeakIns.genes,"KCNQ1","HHEX","IDE","CDKN2A","CDKN2B")
+
+AIR.genes <- filter(pys.df,Wood2017 %in% c("AIR","Both"))$Locus %>% unique(.)
+AIR.genes <- AIR.genes[!(AIR.genes %in% replace.names)]
+AIR.genes <- c(AIR.genes,"KCNQ1","HHEX","IDE","CDKN2A","CDKN2B")
+
+UC.genes <- filter(pys.df,Dimas2014 %in% c("UC") & is.na(Wood2017)==TRUE)$Locus %>% unique(.)
+UC.genes <- UC.genes[!(UC.genes %in% replace.names)]
+UC.genes <- c(UC.genes,"KCNQ1","TSPAN8","LGR5","CDC123","CAMK1D")
+
+sum(genes.isl.reg %in% IS.genes) # 12
+sum(genes.isl.reg %in% IR.genes)# 0
+
+sum(genes.isl.biv %in% IS.genes)#0
+sum(genes.isl.biv %in% IR.genes)#0
+
+sum(genes.adi %in% IS.genes)#1
+sum(genes.adi %in% IR.genes)#1
+
+sum(genes.liv %in% IS.genes)#1
+sum(genes.liv %in% IR.genes)#1
+
+sum(genes.mus %in% IS.genes)#3
+sum(genes.mus %in% IR.genes)#0
+
+
+```
+
+
+Enrichment test 
+
+
+```{r}
+
+library("GenomicFeatures")
+library("org.Hs.eg.db")
+library("annotate")
+
+get_refseq_df <- function(){
+  hg19.refseq.db <- makeTxDbFromUCSC(genome="hg19", table="refGene")
+  refseq.genes<- genes(hg19.refseq.db)
+  all.geneids <- elementMetadata(refseq.genes)$gene_id
+  all.genesymbols <- getSYMBOL(all.geneids, data='org.Hs.eg')
+  ref.df <- data.frame(gene.id=all.geneids,symbol=all.genesymbols,
+                       stringsAsFactors = FALSE)
+  elementMetadata(refseq.genes)$gene_id <- all.genesymbols
+  df <- as.data.frame(refseq.genes)  
+  return(df)
+}
+
+gene_enrich_test <- function(query.genes,ref.genes,background.genes,iter=10000){
+  obs <- sum(query.genes %in% ref.genes)
+  l <- length(query.genes)
+  pb <- txtProgressBar(min=0,max=iter,style=3)
+  null.vec <- c()
+  for (i in 1:iter){
+    setTxtProgressBar(pb,i)
+    null.genes <- sample(background.genes,l,replace=FALSE)
+    nobs <- sum(null.genes %in% ref.genes)
+    null.vec <- c(null.vec,nobs)
+  }
+  enrich <- obs / mean(null.vec)
+  emp.p <- (sum(null.vec >= obs) + 1) / (iter + 1)
+  print(c(obs,mean(null.vec),enrich,emp.p))
+  return(list(enrich,emp.p))
+}
+
+
+```
+
+Enrich test 
+
+
+```{r}
+
+
+
+query.list <- list(genes.isl.reg,genes.isl.biv,genes.adi,genes.liv,genes.mus,
+                   c(genes.adi,genes.liv,genes.mus))
+query.names <- c("islet.regulatory","islet.bivalentTSS","adipose","liver","muscle","irpt")
+#ref.list <- list(IS.genes,IR.genes,PeakIns.genes,AIR.genes,UC.genes)
+#ref.names <- c("insulin secretion","insulin resistance","PeakIns","AIR","UC")
+
+ref.list <- list(IS.genes,IR.genes,UC.genes)
+ref.names <- c("insulin secretion","insulin resistance","UC")
+
+build_enrich_df <- function(query.list,ref.list,query.names,ref.names,background.genes){
+  query <- c()
+  gene.set <- c()
+  enrich <- c()
+  pval <- c()
+  for (i in 1:length(query.list)){
+    q = query.list[[i]]
+    qname <- query.names[i]
+    for (e in 1:length(ref.list)){
+      r <- ref.list[[e]]
+      rname <- ref.names[e]
+      print(qname %&% " : " %&% rname)
+      enrich.list <- gene_enrich_test(q,r,background.genes,iter=1000)
+      enr <- enrich.list[[1]]
+      p <- enrich.list[[2]]
+      query <- append(query,qname)
+      gene.set <- append(gene.set,rname)
+      enrich <- append(enrich,enr)
+      pval <- append(pval,p)
+    }
+  }
+  enrich.df <- data.frame(query,gene.set,enrich,pval,stringsAsFactors=FALSE)
+  return(enrich.df)
+}
+
+
+```
+
+
+Plotting 
+
+
+```{r}
+
+set.seed(1)
+
+enrich.df <- build_enrich_df(query.list,ref.list,query.names,ref.names,background.genes)
+
+enrich.df$query <- factor(enrich.df$query,              levels=c("islet.bivalentTSS","islet.regulatory","muscle",
+                                   "liver","adipose","irpt"))
+#enrich.df$gene.set <- factor(enrich.df$gene.set,              levels=c("insulin secretion","AIR","PeakIns","insulin resistance","UC"))
+
+enrich.df$gene.set <- factor(enrich.df$gene.set,              levels=c("insulin secretion","insulin resistance","UC"))
+
+plt <- ggplot(data=enrich.df,aes(y=query,x=gene.set,fill=-log(pval,base=10))) + 
+  geom_tile() + 
+  scale_fill_gradient(low=brewer.pal(9,"GnBu")[1],
+                      high=brewer.pal(9,"Blues")[9],na.value="grey50") + 
+  geom_text(aes(label=round(enrich,1),alpha=enrich))
+
+ggsave(plot=plt,filename=plot.dir%&%"Dimas-wood-enrich.png",height=4,width=7)
+
+genes.mus[genes.mus %in% IS.genes] #"FAF1"  "THADA" "DGKB"
+
+```
+
+
+
+# Validation 2 - Comparison with islet only credible sets 
+
+Build analysis data frame 
+
+```{r}
+
+
+
+get_max_over_null <- function(id,query.df,null.df){
+  q <- max(filter(query.df,Locus.ID==id)$PPA)
+  n <- max(filter(null.df,Locus.ID==id)$PPA)
+  dif <- q - n 
+}
+
+get_num_vs_null <- function(id,query.df,null.df){
+  q <- length(filter(query.df,Locus.ID==id)$PPA)
+  n <- length(filter(null.df,Locus.ID==id)$PPA)
+  dif <- q - n 
+}
+
+build_comp_df <- function(group.df){
+  fcred.multi.df <- fread(work.dir%&%"tempo_data/multi_results/results_func-cred-sets.txt",sep="\t")
+  fcred.islet.df <- fread(work.dir%&%"tempo_data/islet_results/results_func-cred-sets.txt",sep="\t")
+  fcred.null.df <- fread(work.dir%&%"tempo_data/null_results/null_results_func-cred-sets.txt",sep="\t")
+  Locus.ID <- unique(fcred.multi.df$Locus.ID)
+  islet.max.vs.null <- map(Locus.ID,function(id){
+    q <- max(filter(fcred.islet.df,Locus.ID==id)$PPA)
+    n <- max(filter(fcred.null.df,Locus.ID==id)$PPA)
+    dif <- q - n 
+  }) %>% as.numeric(.)
+  islet.num.vs.null <- map(Locus.ID,function(id){
+    q <- length(filter(fcred.islet.df,Locus.ID==id)$PPA)
+    n <- length(filter(fcred.null.df,Locus.ID==id)$PPA)
+    dif <- q - n 
+  }) %>% as.numeric(.)  
+  multi.max.vs.null <- map(Locus.ID,function(id){
+    q <- max(filter(fcred.multi.df,Locus.ID==id)$PPA)
+    n <- max(filter(fcred.null.df,Locus.ID==id)$PPA)
+    dif <- q - n 
+  }) %>% as.numeric(.)
+  multi.num.vs.null <- map(Locus.ID,function(id){
+    q <- length(filter(fcred.multi.df,Locus.ID==id)$PPA)
+    n <- length(filter(fcred.null.df,Locus.ID==id)$PPA)
+    dif <- q - n 
+  }) %>% as.numeric(.) 
+  out.df <- data.frame(Locus.ID,islet.max.vs.null,islet.num.vs.null,
+                       multi.max.vs.null,multi.num.vs.null,stringsAsFactors=FALSE)
+  out.df$refseq <- map(out.df$Locus.ID,function(id){filter(block99.df,Locus.ID==id)$refseq}) %>% 
+    as.character(.)
+  out.df$group <- map(out.df$Locus.ID,function(id){filter(group.df,Locus.ID==id)$group}) %>% 
+    as.character(.)
+  return(out.df)
+}
+
+```
+
+##Plot data histograms 
+
+
+Total 
+
+```{r}
+
+comp.df <- build_comp_df(group.df)
+
+
+pltA <- ggplot(data=comp.df) + 
+  geom_histogram(aes(x=islet.max.vs.null),
+                    stat="bin",binwidth=0.03,
+                    color="black",
+                    fill=brewer.pal(10,"Spectral")[9],
+                    alpha=0.7) + 
+  geom_histogram(aes(x=multi.max.vs.null),
+                    stat="bin",binwidth=0.03,
+                    color="black",
+                    fill=brewer.pal(10,"Spectral")[1],
+                    alpha=0.7) + 
+  ggtitle("Difference in maximum credible set PPA vs null",
+          subtitle="Blue=Islet-only fgwas\nBurgundy=Multi-tissue fgwas") +
+  xlab("Max PPA difference") + ylab("Count") + 
+  theme_bw()
+
+pltB <- ggplot(data=comp.df) + 
+  geom_histogram(aes(x=islet.num.vs.null),
+                    stat="bin",binwidth=30,
+                    color="black",
+                    fill=brewer.pal(10,"Spectral")[9],
+                    alpha=0.7) + 
+  geom_histogram(aes(x=multi.num.vs.null),
+                    stat="bin",binwidth=30,
+                    color="black",
+                    fill=brewer.pal(10,"Spectral")[1],
+                    alpha=0.7) + 
+  ggtitle("Difference in number of variants in credible set vs null",
+      subtitle="Blue=Islet-only fgwas\nBurgundy=Multi-tissue fgwas") +
+  xlab("Difference") + ylab("Count") + 
+  #scale_y_continuous(limits=c(0,100))+
+  theme_bw()
+
+pltA
+ggsave(plot=pltA,filename=plot.dir%&%"max-histogram-total.png",height=4,width=5)
+
+pltB
+
+plt <- grid.arrange(pltA,pltB,nrow=1)
+ggsave(plot=plt,filename=plot.dir%&%"compare-histogram.png",height=4,width=10)
+
+```
+
+
+```{r}
+
+make_max_histogram <- function(dataset,groupname){
+  pltA <- ggplot(data=dataset) + 
+    geom_histogram(aes(x=islet.max.vs.null),
+                      stat="bin",binwidth=0.03,
+                      color="black",
+                      fill=brewer.pal(10,"Spectral")[9],
+                      alpha=0.7) + 
+    geom_histogram(aes(x=multi.max.vs.null),
+                      stat="bin",binwidth=0.03,
+                      color="black",
+                      fill=brewer.pal(10,"Spectral")[1],
+                      alpha=0.7) + 
+    ggtitle(groupname%&%"\nDifference in maximum credible set PPA vs null",
+            subtitle="Blue=Islet-only fgwas\nBurgundy=Multi-tissue fgwas") +
+    xlab("Max PPA difference") + ylab("Count") + 
+  theme_bw() 
+  pltA
+}
+
+pltAA <- make_max_histogram(filter(comp.df,group=="islet_regulatory"),
+                            "islet_regulatory")
+ggsave(plot=pltAA,filename=plot.dir%&%"max-histogram-islReg.png",height=4,width=5)
+
+pltBB <- make_max_histogram(filter(comp.df,group!="islet_regulatory"),
+                            "Not islet_regulatory")
+ggsave(plot=pltBB,filename=plot.dir%&%"max-histogram-NOTislReg.png",height=4,width=5)
+
+```
+
+Statistical tests 
+
+```{r}
+
+# islet reg group 
+
+grp1 <- filter(comp.df,group=="islet_regulatory")
+shapiro.test(grp1$islet.max.vs.null) # p-value = 0.000001422
+shapiro.test(grp1$multi.max.vs.null) # p-value = 0.0000000000003824
+# Data is not likely normally distributed 
+wilcox.test(grp1$islet.max.vs.null,grp1$multi.max.vs.null) 
+
+
+grp2 <- filter(comp.df,group!="islet_regulatory")
+shapiro.test(grp2$islet.max.vs.null) # p-value = 0.000000003028
+shapiro.test(grp2$multi.max.vs.null) # p-value = 0.000000000002093
+# Data is not likely normally distributed 
+
+
+build_test_df <- function(comp.df,group.df){
+  grps <- unique(group.df$group) 
+  grps <- (grps)[!(grps %in% c("NA"))]
+  Group <- c()
+  w.pval.max <- c()
+  w.pval.num <- c()
+
+  for (g in grps){
+    sub.df <- filter(comp.df,group==g)
+    pval1 <- wilcox.test(sub.df$islet.max.vs.null,sub.df$multi.max.vs.null)$p.value 
+    pval2 <- wilcox.test(sub.df$islet.num.vs.null,sub.df$multi.num.vs.null)$p.value 
+    Group <- c(Group,g)
+    w.pval.max <- c(w.pval.max,pval1)
+    w.pval.num <- c(w.pval.num,pval2)    
+  }
+  sub.df <- filter(comp.df,group!="islet_regulatory")
+  pval1 <- wilcox.test(sub.df$islet.max.vs.null,sub.df$multi.max.vs.null)$p.value 
+  pval2 <- wilcox.test(sub.df$islet.num.vs.null,sub.df$multi.num.vs.null)$p.value 
+  Group <- c(Group,"peripheral")
+  w.pval.max <- c(w.pval.max,pval1)
+  w.pval.num <- c(w.pval.num,pval2)  
+  out.df <- data.frame(Group,w.pval.max,w.pval.num,stringsAsFactors=FALSE)
+  return(out.df)
+}
+
+test.df <- build_test_df(comp.df,group.df)
+test.df$Group <- factor(test.df$Group,levels=c("islet_bivalent_tss",
+                                               "islet_regulatory",
+                                               "liver",
+                                               "muscle",
+                                               "adipose",
+                                               "peripheral"))
+plt1 <- ggplot(data=test.df,aes(x=Group,y=-log(w.pval.max,base=10))) + 
+  geom_point(shape=21,color="black",
+             fill=brewer.pal(11,"Spectral")[9],size=2) + 
+  scale_y_continuous(limits=c(0,3),breaks=seq(0,3,0.5)) + 
+  theme_bw() + geom_hline(yintercept=-log(0.05,base=10),
+                          color="firebrick3",linetype=2) + 
+  ylab(expression(-log[10](p[value]))) + 
+  ggtitle("Wilcoxon test for difference in improvement of max PPA over null",
+          subtitle="Mean of Islet-only fgwas = " %&% round(mean(grp1$islet.max.vs.null),5) %&% 
+          "\nMean of multi-tissue fgwas = " %&% round(mean(grp1$multi.max.vs.null),5))
+  
+plt2 <- ggplot(data=test.df,aes(x=Group,y=-log(w.pval.num,base=10))) + 
+  geom_point(shape=21,color="black",
+             fill=brewer.pal(11,"Spectral")[9],size=2) + 
+  scale_y_continuous(limits=c(0,3),breaks=seq(0,3,0.5)) + 
+  theme_bw() + geom_hline(yintercept=-log(0.05,base=10),
+                          color="firebrick3",linetype=2) + 
+  ylab(expression(-log[10](p[value]))) + 
+  ggtitle("Wilcoxon test for difference in change of credible set size vs null",
+          subtitle="Median of Islet-only fgwas = " %&% round(median(grp1$islet.num.vs.null),1) %&% 
+          "\nMedian of multi-tissue fgwas = " %&% round(median(grp1$multi.num.vs.null),1))
+  
+
+ggsave(plot=plt1,filename=plot.dir%&%"Wilcox-compare-max.png",height=3,width=7)
+ggsave(plot=plt2,filename=plot.dir%&%"Wilcox-compare-num.png",height=3,width=7)
+
+```
+
