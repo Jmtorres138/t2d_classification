@@ -195,14 +195,13 @@ build_ppa_partition_df <- function(mode="full",weights=NULL){
 
 #Generate and save tables 
 
-
+part.fullW.df <- build_ppa_partition_df(mode="full",weight.vec)
+write.table(x=part.fullW.df,file=out.dir%&%"tissue_ppa_divvy-fullWeighted.txt",sep="\t",quote=FALSE,row.names=FALSE)
 
 part.full.df <- build_ppa_partition_df(mode="full")
-part.fullW.df <- build_ppa_partition_df(mode="full",weight.vec)
-part.cse.df <- build_ppa_partition_df(mode="coding+strongenhancers")
-
 write.table(x=part.full.df,file=out.dir%&%"tissue_ppa_divvy-full.txt",sep="\t",quote=FALSE,row.names=FALSE)
-write.table(x=part.fullW.df,file=out.dir%&%"tissue_ppa_divvy-fullWeighted.txt",sep="\t",quote=FALSE,row.names=FALSE)
+
+part.cse.df <- build_ppa_partition_df(mode="coding+strongenhancers")
 write.table(x=part.cse.df,file=out.dir%&%"tissue_ppa_divvy-coding-strongEnhancers.txt",
             sep="\t",quote=FALSE,row.names=FALSE)
 
