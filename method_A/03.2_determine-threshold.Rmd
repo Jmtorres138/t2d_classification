@@ -1,0 +1,116 @@
+---
+title: "03.2_determine-threshold.Rmd"
+author: "Jason Torres"
+date: "3/7/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+#library("Homo.sapiens")
+
+serv.dir <- "/Users/jtorres/FUSE5/"
+
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "method_A/"
+analysis.dir <- work.dir  %&% "analysis_files/"
+plot.dir <- work.dir %&% "plots/"
+
+keep.df <- fread(proj.dir %&% "input_data/" %&% "380.locus.ID.txt")
+keep.vec <- keep.df$Locus.ID_inCREDS
+
+block.df <- fread(work.dir %&% "multi_results/results_blocks.txt")
+
+```
+
+
+# Functions 
+
+
+```{r}
+
+determine_classify_threshold <- function(input.df){
+
+  plot.df <- filter(input.df,pvalue<=0.05)
+  
+  max.plot.thresh <- c(filter(plot.df,tissue=="islet")$threshold %>% max(.),
+    filter(plot.df,tissue=="muscle")$threshold %>% max(.),
+    filter(plot.df,tissue=="liver")$threshold %>% max(.),
+    filter(plot.df,tissue=="adipose")$threshold %>% max(.)) %>% min(.)
+  
+  max.plot.enrich <- filter(plot.df,threshold==max.plot.thresh)$enrichment %>% max(.) %>% ceiling(.)
+  
+  plt <- ggplot(data=filter(plot.df,tissue=="islet"),aes(x=threshold,y=enrichment)) + 
+      geom_line(size=1.5,color="olivedrab2") + 
+      geom_line(data=filter(plot.df,tissue=="liver"),aes(x=threshold,y=enrichment),size=1.5,color="brown") + 
+      geom_line(data=filter(plot.df,tissue=="muscle"),aes(x=threshold,y=enrichment),size=1.5,color="red") + 
+      geom_line(data=filter(plot.df,tissue=="adipose"),aes(x=threshold,y=enrichment),size=1.5,color="gold1")  + 
+      theme_classic() + coord_cartesian(xlim=c(0,max.plot.thresh),ylim=c(0,max.plot.enrich)) + 
+      xlab("Threshold") + ylab("Fold Enrichment")
+
+  max.islet <- arrange(filter(plot.df,tissue=="islet",threshold<=max.plot.thresh),desc(enrichment))$threshold[1]
+  max.liver <- arrange(filter(plot.df,tissue=="liver",threshold<=max.plot.thresh),desc(enrichment))$threshold[1]
+  max.adipose <- arrange(filter(plot.df,tissue=="adipose",threshold<=max.plot.thresh),desc(enrichment))$threshold[1]
+  max.muscle <- arrange(filter(plot.df,tissue=="muscle",threshold<=max.plot.thresh),desc(enrichment))$threshold[1]
+  
+  selected.thresh <- c(max.islet,max.adipose,max.muscle,max.liver) %>% mean(.)
+  
+  plot2.df <- data.frame(tissue=c("islet","liver","adipose","muscle"),max.threshold=c(max.islet,max.liver,max.adipose,max.muscle),
+                         col=c(islet.col,liver.col,adipose.col,muscle.col),stringsAsFactors = FALSE)
+  plt2 <- ggplot(data=plot2.df,aes(x=tissue,y=max.threshold)) +
+    geom_bar(stat="identity",color="black",fill=c(adipose.col,islet.col,liver.col,muscle.col)) + 
+    geom_hline(yintercept = selected.thresh,linetype=2) + 
+    ggtitle("Selected threshold: " %&% selected.thresh) + theme_bw() + 
+      xlab("Tissue") + ylab("Theshold of Maximum Enrichment")
+  
+  grob <- arrangeGrob(plt,plt2,nrow=1)
+  return(list(grob,selected.thresh))
+}
+
+
+classify_loci <- function(ppa.df, selected.thresh){
+  out.df <- c()
+  pb <- txtProgressBar(min=0,max=dim(ppa.df)[1],style=3)
+  for (i in 1:dim(ppa.df)[1]){
+    setTxtProgressBar(pb,i)
+    sub.df <- ppa.df[i,]
+    loc.id <- ppa.df$Locus.ID
+    vec <- sub.df[,2:dim(sub.df)[2]] %>% as.numeric(.)
+    names <-sub.df[,2:dim(sub.df)[2]] %>% names(.)
+    assigned <- names[vec >= selected.thresh & vec == max(vec)]
+    assigned <- ifelse(length(assigned)==0,"unclassified",
+                       ifelse(assigned=="other","unclassified",assigned))
+    build.df <- cbind(sub.df,assigned)
+    out.df <- rbind(out.df,build.df)
+  }
+  out.df$assigned <- out.df$assigned %>% as.character(.)
+  out.df$symbol <- map(out.df$Locus.ID,function(loc.id){filter(block.df,Locus.ID==loc.id)$refseq}) %>% as.character(.)
+  return(out.df)
+}
+
+```
+
+
+
+```{r}
+
+test.df <- fread(analysis.dir%&%"tissue_ppa_divvy-full.txt") %>% filter(.,Locus.ID %in% keep.vec)
+
+test.list <- determine_classify_threshold(fread(analysis.dir %&% "select-thresh-eqtl_full.txt"))
+ggsave(plot=test.list[[1]],filename=plot.dir %&% "select-thresh-eqtl_full.pdf",height=4,width=6)
+assign.df <- classify_loci(test.df,test.list[[2]])
+write.table(x=assign.df,file = analysis.dir %&% "classified_full.txt",sep="\t",quote=FALSE,row.names=FALSE)
+
+
+```
+
