@@ -144,7 +144,8 @@ loading_plot <- function(pr.output){
           geom_bar(stat="identity",color="black",size=0.2) + 
           scale_y_continuous(breaks=seq(0,1,0.1)) + 
           scale_x_continuous(breaks=seq(0,length(unique(out.df$PC)),1)) + 
-          scale_fill_manual(values=colorRampPalette(brewer.pal(11,                                  "Spectral"))(length(unique(out.df$PC)) )) + 
+          #scale_fill_manual(values=colorRampPalette(brewer.pal(11,                                  "Spectral"))(length(unique(out.df$PC)) )) + 
+          scale_fill_manual(values=c("gold1","olivedrab2","brown","red","grey")) + 
           ggtitle("PC Loading Scores for Genomic Annotations") + 
           ylab("Loading Proportion")
 }
@@ -242,24 +243,25 @@ complete_pca <- function(ppa.df,centerScale,savename){
 ```{r}
 
 # appended dataframe, pr.out, and pve.df 
-pca.list.full <- make_pca_inputs(full.df,centerScale=FALSE) 
-pca.list.full.cent <- make_pca_inputs(full.df,centerScale=TRUE) 
-pca.list.reduced <- make_pca_inputs(cse.df,centerScale=FALSE) 
-pca.list.reduced.cent <- make_pca_inputs(cse.df,centerScale=TRUE) 
+pca.list <- make_pca_inputs(wfull.df,centerScale=FALSE) 
+pca.list.cent <- make_pca_inputs(wfull.df,centerScale=TRUE) 
+#pca.list.reduced <- make_pca_inputs(cse.df,centerScale=FALSE) 
+#pca.list.reduced.cent <- make_pca_inputs(cse.df,centerScale=TRUE) 
 
 ```
 
 
 ```{r}
 
-scree_cumsum_plot(pca.list.full.cent[[3]])
+#scree_cumsum_plot(pca.list.cent[[3]])
 
-loading_plot(pca.list.full.cent[[2]])
+#loading_plot(pca.list.cent[[2]])
 
-pca_plot(pca.list.full.cent[[1]],
-                   pca.list.full.cent[[2]],"PC1","PC2")
+#pca_plot(pca.list.cent[[1]],
+#                   pca.list.cent[[2]],"PC1","PC2")
 
-plt <- complete_pca(full.df,centerScale=FALSE)
+plt.uncent <- complete_pca(wfull.df,centerScale=FALSE)
+plt.cent <- complete_pca(wfull.df,centerScale=TRUE)
 
 ```
 
@@ -269,43 +271,15 @@ plt <- complete_pca(full.df,centerScale=FALSE)
 
 ```{r}
 
-pca.list.full.pruned <- make_pca_inputs(filter(full.df,other<=0.1),
+ 
+pca.list.pruned <- make_pca_inputs(filter(wfull.df,other<=0.1),
                                  centerScale=FALSE)  
-pca.list.wfull.pruned <- make_pca_inputs(filter(wfull.df,other<=0.1),
-                                 centerScale=FALSE)  
-pca.list.reduced.pruned <- make_pca_inputs(filter(cse.df,other<=0.1),
-                                    centerScale=FALSE) 
 
-complete_pca(filter(full.df,other<=0.1),centerScale=FALSE)
 complete_pca(filter(wfull.df,other<=0.1),centerScale=FALSE)
-complete_pca(filter(cse.df,other<=0.10),centerScale=FALSE)
-
-
-prune1.plt <- pca_plot_annotated(pca.list.full.pruned[[1]],
-                   pca.list.full.pruned[[2]],"PC1","PC2")
-
-
-prune2.plt <- pca_plot_annotated(pca.list.reduced.pruned[[1]],
-                   pca.list.reduced.pruned[[2]],"PC1","PC2")
-
 
 ```
 
 
-Full 
-
-```{r}
-
-pruneA.plt <- pca_plot_annotated(pca.list.full.pruned[[1]],
-                   pca.list.full.pruned[[2]],"PC1","PC2")
-pruneB.plt <- pca_plot_annotated(pca.list.full.pruned[[1]],
-                   pca.list.full.pruned[[2]],"PC2","PC3")
-
-ggsave(plot=pruneA.plt,filename=plot.dir%&%"pca_pruned-full-pc1-pc2.pdf",height=6,width=6)
-ggsave(plot=pruneB.plt,filename=plot.dir%&%"pca_pruned-full-pc2-pc3.pdf",height=6,width=6)
-
-
-```
 
 
 Full (Weighted)
@@ -319,21 +293,6 @@ pruneB.plt <- pca_plot_annotated(pca.list.wfull.pruned[[1]],
 
 ggsave(plot=pruneA.plt,filename=plot.dir%&%"pca_pruned-full-weighted-pc1-pc2.pdf",height=6,width=6)
 ggsave(plot=pruneB.plt,filename=plot.dir%&%"pca_pruned-full-weighted-pc2-pc3.pdf",height=6,width=6)
-
-```
-
-
-Reduced 
-
-```{r}
-
-pruneA.plt <- pca_plot_annotated(pca.list.reduced.pruned[[1]],
-                   pca.list.reduced.pruned[[2]],"PC1","PC2")
-pruneB.plt <- pca_plot_annotated(pca.list.reduced.pruned[[1]],
-                   pca.list.reduced.pruned[[2]],"PC2","PC3")
-
-ggsave(plot=pruneA.plt,filename=plot.dir%&%"pca_pruned-reduced-pc1-pc2.pdf",height=6,width=6)
-ggsave(plot=pruneB.plt,filename=plot.dir%&%"pca_pruned-reduced-pc2-pc3.pdf",height=6,width=6)
 
 ```
 
