@@ -38,8 +38,7 @@ keep.df <- fread(proj.dir %&% "input_data/" %&% "380.locus.ID.txt")
 keep.vec <- keep.df$Locus.ID_inCREDS
 full.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full.txt") %>% 
   filter(.,Locus.ID %in% keep.vec)
-wfull.df <- fread(analysis.dir %&% "tissue_ppa_divvy-fullWeighted.txt
-") %>% filter(.,Locus.ID %in% keep.vec)
+wfull.df <- fread(analysis.dir %&% "tissue_ppa_divvy-fullWeighted.txt") %>% filter(.,Locus.ID %in% keep.vec)
 # coding and strong enhancers (ie. cse)
 cse.df <- fread(analysis.dir %&% "tissue_ppa_divvy-coding-strongEnhancers.txt") %>%
   filter(.,Locus.ID %in% keep.vec)
@@ -52,7 +51,9 @@ cse.df <- fread(analysis.dir %&% "tissue_ppa_divvy-coding-strongEnhancers.txt") 
 ```{r}
 
 create_plot_df <- function(){
-  df <- rbind(mutate(full.df,method="full"),mutate(cse.df,method="reduced"))
+  df <- rbind(mutate(full.df,method="full"),
+              mutate(cse.df,method="reduced"),
+              mutate(wfull.df,method="weighted.full"))
   loc.ids <- df$Locus.ID %>% unique(.)
   out.df <- c()
   pb <- txtProgressBar(min=0,max=length(loc.ids),style=3)
@@ -62,9 +63,12 @@ create_plot_df <- function(){
     sub.df <- filter(df,Locus.ID==loc.id)
     ppa.score.full <- sub.df[1,2:6] %>% as.numeric(.)
     ppa.score.reduced <- sub.df[2,2:6] %>% as.numeric(.)
+    ppa.score.wfull <- sub.df[3,2:6] %>% as.numeric(.)
+
     tissue <- names(sub.df)[2:6]
     build.df <- data.frame(Locus.ID=loc.id,tissue,
-                           ppa.score.full,ppa.score.reduced)
+                           ppa.score.full,ppa.score.reduced,
+                           ppa.score.wfull)
     out.df <- rbind(out.df,build.df)
   }
   out.df$Locus.ID <- out.df$Locus.ID %>% as.character(.)
@@ -91,13 +95,26 @@ pltA <- ggplot(data=plot.df,aes(x=ppa.score.reduced,y=ppa.score.full)) +
   xlab('ppa score (reduced)') + 
   ylab('ppa score (full)') + 
   ggtitle("Comparison of PPA Scores")
-
 ggsave(plot=pltA,filename=plot.dir%&%"ppa-score-compare.png",
        height = 6,width=6)
 
-plot.df <- mutate(plot.df,ppa.score.diff=(ppa.score.full-ppa.score.reduced))
+pltB <- ggplot(data=plot.df,aes(x=ppa.score.full,y=ppa.score.wfull)) + 
+  geom_point(shape=21,color="black",aes(fill=tissue)) + 
+  geom_abline(slope=1,intercept=0,linetype=1,alpha=0.8) +
+  facet_wrap(~tissue,nrow=3) + 
+  theme_classic() + 
+  scale_fill_brewer(palette="Set3") + 
+  theme(legend.position = "none") + 
+  xlab('ppa score (unweighted)') + 
+  ylab('ppa score (weighted)') + 
+  ggtitle("Comparison of PPA Scores")
+ggsave(plot=pltB,filename=plot.dir%&%"ppa-score-compare-weighted.png",
+       height = 6,width=6)
 
-pltB <- ggplot(data=plot.df,aes(x=ppa.score.diff)) +
+plot.df <- mutate(plot.df,ppa.score.diff=(ppa.score.full-ppa.score.reduced))
+plot.df <- mutate(plot.df,ppa.score.diffW=(ppa.score.wfull-ppa.score.full))
+
+pltC <- ggplot(data=plot.df,aes(x=ppa.score.diff)) +
   geom_histogram(color="black",aes(fill=tissue)) + 
   facet_wrap(~tissue,nrow=3) +
   theme_classic() + 
@@ -107,7 +124,7 @@ pltB <- ggplot(data=plot.df,aes(x=ppa.score.diff)) +
   geom_vline(xintercept = 0,linetype=2) +  
   ggtitle("Difference in PPA Scores")
 
-ggsave(plot=pltB,filename=plot.dir%&%"ppa-score-difference.png",
+ggsave(plot=pltC,filename=plot.dir%&%"ppa-score-difference.png",
        height = 6,width=6)
 
 
@@ -162,11 +179,13 @@ filter(fcred.df,Locus.ID=="126")
 filter(plot.df,refseq=="PPARG",Locus.ID=="30_1")
 filter(fcred.df,Locus.ID=="30_1")
 
-(filter(full.df,other<0.50) %>% dim(.))[1] # 314 loci with other scores < 0.50
-(filter(cse.df,other<0.50) %>% dim(.))[1] # 148 loci with other scores < 0.50
+(filter(full.df,other<0.50) %>% dim(.))[1] # 325 loci with other scores < 0.50
+(filter(wfull.df,other<0.50) %>% dim(.))[1] # 325 loci with other scores < 0.50
+(filter(cse.df,other<0.50) %>% dim(.))[1] # 150 loci with other scores < 0.50
 
-(filter(full.df,other<0.10) %>% dim(.))[1] # 237 loci with other scores < 0.50
-(filter(cse.df,other<0.10) %>% dim(.))[1] # 67 loci with other scores < 0.50
+(filter(full.df,other<0.10) %>% dim(.))[1] # 287 loci with other scores < 0.10
+(filter(wfull.df,other<0.10) %>% dim(.))[1] # 287 loci with other scores < 0.10
+(filter(cse.df,other<0.10) %>% dim(.))[1] # 68 loci with other scores < 0.10
 
 ```
 
@@ -233,9 +252,8 @@ cor.test(filter(comb.df,method=="reduced")$number,
 
 ```
 
-There is a slight correlation between the number of snps in credible set and other score 
-0.11, pval=0.03 (reduced ); 
+There is a slight correlation between the number of snps in credible set and other score in the reduced model 
+0.114, pval=0.026 (reduced); 
 
-Conclusion: The number of SNPs in the credible set doesn't influence the difference in ppa scores between full and reduced methods, altough slight correlation with number of snps and value of the "other" score
 
 
