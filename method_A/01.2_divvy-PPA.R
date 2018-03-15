@@ -108,7 +108,7 @@ handle_annotation <- function(annot.df, annot.name, ppa){
 
 
 
-divvy_ppa_snp <- function(loc.id,snp.id,mode="full",weights){
+divvy_ppa_snp <- function(loc.id,snp.id,mode="full",weights=TRUE){
   # set weights=NULL if unweighted, else assign weight.vector 
   sub.df <- filter(fcred.df,Locus.ID==loc.id,SNPID==snp.id)
   chrom <- sub.df$CHR; pos <- sub.df$POS; 
@@ -124,13 +124,36 @@ divvy_ppa_snp <- function(loc.id,snp.id,mode="full",weights){
   genetrans.vec <- handle_annotation(annot.df,"gene_transcription",ppa)
   prom.vec <- handle_annotation(annot.df,"promoter",ppa)
   genenh.vec <- handle_annotation(annot.df,"genic_enhancer",ppa)
-  if (is.null(weights)==FALSE){
-    coding.vec <- coding.vec * weights[1]
-    strongenh.vec <- strongenh.vec * weights[2]
-    weakenh.vec <- weakenh.vec * weights[3]
-    genetrans.vec <- genetrans.vec * weights[4]
-    prom.vec <- prom.vec * weights[5]
-    genenh.vec <- genenh.vec * weights[6]
+  if (weights==TRUE){
+    c.df <- filter(weight.all.df,annotation=="coding")
+    c.scores <- c(filter(c.df,tissue=="islet")$weight,filter(c.df,tissue=="muscle")$weight,
+                  filter(c.df,tissue=="adipose")$weight,filter(c.df,tissue=="liver")$weight)
+    coding.vec <- coding.vec  * c.scores 
+    
+    se.df <- filter(weight.all.df,annotation=="strong.enhancers")
+    se.scores <- c(filter(se.df,tissue=="islet")$weight,filter(se.df,tissue=="muscle")$weight,
+                   filter(se.df,tissue=="adipose")$weight,filter(se.df,tissue=="liver")$weight)    
+    strongenh.vec <- strongenh.vec * se.scores
+    
+    we.df <- filter(weight.all.df,annotation=="weak.enhancers")
+    we.scores <- c(filter(we.df,tissue=="islet")$weight,filter(we.df,tissue=="muscle")$weight,
+                   filter(we.df,tissue=="adipose")$weight,filter(we.df,tissue=="liver")$weight)        
+    weakenh.vec <- weakenh.vec * we.scores
+    
+    gt.df <- filter(weight.all.df,annotation=="gene.transcription")
+    gt.scores <- c(filter(gt.df,tissue=="islet")$weight,filter(gt.df,tissue=="muscle")$weight,
+                   filter(gt.df,tissue=="adipose")$weight,filter(gt.df,tissue=="liver")$weight) 
+    genetrans.vec <- genetrans.vec * gt.scores
+    
+    pr.df <- filter(weight.all.df,annotation=="promoters")
+    pr.scores <- c(filter(pr.df,tissue=="islet")$weight,filter(pr.df,tissue=="muscle")$weight,
+                   filter(pr.df,tissue=="adipose")$weight,filter(pr.df,tissue=="liver")$weight)    
+    prom.vec <- prom.vec * pr.scores 
+    
+    ge.df <- filter(weight.all.df,annotation=="genic.enhancer")
+    ge.scores <- c(filter(ge.df,tissue=="islet")$weight,filter(ge.df,tissue=="muscle")$weight,
+                   filter(ge.df,tissue=="adipose")$weight,filter(ge.df,tissue=="liver")$weight)    
+    genenh.vec <- genenh.vec * ge.scores 
   }
   if (mode=="full"){
     score.vec <- coding.vec + strongenh.vec + weakenh.vec + genenh.vec + prom.vec + genetrans.vec
@@ -150,7 +173,7 @@ divvy_ppa_snp <- function(loc.id,snp.id,mode="full",weights){
   return(out.df)
 }
 
-divvy_ppa_loc <- function(loc.id,mode="full",weights){
+divvy_ppa_loc <- function(loc.id,mode="full",weights=TRUE){
   sub.df <- filter(fcred.df,Locus.ID==loc.id)
   out.df <- c()
   pb <- txtProgressBar(min=0,max=dim(sub.df)[1],style=3)
@@ -175,7 +198,7 @@ divvy_ppa_loc <- function(loc.id,mode="full",weights){
   return(out.df)
 }
 
-build_ppa_partition_df <- function(mode="full",weights=NULL){
+build_ppa_partition_df <- function(mode="full",weights=TRUE){
   loc.ids <- fcred.df$Locus.ID %>% unique(.)
   out.df <- c()
   pb <- txtProgressBar(min=0,max=length(loc.ids),style=3)
@@ -195,14 +218,14 @@ build_ppa_partition_df <- function(mode="full",weights=NULL){
 
 #Generate and save tables 
 
-part.fullW.df <- build_ppa_partition_df(mode="full",weight.vec)
+part.fullW.df <- build_ppa_partition_df(mode="full",weights=TRUE)
 write.table(x=part.fullW.df,file=out.dir%&%"tissue_ppa_divvy-fullWeighted.txt",sep="\t",quote=FALSE,row.names=FALSE)
 
-part.full.df <- build_ppa_partition_df(mode="full")
-write.table(x=part.full.df,file=out.dir%&%"tissue_ppa_divvy-full.txt",sep="\t",quote=FALSE,row.names=FALSE)
+#part.full.df <- build_ppa_partition_df(mode="full")
+#write.table(x=part.full.df,file=out.dir%&%"tissue_ppa_divvy-full.txt",sep="\t",quote=FALSE,row.names=FALSE)
 
-part.cse.df <- build_ppa_partition_df(mode="coding+strongenhancers")
-write.table(x=part.cse.df,file=out.dir%&%"tissue_ppa_divvy-coding-strongEnhancers.txt",
-            sep="\t",quote=FALSE,row.names=FALSE)
+#part.cse.df <- build_ppa_partition_df(mode="coding+strongenhancers")
+#write.table(x=part.cse.df,file=out.dir%&%"tissue_ppa_divvy-coding-strongEnhancers.txt",
+#            sep="\t",quote=FALSE,row.names=FALSE)
 
 
