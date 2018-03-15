@@ -32,7 +32,7 @@ weight.vec <- c(filter(weight.df,annotation=="coding")$weight,
                 filter(weight.df,annotation=="gene.transcription")$weight,
                 filter(weight.df,annotation=="promoters")$weight,
                 filter(weight.df,annotation=="genic.enhancer")$weight)
-
+weight.all.df <- fread(out.dir %&% "weight-enrich-all.txt")
 
 
 blk.df <- fread(res.dir %&% "results_blocks.txt")
@@ -218,7 +218,7 @@ build_ppa_partition_df <- function(mode="full",weights=TRUE){
 
 #Generate and save tables 
 
-part.fullW.df <- build_ppa_partition_df(mode="full",weights=TRUE)
+part.fullW.df <- build_ppa_partition_df(mode="full",weight.vec)
 write.table(x=part.fullW.df,file=out.dir%&%"tissue_ppa_divvy-fullWeighted.txt",sep="\t",quote=FALSE,row.names=FALSE)
 
 #part.full.df <- build_ppa_partition_df(mode="full")
