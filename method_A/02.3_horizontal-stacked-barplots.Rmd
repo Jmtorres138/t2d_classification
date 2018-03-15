@@ -101,7 +101,9 @@ ppa_plot <- function(ppa.df,col.vec=c("olivedrab2","red","gold1","brown","grey")
   plot.df <- cbind(PlotID,format.df)
 
   
+  #ranklevs <- arrange(append.df,(!!rank.by))$PlotID
   ranklevs <- arrange(append.df,(!!rank.by))$PlotID
+
   plot.df$PlotID <- factor(plot.df$PlotID,levels=ranklevs)
   
 
@@ -146,8 +148,8 @@ all_tissues_plot <- function(ppa.df,number=NULL,col.vec=c("olivedrab2","red","go
 ```{r}
 
 
-grob <- all_tissues_plot(full.df,number=50)
-ggsave(plot=grob,filename=plot.dir%&%"stacked_barplots_full.pdf",width=25,height=15)
+grob <- all_tissues_plot(wfull.df,number=50)
+ggsave(plot=grob,filename=plot.dir%&%"stacked_barplots_full-weighted.pdf",width=25,height=15)
 
 ```
 
