@@ -15,10 +15,9 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library("tidyverse")
 library("data.table")
-library("Homo.sapiens")
 
-got2d.dir <- "/home/jason/science/servers/FUSE/"
-serv.dir <- "/home/jason/science/servers/FUSE5/"
+got2d.dir <- "/Users/jtorres/FUSE/" #"/home/jason/science/servers/FUSE/"
+serv.dir <- "/Users/jtorres/FUSE5/" #"/home/jason/science/servers/FUSE5/"
 proj.dir <- serv.dir %&% "projects/t2d_classification/"
 work.dir <- proj.dir %&% "method_A/"
 out.dir <- work.dir %&% "analysis_files/"
@@ -114,6 +113,15 @@ get_weight <- function(all.df,annot.group){
   return(weight)
 }
 
+get_weight_full <- function(all.df,annot.group){
+  sub <-filter(all.df,parameter%in%annot.group)
+  w.df <- sub %>% group_by(.,tissue) %>% summarise(.,avg=mean(estimate))
+  #med <- sub$estimate %>% median(.)
+  weight.vec <- w.df$avg
+  names(weight.vec) <- w.df$tissue
+  return(weight.vec)
+}
+
 build_weight_df <- function(all.df,annot.names,annot.list){
   out.df <- c()
   for (i in 1:length(annot.names)){
@@ -126,8 +134,17 @@ build_weight_df <- function(all.df,annot.names,annot.list){
   return(out.df)
 }
 
-
-write.table(x=)
+build_weight_full_df <- function(all.df,annot.names,annot.list){
+  out.df <- c()
+  for (i in 1:length(annot.names)){
+    annot <- annot.names[i]
+    annot.group <- annot.list[[i]]
+    weight.vec <- get_weight_full(all.df,annot.group)
+    build.df <- data.frame("annotation"=annot,"tissue"=names(weight.vec),"weight"=unname(weight.vec),stringsAsFactors = FALSE)
+    out.df <- rbind(out.df,build.df)
+  }
+  return(out.df)
+}
 
 
 ```
@@ -136,8 +153,10 @@ write.table(x=)
 ```{r}
 
 w.df <- build_weight_df(all.df,annot.names,annot.list)
-
 write.table(x=w.df,file = out.dir%&%"weight-enrich.txt",sep="\t",quote=F,row.names=F)
+
+wf.df <- build_weight_full_df(all.df,annot.names,annot.list)
+write.table(x=wf.df,file = out.dir%&%"weight-enrich-all.txt",sep="\t",quote=F,row.names=F)
 
 ```
 

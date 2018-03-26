@@ -1,0 +1,77 @@
+---
+title: "Untitled"
+author: "Jason Torres"
+date: "3/11/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+library("GenomicRanges")
+
+got2d.dir <- "/Users/jtorres/FUSE/"
+rescomp.dir <- "/Users/jtorres/FUS5/"
+
+bed.dir <- got2d.dir %&% "reference/chromatin_segmentation/varshney_2016/chromatin_states/" 
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "method_A/"
+analysis.dir <- work.dir %&% "analysis_files/"
+
+block.df <- fread(work.dir%&%"multi_results/results_blocks.txt",sep="\t")
+fcred.df <- fread(work.dir %&% "multi_results/results_func-cred-sets.txt")
+
+phys.df <- fread(got2d.dir %&% "reference/physiology/dimas-wood.txt")
+
+```
+
+
+# Make phys loc bed files 
+
+
+```{r}
+
+ir.genes <- filter(phys.df,Dimas2014=="IR")$Locus %>% unique(.)
+is.genes <- filter(phys.df,Dimas2014%in%c("HG","BC"))$Locus %>% unique(.)
+is.genes <- c(is.genes,"CDKN2A","CDKN2B","HHEX","IDE")
+
+fcred.df$POS0 <- fcred.df$POS - 1
+all.loci.bed <- dplyr::select(fcred.df,one_of("CHR","POS0","POS","symbol"))
+write.table(x=all.loci.bed,file=analysis.dir%&%"all_loci_snps.bed",quote=FALSE,sep="\t",
+            row.names=F,col.names=F)
+ir.loci.bed <- filter(fcred.df,symbol%in%ir.genes)
+write.table(x=ir.loci.bed,file=analysis.dir%&%"ir_loci_snps.bed",quote=FALSE,sep="\t",
+            row.names=F,col.names=F)
+is.loci.bed <- filter(fcred.df,symbol%in%is.genes)
+write.table(x=is.loci.bed,file=analysis.dir%&%"is_loci_snps.bed",quote=FALSE,sep="\t",
+            row.names=F,col.names=F)
+
+
+```
+
+
+
+```{r}
+
+
+tiss.vec <- c("Islets","Adipose","SkeletalMuscle","Liver")
+isl.df <- fread("cat " %&% bed.dir %&% "Islets.chromatinStates.bed.gz | zmore",sep="\t")
+adi.df <- fread("cat " %&% bed.dir %&% "Adipose.chromatinStates.bed.gz | zmore",sep="\t")
+mus.df <- fread("cat " %&% bed.dir %&% "SkeletalMuscle.chromatinStates.bed.gz | zmore",sep="\t")
+liv.df <- fread("cat " %&% bed.dir %&% "Liver.chromatinStates.bed.gz | zmore",sep="\t")
+
+isl.df$V4 <- isl.df$V4 %>% gsub("/","_",.)
+adi.df$V4 <- adi.df$V4 %>% gsub("/","_",.)
+mus.df$V4 <- mus.df$V4 %>% gsub("/","_",.)
+liv.df$V4 <- liv.df$V4 %>% gsub("/","_",.)
+
+```
+
