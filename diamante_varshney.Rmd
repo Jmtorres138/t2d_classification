@@ -1,3 +1,11 @@
+<style type="text/css">
+.main-container {
+  max-width: 1800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+</style>
+
 ---
 title: "Untitled"
 output: html_document
@@ -21,6 +29,9 @@ mcc.dir <- "/home/jason/science/servers/FUSE5/projects/t2d_classification/"
 
 
 islet.thurner.df <- fread(mcc.dir %&% "method_A/islet_results/results_func-cred-sets.txt")
+null.df <- fread(mcc.dir %&% "method_A/null_results/null_results_func-cred-sets.txt")
+block.df <- fread(mcc.dir %&% "method_A/islet_results/results_blocks.txt")
+
 islet.df <- fread(got2d.dir %&% "islet/results_func-cred-sets.txt")
 adipose.df <- fread(got2d.dir %&% "adipose/results_func-cred-sets.txt")
 liver.df <- fread(got2d.dir %&% "liver/results_func-cred-sets.txt")
@@ -42,7 +53,9 @@ build_anlaysis_df <- function(){
   #pb <- txtProgressBar(min=0,max=length(loc.vec),style=3)
   for (i in 1:length(loc.vec)){
     #setTxtProgressBar(pb,i)
-    loc <- loc.vec[i]
+    loc <- loc.vec[i]    
+    null.num <- (filter(null.df,Locus.ID==loc) %>% dim(.))[1]
+    null.maxpp <- (filter(null.df,Locus.ID==loc) %>% arrange(.,desc(PPA)))$PPA[1]
     islet.oxf.num <- (filter(islet.thurner.df,Locus.ID==loc) %>% dim(.))[1]
     islet.oxf.maxpp <- (filter(islet.thurner.df,Locus.ID==loc) %>% arrange(.,desc(PPA)))$PPA[1]
     islet.num <- (filter(islet.df,Locus.ID==loc) %>% dim(.))[1]
@@ -53,16 +66,16 @@ build_anlaysis_df <- function(){
     liver.maxpp <- (filter(liver.df,Locus.ID==loc) %>% arrange(.,desc(PPA)))$PPA[1]
     muscle.num <- (filter(muscle.df,Locus.ID==loc) %>% dim(.))[1]
     muscle.maxpp <- (filter(muscle.df,Locus.ID==loc) %>% arrange(.,desc(PPA)))$PPA[1]
-    islet.delta.num <-   islet.oxf.num - islet.num
-    islet.delta.maxpp <-   islet.oxf.maxpp - islet.maxpp 
-    adipose.delta.num <-   islet.oxf.num - adipose.num
-    adipose.delta.maxpp <-   islet.oxf.maxpp - adipose.maxpp
-    muscle.delta.num <-   islet.oxf.num - muscle.num
-    muscle.delta.maxpp <-   islet.oxf.maxpp - muscle.maxpp
-    liver.delta.num <-   islet.oxf.num -liver.num
-    liver.delta.maxpp <-   islet.oxf.maxpp -liver.maxpp
+    islet.delta.num <-   islet.num - null.num
+    islet.delta.maxpp <-     islet.maxpp - null.maxpp
+    adipose.delta.num <-     adipose.num - null.num
+    adipose.delta.maxpp <-    adipose.maxpp - null.maxpp
+    muscle.delta.num <-     muscle.num - null.num
+    muscle.delta.maxpp <-     muscle.maxpp - null.maxpp
+    liver.delta.num <-    liver.num - null.num
+    liver.delta.maxpp <-    liver.maxpp - null.maxpp
     
-    build.df <- data.frame("Locus.ID"=loc,islet.oxf.num,islet.oxf.maxpp,islet.num,islet.maxpp,
+    build.df <- data.frame("Locus.ID"=loc,null.num,null.maxpp,islet.oxf.num,islet.oxf.maxpp,islet.num,islet.maxpp,
                            adipose.num,adipose.maxpp,liver.num,liver.maxpp,muscle.num,muscle.maxpp,
                            islet.delta.num,islet.delta.maxpp,adipose.delta.num,adipose.delta.maxpp,
                            muscle.delta.num,muscle.delta.maxpp,liver.delta.num,liver.delta.maxpp)
@@ -96,100 +109,48 @@ plt2
 
 
 
-```{r}
-
-
-
-profile_maxpp <- function(df,y){
-  islet.count <- filter(df,islet.delta.maxpp>y)$Locus.ID %>% length(.)
-  adipose.count <- filter(df,adipose.delta.maxpp>y)$Locus.ID %>% length(.)
-  muscle.count <- filter(df,muscle.delta.maxpp>y)$Locus.ID %>% length(.)
-  liver.count <- filter(df,liver.delta.maxpp>y)$Locus.ID %>% length(.)
-  out.df <- data.frame(y,islet.count,adipose.count,muscle.count,liver.count)
-  return(out.df)
-}
-
-build_maxpp_df <- function(df){
-  out.df <- c()
-  for (i in seq(0.05,1,0.05)){
-    build.df <- profile_maxpp(df,i)
-    out.df <- rbind(out.df,build.df)
-  }
-  return(out.df)
-}
-
-profile_num <- function(df,x){
-  islet.count <- filter(df,islet.delta.num<x)$Locus.ID %>% length(.)
-  adipose.count <- filter(df,adipose.delta.num<x)$Locus.ID %>% length(.)
-  muscle.count <- filter(df,muscle.delta.num<x)$Locus.ID %>% length(.)
-  liver.count <- filter(df,liver.delta.num<x)$Locus.ID %>% length(.)
-  out.df <- data.frame(x,islet.count,adipose.count,muscle.count,liver.count)
-  return(out.df)
-}
-
-build_num_df <- function(df){
-  out.df <- c()
-  for (i in c(seq(10,100,10),200,500,1000)){
-    build.df <- profile_num(df,i)
-    out.df <- rbind(out.df,build.df)
-  }
-  return(out.df)
-}
-
-```
-
-
-
-```{r}
-
-# Delta MaxPP = Oxford Islets - Varshney; positive is Oxf Islets improves over Varshney islets 
-# islets: delta maxPP > y; gives number of loci where Oxford Islets yields difference greater than y  
-
-maxpp.df <- build_maxpp_df(df)
-maxpp.df #%>% View(.)
-
-num.df <- build_num_df(df)
-num.df # %>% View(.)
-
-```
-
-
 
 ```{r}
 
 
 
-profile_maxpp <- function(df,y){
-  islet.count <- filter(df,islet.delta.maxpp>y)$Locus.ID %>% length(.)
-  adipose.count <- filter(df,adipose.delta.maxpp<=y)$Locus.ID %>% length(.)
-  muscle.count <- filter(df,muscle.delta.maxpp<=y)$Locus.ID %>% length(.)
-  liver.count <- filter(df,liver.delta.maxpp<=y)$Locus.ID %>% length(.)
-  out.df <- data.frame(y,islet.count,adipose.count,muscle.count,liver.count)
+profile_maxpp_filt <- function(df,y){
+  filt.df <- filter(df,islet.delta.maxpp<y)
+  islet.count <- filt.df$Locus.ID %>% length(.)
+  adipose.count <- filter(filt.df,adipose.delta.maxpp>=y)$Locus.ID %>% length(.)
+  muscle.count <- filter(filt.df,muscle.delta.maxpp>=y)$Locus.ID %>% length(.)
+  liver.count <- filter(filt.df,liver.delta.maxpp>=y)$Locus.ID %>% length(.)
+  out.df <- data.frame(y,islet.count,adipose.count,
+                       muscle.count,liver.count)
+  names(out.df) <- c("y","islet (delta<y)","adipose (delta>=y)","muscle (delta>=y)","liver (delta>=y)")
   return(out.df)
 }
 
-build_maxpp_df <- function(df){
+build_maxpp_df_filt <- function(df){
   out.df <- c()
-  for (i in seq(0.05,1,0.05)){
-    build.df <- profile_maxpp(df,i)
+  for (i in c(0.01,seq(0.05,0.5,0.05))){
+    build.df <- profile_maxpp_filt(df,i)
     out.df <- rbind(out.df,build.df)
   }
   return(out.df)
 }
 
-profile_num <- function(df,x){
-  islet.count <- filter(df,islet.delta.num<x)$Locus.ID %>% length(.)
-  adipose.count <- filter(df,adipose.delta.num>=x)$Locus.ID %>% length(.)
-  muscle.count <- filter(df,muscle.delta.num>=x)$Locus.ID %>% length(.)
-  liver.count <- filter(df,liver.delta.num>=x)$Locus.ID %>% length(.)
-  out.df <- data.frame(x,islet.count,adipose.count,muscle.count,liver.count)
+profile_num_filt <- function(df,x){
+  filt.df <- filter(df,islet.delta.num>x)
+  islet.count <- filt.df$Locus.ID %>% length(.)
+  adipose.count <- filter(filt.df,adipose.delta.num<=x)$Locus.ID %>% length(.)
+  muscle.count <- filter(filt.df,muscle.delta.num<=x)$Locus.ID %>% length(.)
+  liver.count <- filter(filt.df,liver.delta.num<=x)$Locus.ID %>% length(.)
+  out.df <- data.frame(x,islet.count,adipose.count,
+                       muscle.count,liver.count)
+  names(out.df) <- c("x","islet (delta>x)", "adipose (delta<=x)","muscle (delta<=x)","liver (delta<=x)")
   return(out.df)
 }
 
-build_num_df <- function(df){
+build_num_df_filt <- function(df){
   out.df <- c()
   for (i in c(seq(10,100,10),200,500,1000)){
-    build.df <- profile_num(df,i)
+    build.df <- profile_num_filt(df,i)
     out.df <- rbind(out.df,build.df)
   }
   return(out.df)
@@ -199,19 +160,61 @@ build_num_df <- function(df){
 
 
 
+# Change in Max PPA between tissue-specific fgwas versus "null" fgwas analysis 
+
 ```{r}
 
-# Delta MaxPP = Oxford Islets - Varshney; positive is Oxf Islets improves over Varshney islets 
-# islets: delta maxPP > y; gives number of loci where Oxford Islets yields difference greater than y  
+# Delta MaxPP = Varshney - null (no genomic features); Positive if Varshney data improves fine-mapping 
 
-maxpp.df <- build_maxpp_df(df)
-maxpp.df #%>% View(.)
+maxpp.filt.df <- build_maxpp_df_filt(df)
+maxpp.filt.df# %>% View(.)
 
-num.df <- build_num_df(df)
-num.df # %>% View(.)
+
+
+```
+
+
+# Change in number of variants in credible sets between tissue-specific fgwas versus "null" fgwas analysis 
+
+
+```{r}
+
+# Delta num = Varshney - null (no genomic features); Negative if Varshney data improves fine-mapping 
+
+
+num.filt.df <- build_num_df_filt(df)
+num.filt.df  #%>% View(.)
 
 ```
 
 
 
+## Looking up a set of loci (annotated by nearest gene) that improve with adipose, muscle, or liver but not in islets at the same threshold
+
+```{r}
+
+vec <- filter(df,islet.delta.maxpp<0.30,adipose.delta.maxpp>=0.30)$Locus.ID
+filter(block.df,Locus.ID %in% vec)$refseq
+
+
+vec <- filter(df,islet.delta.maxpp<0.30,muscle.delta.maxpp>=0.30)$Locus.ID
+filter(block.df,Locus.ID %in% vec)$refseq
+
+vec <- filter(df,islet.delta.maxpp<0.30,liver.delta.maxpp>=0.30)$Locus.ID
+filter(block.df,Locus.ID %in% vec)$refseq
+
+```
+```{r}
+
+vec <- filter(df,islet.delta.num>100,adipose.delta.num<=100)$Locus.ID
+filter(block.df,Locus.ID %in% vec)$refseq
+
+
+vec <- filter(df,islet.delta.num>100,muscle.delta.num<=100)$Locus.ID
+filter(block.df,Locus.ID %in% vec)$refseq
+
+vec <- filter(df,islet.delta.num>100,liver.delta.num<=100)$Locus.ID
+filter(block.df,Locus.ID %in% vec)$refseq
+
+```
 
