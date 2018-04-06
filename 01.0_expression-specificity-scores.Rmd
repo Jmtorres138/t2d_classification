@@ -20,9 +20,11 @@ library("data.table")
 library("Homo.sapiens")
 library("GenomicRanges")
 library('rtracklayer')
+library("GenABEL")
 
-
-serv.dir <- "/Users/jtorres/FUSE5/"
+#fuse.path <- "/Users/jtorres/"
+fuse.path <- "/home/jason/science/servers/"
+serv.dir <- fuse.path %&% "FUSE5/"
 work.dir <- serv.dir %&% "projects/t2d_classification/"
 afile.dir <- work.dir %&% "analysis_files/"
 gtex.dir <- serv.dir %&% "datasets/GTEx/v7/"
@@ -253,12 +255,96 @@ mus.tpm.df <- gtex_tpm_normalize(mus.df,gl.vec,"muscle")
 adi.tpm.df <- gtex_tpm_normalize(adi.df,gl.vec,"adipose")
 liv.tpm.df <- gtex_tpm_normalize(liv.df,gl.vec,"liver")
 
+
+
+
+```
+
+
+
+
+
+# RNTransfrom 
+
+```{r}
+
+islet.tpm.df <- fread(afile.dir%&%"islet_expression_tpm.txt")
 mus.tpm.df <- fread(afile.dir%&%"muscle"%&%"_expression_tpm.txt")  
 adi.tpm.df <- fread(afile.dir%&%"adipose"%&%"_expression_tpm.txt")  
 liv.tpm.df <- fread(afile.dir%&%"liver"%&%"_expression_tpm.txt")  
 
+test.df <- summarise(islet.tpm.df,islet=mean("H186":"R051"))
+
+average_tpm_rn <- function(tpm.df){
+  out.df <- c()
+  pb <- txtProgressBar(min=0,max=dim(tpm.df)[1],style=3)
+  for (i in 1:(dim(tpm.df)[1])){
+    setTxtProgressBar(pb,i)
+    GeneID <- tpm.df$GeneID[i]
+    GeneName <- tpm.df$GeneName[i]
+    Avg <- tpm.df[i,3:dim(tpm.df)[2]] %>% as.numeric(.) %>% mean(.)
+    build.df <- data.frame(GeneID,GeneName,Avg,stringsAsFactors = FALSE)
+    out.df <- rbind(out.df,build.df)
+  }
+  RN <- rntransform(out.df$Avg)
+  out.df$RN <- RN
+  return(out.df)
+}
+
+build_rn_df <- function(){
+  df1 <- average_tpm_rn(islet.tpm.df)
+  df2 <- average_tpm_rn(mus.tpm.df)
+  df3 <- average_tpm_rn(adi.tpm.df)
+  df4 <- average_tpm_rn(liv.tpm.df)
+  df <- inner_join(df1,df2,by="GeneID")
+  df <- inner_join(df,df3,by="GeneID")
+  df <- inner_join(df,df4,by="GeneID")
+  df <- dplyr::select(df,one_of("GeneID","GeneName.x","RN.x","RN.y","RN.x.x","RN.y.y"))
+  names(df) <- c("GeneID","GeneName","islet","muscle","adipose","liver")
+  return(df)
+}
+
+
+ess_rn_scores <- function(rn.df){
+  rn.df$islet <- rn.df$islet + 2
+  rn.df$muscle <- rn.df$muscle + 2 
+  rn.df$adipose <- rn.df$adipose + 2 
+  rn.df$liver <- rn.df$liver + 2
+  out.df <- c()
+  pb <- txtProgressBar(min=0,max=dim(rn.df)[1],style=3)
+  for (i in 1:dim(rn.df)[1]){
+    setTxtProgressBar(pb,i)
+    tot <- dplyr::select(rn.df[i,],-one_of("GeneID","GeneName")) %>% as.numeric(.) %>% sum(.)
+    ens <- rn.df$GeneID[i]; ensname <- rn.df$GeneName[i]
+    islet.score <- rn.df$islet[i] / tot
+    muscle.score <- rn.df$muscle[i] / tot
+    adipose.score <- rn.df$adipose[i] / tot
+    liver.score <- rn.df$liver[i] / tot
+    build.df <- data.frame(GeneID=ens,GeneName=ensname,islet.score,muscle.score,
+                           adipose.score,liver.score,stringsAsFactors=FALSE)
+    out.df <- rbind(out.df,build.df)
+  }
+  return(out.df)
+}
+
+
+
 
 ```
+
+
+```{r}
+
+rn.df <- build_rn_df()
+ess.rn.df <- ess_rn_scores(rn.df)
+write.table(ess.rn.df,file=afile.dir%&%"expression_specificity_scores-rntransform.txt",
+            sep="\t",quote=F,row.names=F)
+
+```
+
+
+
+
 
 
 # Expression specificity scores 
