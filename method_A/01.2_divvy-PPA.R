@@ -20,8 +20,8 @@ sym.df <- select(Homo.sapiens,key=sym.ids,keytype="SYMBOL",
                  columns=c("ENSEMBL")) 
 
 ess.dir <- proj.dir %&% "analysis_files/"
-ess.df <- fread(ess.dir %&% "expression_specificity_scores.txt")
-
+#ess.df <- fread(ess.dir %&% "expression_specificity_scores.txt")
+ess.df <- fread(ess.dir %&% "expression_specificity_scores-rntransform.txt")
 weight.all.df <- fread(out.dir %&% "weight-enrich-all.txt")
 
 
