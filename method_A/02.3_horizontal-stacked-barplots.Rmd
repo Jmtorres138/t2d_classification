@@ -21,7 +21,9 @@ library("wrapr")
 library("grid")
 library("gridExtra")
 
-serv.dir <- "/Users/jtorres/FUSE5/"
+#fuse.path <- "/Users/jtorres/"
+fuse.path <- "/home/jason/science/servers/"
+serv.dir <- fuse.path %&% "FUSE5/"
 proj.dir <- serv.dir %&% "projects/t2d_classification/"
 work.dir <- proj.dir %&% "method_A/"
 analysis.dir <- work.dir %&% "analysis_files/"
@@ -38,12 +40,9 @@ fcred.df <- fread(work.dir %&% "multi_results/results_func-cred-sets.txt")
 
 keep.df <- fread(proj.dir %&% "input_data/" %&% "380.locus.ID.txt")
 keep.vec <- keep.df$Locus.ID_inCREDS
-full.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full.txt") %>% 
+scale.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-weighted-scaled.txt") %>% 
   filter(.,Locus.ID %in% keep.vec)
-wfull.df <- fread(analysis.dir %&% "tissue_ppa_divvy-fullWeighted.txt
-") %>% filter(.,Locus.ID %in% keep.vec)
-# coding and strong enhancers (ie. cse)
-cse.df <- fread(analysis.dir %&% "tissue_ppa_divvy-coding-strongEnhancers.txt") %>%
+unscale.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-weighted-unscaled.txt") %>% 
   filter(.,Locus.ID %in% keep.vec)
 
 ```
@@ -132,11 +131,11 @@ ppa_plot <- function(ppa.df,col.vec=c("olivedrab2","red","gold1","brown","grey")
 }
 
 all_tissues_plot <- function(ppa.df,number=NULL,col.vec=c("olivedrab2","red","gold1","brown","grey")){
-  plt1 <- ppa_plot(full.df,col.vec,rankby="islet",number,leg=FALSE)
-  plt2 <- ppa_plot(full.df,col.vec,rankby="muscle",number,leg=FALSE)
-  plt3 <- ppa_plot(full.df,col.vec,rankby="adipose",number,leg=FALSE)
-  plt4 <- ppa_plot(full.df,col.vec,rankby="liver",number,leg=FALSE)
-  plt5 <- ppa_plot(full.df,col.vec,rankby="other",number,leg=TRUE)  
+  plt1 <- ppa_plot(ppa.df,col.vec,rankby="islet",number,leg=FALSE)
+  plt2 <- ppa_plot(ppa.df,col.vec,rankby="muscle",number,leg=FALSE)
+  plt3 <- ppa_plot(ppa.df,col.vec,rankby="adipose",number,leg=FALSE)
+  plt4 <- ppa_plot(ppa.df,col.vec,rankby="liver",number,leg=FALSE)
+  plt5 <- ppa_plot(ppa.df,col.vec,rankby="other",number,leg=TRUE)  
   grob <- arrangeGrob(plt1,plt2,plt3,plt4,plt5,nrow=1)
 }
 
@@ -148,8 +147,11 @@ all_tissues_plot <- function(ppa.df,number=NULL,col.vec=c("olivedrab2","red","go
 ```{r}
 
 
-grob <- all_tissues_plot(wfull.df,number=50)
-ggsave(plot=grob,filename=plot.dir%&%"stacked_barplots_full-weighted.pdf",width=25,height=15)
+grob1 <- all_tissues_plot(scale.df,number=50)
+ggsave(plot=grob1,filename=plot.dir%&%"stacked_barplots_full-weighted-LocusScaled.pdf",width=25,height=15)
+
+grob2 <- all_tissues_plot(unscale.df,number=50)
+ggsave(plot=grob2,filename=plot.dir%&%"stacked_barplots_full-weighted-unscaled.pdf",width=25,height=15)
 
 ```
 

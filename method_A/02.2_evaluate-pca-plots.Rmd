@@ -19,7 +19,10 @@ library("tidyverse")
 library("data.table")
 library("Homo.sapiens")
 
-serv.dir <- "/Users/jtorres/FUSE5/"
+
+#fuse.path <- "/Users/jtorres/"
+fuse.path <- "/home/jason/science/servers/"
+serv.dir <- fuse.path %&% "FUSE5/"
 proj.dir <- serv.dir %&% "projects/t2d_classification/"
 work.dir <- proj.dir %&% "method_A/"
 analysis.dir <- work.dir %&% "analysis_files/"
@@ -36,13 +39,11 @@ fcred.df <- fread(work.dir %&% "multi_results/results_func-cred-sets.txt")
 
 keep.df <- fread(proj.dir %&% "input_data/" %&% "380.locus.ID.txt")
 keep.vec <- keep.df$Locus.ID_inCREDS
-full.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full.txt") %>% 
+scale.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-weighted-scaled.txt") %>% 
   filter(.,Locus.ID %in% keep.vec)
-wfull.df <- fread(analysis.dir %&% "tissue_ppa_divvy-fullWeighted.txt
-") %>% filter(.,Locus.ID %in% keep.vec)
-# coding and strong enhancers (ie. cse)
-cse.df <- fread(analysis.dir %&% "tissue_ppa_divvy-coding-strongEnhancers.txt") %>%
+unscale.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-weighted-unscaled.txt") %>% 
   filter(.,Locus.ID %in% keep.vec)
+
 
 ```
 
@@ -242,26 +243,19 @@ complete_pca <- function(ppa.df,centerScale,savename){
 
 ```{r}
 
-# appended dataframe, pr.out, and pve.df 
-pca.list <- make_pca_inputs(wfull.df,centerScale=FALSE) 
-pca.list.cent <- make_pca_inputs(wfull.df,centerScale=TRUE) 
-#pca.list.reduced <- make_pca_inputs(cse.df,centerScale=FALSE) 
-#pca.list.reduced.cent <- make_pca_inputs(cse.df,centerScale=TRUE) 
+pca.list <- make_pca_inputs(scale.df,centerScale=FALSE) 
+pca.list.un <- make_pca_inputs(unscale.df,centerScale=FALSE) 
+
+
 
 ```
 
 
 ```{r}
 
-#scree_cumsum_plot(pca.list.cent[[3]])
 
-#loading_plot(pca.list.cent[[2]])
-
-#pca_plot(pca.list.cent[[1]],
-#                   pca.list.cent[[2]],"PC1","PC2")
-
-plt.uncent <- complete_pca(wfull.df,centerScale=FALSE)
-plt.cent <- complete_pca(wfull.df,centerScale=TRUE)
+plt <- complete_pca(scale.df,centerScale=FALSE)
+plt.un <- complete_pca(unscale.df,centerScale=FALSE)
 
 ```
 
@@ -272,28 +266,53 @@ plt.cent <- complete_pca(wfull.df,centerScale=TRUE)
 ```{r}
 
  
-pca.list.pruned <- make_pca_inputs(filter(wfull.df,other<=0.1),
+pca.list.scale.pruned <- make_pca_inputs(filter(scale.df,other<=0.1),
                                  centerScale=FALSE)  
+complete_pca(filter(scale.df,other<=0.1),centerScale=FALSE)
 
-complete_pca(filter(wfull.df,other<=0.1),centerScale=FALSE)
+
+pca.list.unscale.pruned <- make_pca_inputs(filter(unscale.df,other<=0.1),
+                                 centerScale=FALSE)  
+complete_pca(filter(unscale.df,other<=0.1),centerScale=FALSE)
 
 ```
 
 
 
 
-Full (Weighted)
+Locus Scaled 
 
 ```{r}
 
-pruneA.plt <- pca_plot_annotated(pca.list.wfull.pruned[[1]],
-                   pca.list.wfull.pruned[[2]],"PC1","PC2")
-pruneB.plt <- pca_plot_annotated(pca.list.wfull.pruned[[1]],
-                   pca.list.wfull.pruned[[2]],"PC2","PC3")
 
-ggsave(plot=pruneA.plt,filename=plot.dir%&%"pca_pruned-full-weighted-pc1-pc2.pdf",height=6,width=6)
-ggsave(plot=pruneB.plt,filename=plot.dir%&%"pca_pruned-full-weighted-pc2-pc3.pdf",height=6,width=6)
+pruneA.plt <- pca_plot_annotated(pca.list.scale.pruned[[1]],
+                   pca.list.scale.pruned[[2]],"PC1","PC2")
+pruneB.plt <- pca_plot_annotated(pca.list.scale.pruned[[1]],
+                   pca.list.scale.pruned[[2]],"PC2","PC3")
+ggsave(plot=pruneA.plt,filename=plot.dir%&%"pca_pruned-full-weighted-LocScaled-pc1-pc2.pdf",
+       height=6,width=6)
+ggsave(plot=pruneB.plt,filename=plot.dir%&%"pca_pruned-full-weighted-LocScaled-pc2-pc3.pdf",
+       height=6,width=6)
+
+
 
 ```
 
 
+Locus Unscaled 
+
+```{r}
+
+
+pruneA.plt.un <- pca_plot_annotated(pca.list.unscale.pruned[[1]],
+                   pca.list.scale.pruned[[2]],"PC1","PC2")
+pruneB.plt.un <- pca_plot_annotated(pca.list.unscale.pruned[[1]],
+                   pca.list.scale.pruned[[2]],"PC2","PC3")
+ggsave(plot=pruneA.plt.un,filename=plot.dir%&%"pca_pruned-full-weighted-pc1-pc2.pdf",
+       height=6,width=6)
+ggsave(plot=pruneB.plt.un,filename=plot.dir%&%"pca_pruned-full-weighted-pc2-pc3.pdf",
+       height=6,width=6)
+
+
+
+```
