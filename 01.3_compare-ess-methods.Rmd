@@ -1,0 +1,58 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+
+#fuse.path <- "/Users/jtorres/"
+fuse.path <- "/home/jason/science/servers/"
+serv.dir <- fuse.path %&% "FUSE5/"
+work.dir <- serv.dir %&% "projects/t2d_classification/"
+afile.dir <- work.dir %&% "analysis_files/"
+
+df1 <- fread(afile.dir %&% "expression_specificity_scores.txt")
+df2 <- fread(afile.dir %&% "expression_specificity_scores-rntransform.txt")
+
+```
+
+
+compare ess score methods 
+
+```{r}
+
+comp.df  <- inner_join(df1,df2,by="GeneID")
+all(comp.df$GeneName.x == comp.df$GeneName.y) == TRUE
+plot(comp.df$islet.score.x,comp.df$islet.score.y)
+plot(comp.df$liver.score.x,comp.df$liver.score.y)
+plot(comp.df$adipose.score.x,comp.df$adipose.score.y)
+plot(comp.df$muscle.score.x,comp.df$muscle.score.y)
+cor.test(comp.df$islet.score.x,comp.df$islet.score.y) # 0.69 cor, p < 2.2e-16
+cor.test(comp.df$liver.score.x,comp.df$liver.score.y) # 0.7478908, p-value < 2.2e-16
+cor.test(comp.df$adipose.score.x,comp.df$adipose.score.y) # 0.7198354, ""
+cor.test(comp.df$muscle.score.x,comp.df$muscle.score.y) # 0.6933083, "" 
+
+
+```
+
+```{r}
+
+filter(comp.df,GeneName.x=="KCNJ11")
+filter(comp.df,GeneName.x=="PPARG")
+filter(comp.df,GeneName.x=="INS")
+filter(comp.df,GeneName.x=="ADH1A")
+
+
+```
+
