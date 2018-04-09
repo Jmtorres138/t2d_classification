@@ -156,15 +156,15 @@ evaluate_thresholds <- function(x.vec=seq(0,1,0.05),fcred.df,input.df,iter){
 fcred.dir <- serv.dir2 %&% "projects/t2d_classification/method_A/multi_results/"
 fcred.df <- fread(fcred.dir %&% "results_func-cred-sets.txt")
 
-input1.df <- fread(proj.dir %&% "method_A/analysis_files/tissue_ppa_divvy-full.txt")
+input1.df <- fread(proj.dir %&% "method_A/analysis_files/tissue_ppa_divvy-full-weighted-scaled.txt")
 thresh1.df <- evaluate_thresholds(x.vec=seq(0,1,0.05),fcred.df,input1.df,iter=100)
-write.table(x=thresh1.df,file=proj.dir%&%"method_A/analysis_files/select-thresh-eqtl_full.txt",
+write.table(x=thresh1.df,file=proj.dir%&%"method_A/analysis_files/select-thresh-eqtl_full-LocusScaled.txt",
             sep="\t",quote=FALSE,row.names=FALSE)
 
 
-input2.df <- fread(proj.dir %&% "method_A/analysis_files/tissue_ppa_divvy-fullWeighted.txt")
+input2.df <- fread(proj.dir %&% "method_A/analysis_files/tissue_ppa_divvy-full-weighted-unscaled.txt")
 thresh2.df <- evaluate_thresholds(x.vec=seq(0,1,0.05),fcred.df,input2.df,iter=100)
-write.table(x=thresh2.df,file=proj.dir%&%"method_A/analysis_files/select-thresh-eqtl_fullW.txt",
+write.table(x=thresh2.df,file=proj.dir%&%"method_A/analysis_files/select-thresh-eqtl_full-unscaled.txt",
             sep="\t",quote=FALSE,row.names=FALSE)
 
 #input2.df <- fread(proj.dir %&% "method_A/analysis_files/tissue_ppa_divvy-coding-strongEnhancers.txt")
