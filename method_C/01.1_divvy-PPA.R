@@ -38,7 +38,20 @@ specific.df <- fread(input.dir %&% "specific_processed.txt")
 states.df <- rbind(shared.df,specific.df)
 
 
+# Append necessary information 
 
+mult.df <- fread(work.dir %&% "multi_results/results_func-cred-sets.txt")
+
+fgwas.path <- "/well/got2d/jason/projects/t2d-integration/fgwas/" %&% 
+  "diagram_hrc/cross_tissue/multi_tissue_joint_analysis/fgwas_input/" %&% 
+  "ukbb_diamante-euro.fgwas.gz"
+
+fgwas.df <- fread("cat " %&% fgwas.path %&% " | zmore")
+names(fgwas.df)[names(fgwas.df)=="distance_tss"] <- "distance_tss_0_5000"
+fgwas.df <- dplyr::select(fgwas.df,one_of(names(mult.df))) %>% 
+  dplyr::select(.,-one_of("CHR","POS","Z"))
+
+fcred.df <- inner_join(fcred.df,fgwas.df,by="SNPID")
 
 # Divvy function
 
