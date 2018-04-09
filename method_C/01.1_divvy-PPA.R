@@ -11,8 +11,8 @@ library("Homo.sapiens")
 serv.dir <- "/well/mccarthy/users/jason/"
 proj.dir <- serv.dir %&% "projects/t2d_classification/"
 work.dir <- proj.dir %&% "method_A/"
-out.dir <- work.dir %&% "analysis_files/"
-res.dir <- work.dir %&% "multi_results/"
+out.dir <- proj.dir %&% "method_C/analysis_files/"
+res.dir <- work.dir %&% "null_results/"
 input.dir <- proj.dir %&% "analysis_files/"
 
 sym.ids <- unique(keys(Homo.sapiens, keytype = "SYMBOL"))
@@ -20,8 +20,8 @@ sym.df <- select(Homo.sapiens,key=sym.ids,keytype="SYMBOL",
                  columns=c("ENSEMBL"))
 
 ess.dir <- proj.dir %&% "analysis_files/"
-ess.df <- fread(ess.dir %&% "expression_specificity_scores.txt")
-#ess.df <- fread(ess.dir %&% "expression_specificity_scores-rntransform.txt")
+#ess.df <- fread(ess.dir %&% "expression_specificity_scores.txt")
+ess.df <- fread(ess.dir %&% "expression_specificity_scores-rntransform.txt")
 weight.all.df <- fread(out.dir %&% "weight-enrich-all.txt")
 
 
@@ -29,8 +29,8 @@ weight.all.df <- fread(out.dir %&% "weight-enrich-all.txt")
 
 
 
-blk.df <- fread(res.dir %&% "results_blocks.txt")
-fcred.df <- fread(res.dir %&% "results_func-cred-sets.txt")
+blk.df <- fread(res.dir %&% "null_results_blocks.txt")
+fcred.df <- fread(res.dir %&% "null_results_func-cred-sets.txt")
 bed1.df <- fread(input.dir %&% "all_shared.bed")
 bed2.df <- fread(input.dir %&% "shared_processed.txt")
 shared.df <- rbind(bed1.df,bed2.df); rm(bed1.df); rm(bed2.df)
@@ -214,17 +214,10 @@ build_ppa_partition_df <- function(mode="full",weights=TRUE,scaled=FALSE){
 
 
 
-#part.full.df <- build_ppa_partition_df(mode="full")
 part.fullWS.df <- build_ppa_partition_df(mode="full",weights=TRUE,scaled=TRUE)
 part.fullWU.df <- build_ppa_partition_df(mode="full",weights=TRUE,scaled=FALSE)
 
 
-##write.table(x=part.full.df,file=out.dir%&%"tissue_ppa_divvy-full.txt",sep="\t",
-##            quote=FALSE,row.names=FALSE)
-#write.table(x=part.fullWS.df,file=out.dir%&%"tissue_ppa_divvy-full-weighted-scaled.txt",
-#            sep="\t",quote=FALSE,row.names=FALSE)
-#write.table(x=part.fullWU.df,file=out.dir%&%"tissue_ppa_divvy-full-weighted-unscaled.txt",
-#            sep="\t",quote=FALSE,row.names=FALSE)
 write.table(x=part.fullWS.df,file=out.dir%&%"tissue_ppa_divvy-full-weighted-scaled-CodingNotRN.txt",
             sep="\t",quote=FALSE,row.names=FALSE)
 write.table(x=part.fullWU.df,file=out.dir%&%"tissue_ppa_divvy-full-weighted-unscaled-CodingNotRN.txt",
