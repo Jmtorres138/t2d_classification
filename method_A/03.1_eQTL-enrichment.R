@@ -14,7 +14,7 @@ proj.dir <- serv.dir2 %&% "projects/t2d_classification/"
 work.dir <- proj.dir %&% "method_A/"
 
 gwas.dir <- serv.dir1 %&% "reference/gwas/diamante-ukbb_hrc/"
-gwas.df <- fread(gwas.dir %&% "ukbb_diamante-euro.bed") # will take a while to load, 0.681 GB file 
+gwas.df <- fread(gwas.dir %&% "ukbb_diamante-euro.bed") # will take a while to load, 0.681 GB file
 names(gwas.df) <- c("CHR","POS0","POS","SNPID","Freq","Z","PVAL","NCASE","NCONTROL")
 
 pb <- txtProgressBar(min=0,max=dim(gwas.df)[1],style=3)
@@ -79,7 +79,7 @@ get_maf_matched_null_vec <- function(query.vec){
   maf.vec <- non.dup.df$MAF
   rare.count <- sum(maf.vec < 0.005)
   low.freq.count <- sum(maf.vec >= 0.005 & maf.vec < 0.05) # MAF >= 0.005 & MAF < 0.05
-  high.freq.count <- sum(maf.vec >= 0.05) # MAF >= 0.05 
+  high.freq.count <- sum(maf.vec >= 0.05) # MAF >= 0.05
   rare.samp <- sample(rare.snps,size=rare.count,replace=FALSE)
   low.freq.samp <- sample(low.freq.snps,size=low.freq.count,replace=FALSE)
   high.freq.samp <- sample(high.freq.snps,size=high.freq.count,replace=FALSE)
@@ -115,7 +115,7 @@ enrich_test_across_tissue <- function(query.vec,iter){
 evaluate_threshold <- function(x,fcred.df,input.df,iter){
   # x is evaluated threshold
   classified <- map(input.df$Locus.ID,function(id){
-    sub <- filter(input.df,Locus.ID==id) %>% dplyr::select(-one_of("Locus.ID","other")) %>% 
+    sub <- filter(input.df,Locus.ID==id) %>% dplyr::select(-one_of("Locus.ID","other")) %>%
       sort(.,decreasing=TRUE) %>% as.data.frame(.)
     tiss <- names(sub)[1]
     val <- sub[,1]
@@ -157,13 +157,13 @@ fcred.dir <- serv.dir2 %&% "projects/t2d_classification/method_A/multi_results/"
 fcred.df <- fread(fcred.dir %&% "results_func-cred-sets.txt")
 
 input1.df <- fread(proj.dir %&% "method_A/analysis_files/tissue_ppa_divvy-full-weighted-scaled.txt")
-thresh1.df <- evaluate_thresholds(x.vec=seq(0,1,0.05),fcred.df,input1.df,iter=100)
+thresh1.df <- evaluate_thresholds(x.vec=seq(0,1,0.05),fcred.df,input1.df,iter=1000)
 write.table(x=thresh1.df,file=proj.dir%&%"method_A/analysis_files/select-thresh-eqtl_full-LocusScaled.txt",
             sep="\t",quote=FALSE,row.names=FALSE)
 
 
 input2.df <- fread(proj.dir %&% "method_A/analysis_files/tissue_ppa_divvy-full-weighted-unscaled.txt")
-thresh2.df <- evaluate_thresholds(x.vec=seq(0,1,0.05),fcred.df,input2.df,iter=100)
+thresh2.df <- evaluate_thresholds(x.vec=seq(0,1,0.05),fcred.df,input2.df,iter=1000)
 write.table(x=thresh2.df,file=proj.dir%&%"method_A/analysis_files/select-thresh-eqtl_full-unscaled.txt",
             sep="\t",quote=FALSE,row.names=FALSE)
 
@@ -171,4 +171,3 @@ write.table(x=thresh2.df,file=proj.dir%&%"method_A/analysis_files/select-thresh-
 #thresh2.df <- evaluate_thresholds(x.vec=seq(0,1,0.05),fcred.df,input2.df,iter=100)
 #write.table(x=thresh2.df,file=proj.dir%&%"method_A/analysis_files/select-thresh-eqtl_cse.txt",
 #            sep="\t",quote=FALSE,row.names=FALSE)
-
