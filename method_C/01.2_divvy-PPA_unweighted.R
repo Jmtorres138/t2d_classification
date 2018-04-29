@@ -25,10 +25,6 @@ ess.df <- fread(ess.dir %&% "expression_specificity_scores-rntransform.txt")
 weight.all.df <- fread(work.dir %&%  "analysis_files/weight-enrich-all.txt")
 
 
-
-
-
-
 blk.df <- fread(res.dir %&% "null_results_blocks.txt")
 fcred.df <- fread(res.dir %&% "null_results_func-cred-sets.txt")
 bed1.df <- fread(input.dir %&% "all_shared.bed")
@@ -70,14 +66,7 @@ map_tissue <- function(tiss){
 handle_coding <- function(loc.id,ppa){
   sym <- locid_to_symbol(loc.id)
   sub <- filter(ess.df,GeneName==sym)
-  if (dim(sub)[1] == 1){
-    score.vec <- c(sub$islet.score,sub$muscle.score,sub$adipose.score,sub$liver.score)
-    if (any(is.na(score.vec)==TRUE)){
-      score.vec <- c(0.25,0.25,0.25,0.25)
-    }
-  } else{
-    score.vec <- c(0.25,0.25,0.25,0.25)
-  }
+  score.vec <- c(0.25,0.25,0.25,0.25)
   divvy.vec <- ppa * score.vec
   return(divvy.vec)
 }
@@ -221,14 +210,8 @@ build_ppa_partition_df <- function(mode="full",weights=TRUE,scaled=FALSE){
 
 #Generate and save tables
 
-
-#part.fullWS.df <- build_ppa_partition_df(mode="full",weights=TRUE,scaled=TRUE)
-
 part.fullWU.df <- build_ppa_partition_df(mode="full",weights=TRUE,scaled=FALSE)
 
 
-#write.table(x=part.fullWS.df,file=out.dir%&%"tissue_ppa_divvy-full-weighted-scaled-CodingRN.txt",
-#            sep="\t",quote=FALSE,row.names=FALSE)
-
-write.table(x=part.fullWU.df,file=out.dir%&%"tissue_ppa_divvy-full-weighted-unscaled-CodingRN.txt",
+write.table(x=part.fullWU.df,file=out.dir%&%"tissue_ppa_divvy-full-unweighted-unscaled-CodingRN.txt",
             sep="\t",quote=FALSE,row.names=FALSE)
