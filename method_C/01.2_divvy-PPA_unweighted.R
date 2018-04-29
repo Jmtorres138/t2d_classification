@@ -1,7 +1,5 @@
 # Setup
 
-
-
 "%&%" <- function(a,b) paste0(a,b)
 
 library("tidyverse")
@@ -100,7 +98,7 @@ handle_annotation <- function(annot.df, annot.name, ppa){
 
 
 
-divvy_ppa_snp <- function(loc.id,snp.id,mode="full",weights=TRUE){
+divvy_ppa_snp <- function(loc.id,snp.id,mode="full",weights=FALSE){
   # set weights=NULL if unweighted
   sub.df <- filter(fcred.df,Locus.ID==loc.id,SNPID==snp.id)
   chrom <- sub.df$CHR; pos <- sub.df$POS;
@@ -165,7 +163,7 @@ divvy_ppa_snp <- function(loc.id,snp.id,mode="full",weights=TRUE){
   return(out.df)
 }
 
-divvy_ppa_loc <- function(loc.id,mode="full",weights=TRUE,scaled=FALSE){
+divvy_ppa_loc <- function(loc.id,mode="full",weights=FALSE,scaled=FALSE){
   sub.df <- filter(fcred.df,Locus.ID==loc.id)
   out.df <- c()
   pb <- txtProgressBar(min=0,max=dim(sub.df)[1],style=3)
@@ -192,7 +190,7 @@ divvy_ppa_loc <- function(loc.id,mode="full",weights=TRUE,scaled=FALSE){
   return(out.df)
 }
 
-build_ppa_partition_df <- function(mode="full",weights=TRUE,scaled=FALSE){
+build_ppa_partition_df <- function(mode="full",weights=FALSE,scaled=FALSE){
   loc.ids <- fcred.df$Locus.ID %>% unique(.)
   out.df <- c()
   pb <- txtProgressBar(min=0,max=length(loc.ids),style=3)
@@ -210,8 +208,8 @@ build_ppa_partition_df <- function(mode="full",weights=TRUE,scaled=FALSE){
 
 #Generate and save tables
 
-part.fullWU.df <- build_ppa_partition_df(mode="full",weights=TRUE,scaled=FALSE)
+part.fullUU.df <- build_ppa_partition_df(mode="full",weights=FALSE,scaled=FALSE)
 
 
-write.table(x=part.fullWU.df,file=out.dir%&%"tissue_ppa_divvy-full-unweighted-unscaled-CodingRN.txt",
+write.table(x=part.fullUU.df,file=out.dir%&%"tissue_ppa_divvy-full-unweighted-unscaled-CodingRN.txt",
             sep="\t",quote=FALSE,row.names=FALSE)
