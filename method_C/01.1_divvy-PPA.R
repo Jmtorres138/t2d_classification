@@ -225,8 +225,6 @@ build_ppa_partition_df <- function(mode="full",weights=TRUE,scaled=FALSE){
 
 #Generate and save tables
 
-
-
 part.fullWS.df <- build_ppa_partition_df(mode="full",weights=TRUE,scaled=TRUE)
 part.fullWU.df <- build_ppa_partition_df(mode="full",weights=TRUE,scaled=FALSE)
 
