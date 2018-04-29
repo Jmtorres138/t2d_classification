@@ -55,10 +55,6 @@ fcred.df <- inner_join(fcred.df,fgwas.df,by="SNPID")
 
 # Divvy function
 
-
-
-
-
 locid_to_symbol <- function(loc.id){
   return(filter(blk.df,Locus.ID==loc.id)$refseq %>% as.character(.))
 }
@@ -225,13 +221,12 @@ build_ppa_partition_df <- function(mode="full",weights=TRUE,scaled=FALSE){
 
 #Generate and save tables
 
-
-
-part.fullWS.df <- build_ppa_partition_df(mode="full",weights=TRUE,scaled=TRUE)
+#part.fullWS.df <- build_ppa_partition_df(mode="full",weights=TRUE,scaled=TRUE)
 part.fullWU.df <- build_ppa_partition_df(mode="full",weights=TRUE,scaled=FALSE)
 
 
-write.table(x=part.fullWS.df,file=out.dir%&%"tissue_ppa_divvy-full-weighted-scaled-CodingNotRN.txt",
-            sep="\t",quote=FALSE,row.names=FALSE)
-write.table(x=part.fullWU.df,file=out.dir%&%"tissue_ppa_divvy-full-weighted-unscaled-CodingNotRN.txt",
+#write.table(x=part.fullWS.df,file=out.dir%&%"tissue_ppa_divvy-full-weighted-scaled-CodingRN.txt",
+#            sep="\t",quote=FALSE,row.names=FALSE)
+
+write.table(x=part.fullWU.df,file=out.dir%&%"tissue_ppa_divvy-full-weighted-unscaled-CodingRN.txt",
             sep="\t",quote=FALSE,row.names=FALSE)
