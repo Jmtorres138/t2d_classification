@@ -1,0 +1,107 @@
+---
+title: "03.0_classify-loci.Rmd"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+library("Homo.sapiens")
+
+#fuse.path <- "/Users/jtorres/"
+fuse.path <- "/home/jason/science/servers/"
+serv.dir <- fuse.path %&% "FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+methA.dir <- proj.dir %&% "method_A/"
+work.dir <- proj.dir %&% "method_C/"
+analysis.dir <- work.dir %&% "analysis_files/"
+plot.dir <- work.dir %&% "plots/"
+
+block.df <- fread(methA.dir%&%"null_results/null_results_blocks.txt",sep="\t")
+fcred.df <- fread(methA.dir %&%"null_results/null_results_func-cred-sets.txt")
+
+
+```
+
+
+```{r}
+
+keep.df <- fread(proj.dir %&% "input_data/" %&% "380.locus.ID.txt")
+keep.vec <- keep.df$Locus.ID_inCREDS
+
+weighted.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-weighted-unscaled-CodingRN.txt") %>% 
+  filter(.,Locus.ID %in% keep.vec)
+unweighted.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-unweighted-unscaled-CodingRN.txt") %>% 
+  filter(.,Locus.ID %in% keep.vec)
+
+
+```
+
+
+# Classify function 
+
+```{r}
+
+build_classify_df <- function(ppa.df){
+  pb <- txtProgressBar(min=0,max=dim(ppa.df)[1],style=3)
+  assigned_20 <- c(); assigned_50 <- c(); assigned_80 <- c()
+  for (i in 1:dim(ppa.df)[1]){
+    setTxtProgressBar(pb,i)
+    row.df <- ppa.df[i,]
+    val20 <- names(row.df[,2:6])[((row.df[,2:6]) >= 0.20) &
+                          ((row.df[,2:6]) == max(row.df[,2:6]))]
+    val50 <- names(row.df[,2:6])[((row.df[,2:6]) >= 0.50) &
+                          ((row.df[,2:6]) == max(row.df[,2:6]))]
+    val80 <- names(row.df[,2:6])[((row.df[,2:6]) >= 0.80) &
+                          ((row.df[,2:6]) == max(row.df[,2:6]))]
+    val20 <- ifelse(length(val20)==0,"unclassified",val20)
+    val50 <- ifelse(length(val50)==0,"unclassified",val50)
+    val80 <- ifelse(length(val80)==0,"unclassified",val80)
+    assigned_20 <- c(assigned_20,val20)
+    assigned_50 <- c(assigned_50,val50)
+    assigned_80 <- c(assigned_80,val80)
+  }
+  pb <- txtProgressBar(min=0,max=dim(ppa.df)[1],style=3)
+  symbol <- map(1:dim(ppa.df)[1],function(i){
+    setTxtProgressBar(pb,i)
+    loc.id <- ppa.df$Locus.ID[i]
+    filter(block.df,Locus.ID==loc.id)$refseq
+  }) %>% as.character(.)
+  out.df <- cbind(ppa.df,assigned_20,assigned_50,assigned_80,symbol)
+  out.df$assigned_20 <- as.character(out.df$assigned_20)
+  out.df$assigned_50 <- as.character(out.df$assigned_50)
+  out.df$assigned_80 <- as.character(out.df$assigned_80)
+  out.df$symbol <- as.character(out.df$symbol)
+  return(out.df)
+}
+
+```
+
+
+```{r}
+
+df1 <- build_classify_df(weighted.df)
+df2 <- build_classify_df(unweighted.df)
+
+write.table(x=df1,file=analysis.dir%&%"classified-loci_weighted.txt",
+            sep="\t",quote=F,row.names=FALSE,col.names=TRUE)
+write.table(x=df2,file=analysis.dir%&%"classified-loci_unweighted.txt",
+            sep="\t",quote=F,row.names=FALSE,col.names=TRUE)
+
+table(df2$assigned_20)
+table(df1$assigned_20)
+
+table(df2$assigned_50)
+table(df1$assigned_50)
+
+table(df2$assigned_80)
+table(df1$assigned_80)
+```
+
