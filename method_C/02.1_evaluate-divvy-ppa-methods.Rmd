@@ -19,14 +19,16 @@ library("tidyverse")
 library("data.table")
 library("Homo.sapiens")
 
-serv.dir <- "/Users/jtorres/FUSE5/"
+#serv.dir <- "/Users/jtorres/FUSE5/"
+serv.dir <- "/home/jason/science/servers/FUSE5/"
 proj.dir <- serv.dir %&% "projects/t2d_classification/"
-work.dir <- proj.dir %&% "method_A/"
+methA.dir <- proj.dir %&% "method_A/"
+work.dir <- proj.dir %&% "method_C/"
 analysis.dir <- work.dir %&% "analysis_files/"
 plot.dir <- work.dir %&% "plots/"
 
-block.df <- fread(work.dir%&%"multi_results/results_blocks.txt",sep="\t")
-fcred.df <- fread(work.dir %&% "multi_results/results_func-cred-sets.txt")
+block.df <- fread(methA.dir%&%"null_results/null_results_blocks.txt",sep="\t")
+fcred.df <- fread(methA.dir %&% "null_results/null_results_func-cred-sets.txt")
 
 
 ```
@@ -36,12 +38,10 @@ fcred.df <- fread(work.dir %&% "multi_results/results_func-cred-sets.txt")
 
 keep.df <- fread(proj.dir %&% "input_data/" %&% "380.locus.ID.txt")
 keep.vec <- keep.df$Locus.ID_inCREDS
-full.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full.txt") %>% 
+
+full.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-unweighted-unscaled-CodingRN.txt") %>% 
   filter(.,Locus.ID %in% keep.vec)
-wfull.df <- fread(analysis.dir %&% "tissue_ppa_divvy-fullWeighted.txt") %>% filter(.,Locus.ID %in% keep.vec)
-# coding and strong enhancers (ie. cse)
-cse.df <- fread(analysis.dir %&% "tissue_ppa_divvy-coding-strongEnhancers.txt") %>%
-  filter(.,Locus.ID %in% keep.vec)
+wfull.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-weighted-unscaled-CodingRN.txt") %>% filter(.,Locus.ID %in% keep.vec)
 
 ```
 
@@ -52,7 +52,6 @@ cse.df <- fread(analysis.dir %&% "tissue_ppa_divvy-coding-strongEnhancers.txt") 
 
 create_plot_df <- function(){
   df <- rbind(mutate(full.df,method="full"),
-              mutate(cse.df,method="reduced"),
               mutate(wfull.df,method="weighted.full"))
   loc.ids <- df$Locus.ID %>% unique(.)
   out.df <- c()
@@ -62,12 +61,11 @@ create_plot_df <- function(){
     setTxtProgressBar(pb,i)
     sub.df <- filter(df,Locus.ID==loc.id)
     ppa.score.full <- sub.df[1,2:6] %>% as.numeric(.)
-    ppa.score.reduced <- sub.df[2,2:6] %>% as.numeric(.)
-    ppa.score.wfull <- sub.df[3,2:6] %>% as.numeric(.)
+    ppa.score.wfull <- sub.df[2,2:6] %>% as.numeric(.)
 
     tissue <- names(sub.df)[2:6]
     build.df <- data.frame(Locus.ID=loc.id,tissue,
-                           ppa.score.full,ppa.score.reduced,
+                           ppa.score.full,
                            ppa.score.wfull)
     out.df <- rbind(out.df,build.df)
   }
@@ -86,17 +84,6 @@ Make PPA comparison plot
 
 plot.df <- create_plot_df()
 
-pltA <- ggplot(data=plot.df,aes(x=ppa.score.reduced,y=ppa.score.full)) + 
-  geom_point(shape=21,color="black",aes(fill=tissue)) + 
-  facet_wrap(~tissue,nrow=3) + 
-  theme_classic() + 
-  scale_fill_brewer(palette="Set3") + 
-  theme(legend.position = "none") + 
-  xlab('ppa score (reduced)') + 
-  ylab('ppa score (full)') + 
-  ggtitle("Comparison of PPA Scores")
-ggsave(plot=pltA,filename=plot.dir%&%"ppa-score-compare.png",
-       height = 6,width=6)
 
 pltB <- ggplot(data=plot.df,aes(x=ppa.score.full,y=ppa.score.wfull)) + 
   geom_point(shape=21,color="black",aes(fill=tissue)) + 
@@ -111,8 +98,7 @@ pltB <- ggplot(data=plot.df,aes(x=ppa.score.full,y=ppa.score.wfull)) +
 ggsave(plot=pltB,filename=plot.dir%&%"ppa-score-compare-weighted.png",
        height = 6,width=6)
 
-plot.df <- mutate(plot.df,ppa.score.diff=(ppa.score.full-ppa.score.reduced))
-plot.df <- mutate(plot.df,ppa.score.diffW=(ppa.score.wfull-ppa.score.full))
+plot.df <- mutate(plot.df,ppa.score.diff=(ppa.score.wfull-ppa.score.full))
 
 pltC <- ggplot(data=plot.df,aes(x=ppa.score.diff)) +
   geom_histogram(color="black",aes(fill=tissue)) + 
@@ -120,7 +106,7 @@ pltC <- ggplot(data=plot.df,aes(x=ppa.score.diff)) +
   theme_classic() + 
   scale_fill_brewer(palette = "Set3") + 
   theme(legend.position = "none") + 
-  xlab("ppa score difference (full-reduced)") + 
+  xlab("ppa score difference (weighted-unweighted)") + 
   geom_vline(xintercept = 0,linetype=2) +  
   ggtitle("Difference in PPA Scores")
 
@@ -158,19 +144,19 @@ plot.df$refseq <- as.character(plot.df$refseq)
 
 
 arrange(plot.df,desc(ppa.score.diff)) %>% filter(tissue=="islet") %>%
-  head(20) # See which are boosted by the full model 
+  head(20) %>% View(.)# See which are boosted by the full model 
 arrange(plot.df,ppa.score.diff) %>% filter(tissue=="islet") %>%
-  head(20) # See which are boosted by the reduced model
+  head(20) %>% View(.)# See which are boosted by the reduced model
 
 arrange(plot.df,desc(ppa.score.diff)) %>% filter(tissue=="adipose") %>%
-  head(20) # See which are boosted by the full model 
+  head(20) %>% View(.)# See which are boosted by the full model 
 arrange(plot.df,ppa.score.diff) %>% filter(tissue=="adipose") %>%
-  head(20) # See which are boosted by the reduced model
+  head(20) %>% View(.)# See which are boosted by the reduced model
 
 arrange(plot.df,desc(ppa.score.diff)) %>% filter(tissue=="liver") %>%
-  head(20) # See which are boosted by the full model 
+  head(20) %>% View(.)# See which are boosted by the full model 
 arrange(plot.df,ppa.score.diff) %>% filter(tissue=="liver") %>%
-  head(20) # See which are boosted by the reduced model
+  head(20) %>% View(.)# See which are boosted by the reduced model
 
 filter(plot.df,refseq=="CDC123")
 filter(fcred.df,Locus.ID=="126")
@@ -179,13 +165,11 @@ filter(fcred.df,Locus.ID=="126")
 filter(plot.df,refseq=="PPARG",Locus.ID=="30_1")
 filter(fcred.df,Locus.ID=="30_1")
 
-(filter(full.df,other<0.50) %>% dim(.))[1] # 325 loci with other scores < 0.50
-(filter(wfull.df,other<0.50) %>% dim(.))[1] # 325 loci with other scores < 0.50
-(filter(cse.df,other<0.50) %>% dim(.))[1] # 150 loci with other scores < 0.50
+(filter(full.df,other<0.50) %>% dim(.))[1] # 308 loci with other scores < 0.50
+(filter(wfull.df,other<0.50) %>% dim(.))[1] # 308 loci with other scores < 0.50
 
-(filter(full.df,other<0.10) %>% dim(.))[1] # 287 loci with other scores < 0.10
-(filter(wfull.df,other<0.10) %>% dim(.))[1] # 287 loci with other scores < 0.10
-(filter(cse.df,other<0.10) %>% dim(.))[1] # 68 loci with other scores < 0.10
+(filter(full.df,other<0.10) %>% dim(.))[1] # 262 loci with other scores < 0.10
+(filter(wfull.df,other<0.10) %>% dim(.))[1] # 261 loci with other scores < 0.10
 
 ```
 
@@ -227,33 +211,7 @@ cor.test(filter(plot.df,tissue=="other")$number,
 ```
 
 
-Comparsion between other and combined tissue group 
 
-```{r}
-
-comb.df <- rbind(data.frame(full.df,method="full",stringsAsFactors=FALSE),
-                 data.frame(cse.df,method="reduced",stringsAsFactors=FALSE))
-pb <- txtProgressBar(min=0,max=dim(comb.df)[1],style=3)
-comb.df$number <- map(1:length(comb.df$Locus.ID),function(i){
-  setTxtProgressBar(pb,i)
-  loc.id <- comb.df$Locus.ID[i]
-  return(look_up_number(loc.id))
-}) %>% as.integer(.)
-
-ggplot(data=filter(comb.df,method=="full"),aes(number,other)) + geom_point()
-ggplot(data=filter(comb.df,method=="reduced"),aes(number,other)) + geom_point()
-
-cor.test(filter(comb.df,method=="full")$number,
-         filter(comb.df,method=="full")$other) 
-
-cor.test(filter(comb.df,method=="reduced")$number,
-         filter(comb.df,method=="reduced")$other) 
-
-
-```
-
-There is a slight correlation between the number of snps in credible set and other score in the reduced model 
-0.114, pval=0.026 (reduced); 
 
 
 
