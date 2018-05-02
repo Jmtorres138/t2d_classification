@@ -1,0 +1,201 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}  
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup 
+
+
+```{r}
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+library("Homo.sapiens")
+
+
+serv.dir1 <- "/home/jason/science/servers/FUSE/"#"/well/got2d/jason/"
+serv.dir2 <- "/home/jason/science/servers/FUSE5/"#/well/mccarthy/users/jason/"
+
+proj.dir <- serv.dir2 %&% "projects/t2d_classification/"
+
+```
+
+
+# Load eQTLs
+
+```{r}
+
+gtex.dir <- serv.dir2 %&% "datasets/GTEx/v7/eqtl/GTEx_Analysis_v7_eQTL/"
+
+liv.df <- fread("cat " %&% gtex.dir %&% "Liver.v7.signif_variant_gene_pairs.txt.gz" %&% " | zmore")
+mus.df <- fread("cat " %&% gtex.dir %&% "Muscle_Skeletal.v7.signif_variant_gene_pairs.txt.gz" %&% " | zmore")
+adi.df <- fread("cat " %&% gtex.dir %&% "Adipose_Subcutaneous.v7.signif_variant_gene_pairs.txt.gz" %&% " | zmore")
+
+pb <- txtProgressBar(min=0,max=dim(liv.df)[1],style=3)
+liv.df$CHR <- map(1:length(liv.df$variant_id),function(i){
+  setTxtProgressBar(pb,i)
+  vec <- liv.df$variant_id[i] %>% strsplit(.,split="_")
+  vec[[1]][1]
+}) %>% as.character(.)
+pb <- txtProgressBar(min=0,max=dim(liv.df)[1],style=3)
+liv.df$POS <- map(1:length(liv.df$variant_id),function(i){
+  setTxtProgressBar(pb,i)
+  vec <- liv.df$variant_id[i] %>% strsplit(.,split="_")
+  vec[[1]][2]
+}) %>% as.integer(.)
+
+pb <- txtProgressBar(min=0,max=dim(adi.df)[1],style=3)
+adi.df$CHR <- map(1:length(adi.df$variant_id),function(i){
+  setTxtProgressBar(pb,i)
+  vec <- adi.df$variant_id[i] %>% strsplit(.,split="_")
+  vec[[1]][1]
+}) %>% as.character(.)
+pb <- txtProgressBar(min=0,max=dim(adi.df)[1],style=3)
+adi.df$POS <- map(1:length(adi.df$variant_id),function(i){
+  setTxtProgressBar(pb,i)
+  vec <- adi.df$variant_id[i] %>% strsplit(.,split="_")
+  vec[[1]][2]
+}) %>% as.integer(.)
+
+pb <- txtProgressBar(min=0,max=dim(mus.df)[1],style=3)
+mus.df$CHR <- map(1:length(mus.df$variant_id),function(i){
+  setTxtProgressBar(pb,i)
+  vec <- mus.df$variant_id[i] %>% strsplit(.,split="_")
+  vec[[1]][1]
+}) %>% as.character(.)
+pb <- txtProgressBar(min=0,max=dim(mus.df)[1],style=3)
+mus.df$POS <- map(1:length(mus.df$variant_id),function(i){
+  setTxtProgressBar(pb,i)
+  vec <- mus.df$variant_id[i] %>% strsplit(.,split="_")
+  vec[[1]][2]
+}) %>% as.integer(.)
+
+
+islet.dir <- serv.dir1 %&% "reference/islet/eqtls/oxford/nominal_pass/output/"
+islet.df <- fread("cat " %&% islet.dir %&% "snp_keyfile_fdr05.txt.gz" %&% " | zmore")
+isl.df <- fread("cat " %&% islet.dir %&% "eqtls_fdr05.txt.gz" %&% " | zmore")
+names(isl.df)[c(1,2)] <- c("gene_id","RSID")
+isl.df <- inner_join(isl.df,islet.df,by="RSID")
+isl.df <- isl.df[!duplicated(isl.df),]
+isl.df$CHR <- gsub("chr","",isl.df$CHR)
+isl.df$POS <- isl.df$POS %>% as.integer(.)
+
+```
+
+
+# simple eQTL classifier 
+
+
+```{r}
+
+library("GenomicRanges")
+
+proj.dir <- serv.dir2 %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "method_A/"
+res.dir <- work.dir %&% "null_results/"
+blk.df <- fread(res.dir %&% "null_results_blocks.txt")
+fcred.df <- fread(res.dir %&% "null_results_func-cred-sets.txt")
+
+ess.df <- fread(proj.dir %&% "analysis_files/" %&% 
+                  "expression_specificity_scores.txt")
+ess.rn.df <- fread(proj.dir %&% "analysis_files/" %&% 
+                  "expression_specificity_scores-rntransform.txt")
+
+cds.bed <- fread(serv.dir1 %&% "reference/genomic/cds.bed")
+cds.gr <- GRanges(seqnames=cds.bed$V1,IRanges(cds.bed$V2,cds.bed$V3))
+```
+
+
+```{r}
+
+locus_scores <- function(loc.id){
+  sub <- filter(blk.df,Locus.ID==loc.id)
+  sub2 <- filter(fcred.df,Locus.ID==loc.id)
+  sub2.gr <- GRanges(seqnames=sub2$CHR,IRanges(sub2$POS,sub2$POS))
+  ov <- sub2.gr %over% cds.gr
+  cod.df <- sub2[ov,]
+  g <- sub$refseq
+
+  if(dim(cod.df)[1]>0){
+    cod.vec <- filter(ess.df,GeneName==g)[3:6] %>% as.numeric(.)
+    if (is.na(sum(cod.vec))==TRUE){
+      cod.vec <- c(0.25,0.25,0.25,0.25)
+    }
+  } else{
+    cod.vec <- c(0,0,0,0)
+  }
+  
+  int.start <- sub$fcred.start - 5000 # buffer 
+  int.end <- sub$fcred.end + 5000 # buffer 
+  chromo <- gsub("chr","",sub$CHR)
+  
+  
+  isl <- filter(isl.df,CHR==chromo,POS<=int.end,POS>=int.start)$gene_id %>% 
+    unique(.) %>% length(.) 
+  mus <- filter(mus.df,CHR==chromo,POS<=int.end,POS>=int.start)$gene_id %>% 
+    unique(.) %>% length(.)   
+  adi <- filter(adi.df,CHR==chromo,POS<=int.end,POS>=int.start)$gene_id %>% 
+    unique(.) %>% length(.)  
+  liv <- filter(liv.df,CHR==chromo,POS<=int.end,POS>=int.start)$gene_id %>% 
+    unique(.) %>% length(.)
+  tot <- c(isl,mus,adi,liv) %>% sum(.)
+  if (tot==0){
+    eqtl.vec <- c(0,0,0,0)
+  } else{
+    isl.score <- isl/tot
+    mus.score <- mus/tot
+    adi.score <- adi/tot
+    liv.score <- liv/tot
+    eqtl.vec <- c(isl.score,mus.score,adi.score,liv.score)
+  }
+  
+  vec <- cod.vec + eqtl.vec
+  total <- sum(vec)
+  if (total==0){
+    vec <- c(0,0,0,0,1)
+  } else{
+    vec <- vec/total
+    vec <- c(vec,0)
+  }
+  return(vec) # islet, muscle, adipose, liver, other
+}
+
+build_score_df <- function(){
+  loc.ids <- fcred.df$Locus.ID %>% unique(.)
+  pb <- txtProgressBar(min=0,max=length(loc.ids),style=3)
+  out.df <- c()
+  for (i in 1:length(loc.ids)){
+    setTxtProgressBar(pb,i)
+    loc <- loc.ids[i]
+    score.vec <- locus_scores(loc)
+    build.df <- data.frame(islet=score.vec[1],muscle=score.vec[2],
+                           adipose=score.vec[3],liver=score.vec[4],
+                           other=score.vec[5],
+                           stringsAsFactors = FALSE)
+    out.df <- rbind(out.df,build.df)
+  }
+  out.df <- cbind(loc.ids,out.df)
+  names(out.df)[1] <- "Locus.ID"
+  out.df$Locus.ID <- as.character(out.df$Locus.ID)
+  return(out.df)
+}
+
+```
+
+
+```{r}
+
+score.df <- build_score_df()
+
+write.table(x=score.df,file=proj.dir%&%
+              "method_C/analysis_files/tissue_scores_alternative.txt",
+            sep="\t",quote=FALSE,row.names=FALSE)
+
+
+```
+
