@@ -113,7 +113,7 @@ cds.gr <- GRanges(seqnames=cds.bed$V1,IRanges(cds.bed$V2,cds.bed$V3))
 
 ```{r}
 
-locus_scores <- function(loc.id){
+locus_scores <- function(loc.id,rn=FALSE){
   sub <- filter(blk.df,Locus.ID==loc.id)
   sub2 <- filter(fcred.df,Locus.ID==loc.id)
   sub2.gr <- GRanges(seqnames=sub2$CHR,IRanges(sub2$POS,sub2$POS))
@@ -122,7 +122,11 @@ locus_scores <- function(loc.id){
   g <- sub$refseq
 
   if(dim(cod.df)[1]>0){
-    cod.vec <- filter(ess.df,GeneName==g)[3:6] %>% as.numeric(.)
+    if (rn==TRUE){
+      cod.vec <- filter(ess.rn.df,GeneName==g)[3:6] %>% as.numeric(.)
+    } else{
+      cod.vec <- filter(ess.df,GeneName==g)[3:6] %>% as.numeric(.)
+    }
     if (is.na(sum(cod.vec))==TRUE){
       cod.vec <- c(0.25,0.25,0.25,0.25)
     }
@@ -165,14 +169,14 @@ locus_scores <- function(loc.id){
   return(vec) # islet, muscle, adipose, liver, other
 }
 
-build_score_df <- function(){
+build_score_df <- function(rn=FALSE){
   loc.ids <- fcred.df$Locus.ID %>% unique(.)
   pb <- txtProgressBar(min=0,max=length(loc.ids),style=3)
   out.df <- c()
   for (i in 1:length(loc.ids)){
     setTxtProgressBar(pb,i)
     loc <- loc.ids[i]
-    score.vec <- locus_scores(loc)
+    score.vec <- locus_scores(loc,rn)
     build.df <- data.frame(islet=score.vec[1],muscle=score.vec[2],
                            adipose=score.vec[3],liver=score.vec[4],
                            other=score.vec[5],
@@ -190,12 +194,15 @@ build_score_df <- function(){
 
 ```{r}
 
-score.df <- build_score_df()
+score.df <- build_score_df(rn=FALSE)
 
 write.table(x=score.df,file=proj.dir%&%
-              "method_C/analysis_files/tissue_scores_alternative.txt",
-            sep="\t",quote=FALSE,row.names=FALSE)
+              "method_C/analysis_files/tissue-scores-alternative_CodingNotRN.txt",sep="\t",quote=FALSE,row.names=FALSE)
 
+score.df2 <- build_score_df(rn=TRUE)
+
+write.table(x=score.df2,file=proj.dir%&%
+              "method_C/analysis_files/tissue-scores-alternative_CodingRN.txt",sep="\t",quote=FALSE,row.names=FALSE)
 
 ```
 

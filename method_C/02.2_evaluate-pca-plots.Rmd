@@ -40,11 +40,12 @@ fcred.df <- fread(methA.dir %&%"null_results/null_results_func-cred-sets.txt")
 keep.df <- fread(proj.dir %&% "input_data/" %&% "380.locus.ID.txt")
 keep.vec <- keep.df$Locus.ID_inCREDS
 
-weighted.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-weighted-unscaled-CodingRN.txt") %>% 
+weighted.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-weighted-unscaled-CodingNotRN.txt") %>% 
   filter(.,Locus.ID %in% keep.vec)
-unweighted.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-unweighted-unscaled-CodingRN.txt") %>% 
+unweighted.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-unweighted-unscaled-CodingNotRN.txt") %>% 
   filter(.,Locus.ID %in% keep.vec)
-
+alt.df <- fread(analysis.dir %&% "tissue-scores-alternative_CodingNotRN.txt") %>% 
+  filter(.,Locus.ID %in% keep.vec)  
 
 ```
 
@@ -246,6 +247,7 @@ complete_pca <- function(ppa.df,centerScale,savename){
 
 pca.list <- make_pca_inputs(weighted.df,centerScale=FALSE) 
 pca.list.un <- make_pca_inputs(unweighted.df,centerScale=FALSE) 
+pca.list.alt <- make_pca_inputs(alt.df,centerScale=FALSE) 
 
 
 
@@ -257,6 +259,7 @@ pca.list.un <- make_pca_inputs(unweighted.df,centerScale=FALSE)
 
 plt <- complete_pca(weighted.df,centerScale=FALSE)
 plt.un <- complete_pca(unweighted.df,centerScale=FALSE)
+plt.alt <- complete_pca(alt.df,centerScale=FALSE)
 
 ```
 
@@ -275,6 +278,11 @@ complete_pca(filter(weighted.df,other<=0.1),centerScale=FALSE)
 pca.list.unweighted.pruned <- make_pca_inputs(filter(unweighted.df,other<=0.1),
                                  centerScale=FALSE)  
 complete_pca(filter(unweighted.df,other<=0.1),centerScale=FALSE)
+
+
+pca.list.alt.pruned <- make_pca_inputs(filter(alt.df,other<=0.1),
+                                 centerScale=FALSE)  
+complete_pca(filter(alt.df,other<=0.1),centerScale=FALSE)
 
 ```
 
@@ -304,7 +312,6 @@ Locus Unweighted
 
 ```{r}
 
-
 pruneA.plt.un <- pca_plot_annotated(pca.list.unweighted.pruned[[1]],
                    pca.list.unweighted.pruned[[2]],"PC1","PC2")
 pruneB.plt.un <- pca_plot_annotated(pca.list.unweighted.pruned[[1]],
@@ -314,6 +321,20 @@ ggsave(plot=pruneA.plt.un,filename=plot.dir%&%
 ggsave(plot=pruneB.plt.un,filename=plot.dir%&%
          "pca_pruned-full-unweighted-pc2-pc3.png",height=6,width=6)
 
+```
 
+
+Alternative method
+
+```{r}
+
+pruneA.plt.alt <- pca_plot_annotated(pca.list.alt.pruned[[1]],
+                   pca.list.alt.pruned[[2]],"PC1","PC2")
+pruneB.plt.alt <- pca_plot_annotated(pca.list.alt.pruned[[1]],
+                   pca.list.alt.pruned[[2]],"PC2","PC3")
+ggsave(plot=pruneA.plt.alt,filename=plot.dir%&%
+         "pca_pruned-full-alternative-pc1-pc2.png",height=6,width=6)
+ggsave(plot=pruneB.plt.alt,filename=plot.dir%&%
+         "pca_pruned-full-alternative-pc2-pc3.png",height=6,width=6)
 
 ```

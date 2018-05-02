@@ -45,9 +45,11 @@ fcred.df <- fread(methA.dir %&%"multi_results/results_func-cred-sets.txt",sep="\
 
 weighted.df <- fread(analysis.dir  %&% "classified-loci_weighted.txt")
 unweighted.df <- fread(analysis.dir  %&% "classified-loci_unweighted.txt")
+alt.df <- fread(analysis.dir  %&% "classified-loci_alternative.txt")
 
 weighted.df$assigned_20 <- gsub("other","unclassified",weighted.df$assigned_20)
 unweighted.df$assigned_20 <- gsub("other","unclassified",unweighted.df$assigned_20)
+alt.df$assigned_20 <- gsub("other","unclassified",alt.df$assigned_20)
 
 ```
 
@@ -177,14 +179,14 @@ make_test_plots <- function(group.df){
 comp.df <- build_comp_df(weighted.df)
 
 grp1 <- filter(comp.df,group=="islet")
-shapiro.test(grp1$islet.max.vs.null) # p-value = 2.655e-06
-shapiro.test(grp1$multi.max.vs.null) # p-value = 1.321e-12
+shapiro.test(grp1$islet.max.vs.null) # p-value = 7.016e-06
+shapiro.test(grp1$multi.max.vs.null) # p-value = 2.037e-12
 # Data is not likely normally distributed 
 wilcox.test(grp1$islet.max.vs.null,grp1$multi.max.vs.null) 
 
 grp2 <- filter(comp.df,group!="islet")
-shapiro.test(grp2$islet.max.vs.null) # p-value = 8.515e-06
-shapiro.test(grp2$multi.max.vs.null) # p-value = 1.507e-10
+shapiro.test(grp2$islet.max.vs.null) # p-value = 3.919e-06
+shapiro.test(grp2$multi.max.vs.null) # p-value = 9.251e-11
 # Data is not likely normally distributed 
 
 
@@ -197,7 +199,7 @@ ggsave(plot=plt.list[[2]],filename=plot.dir%&%"Wilcox-compare-num_weighted.png",
 ```
 
 
-## Unweighted
+# Unweighted
 
 ```{r}
 
@@ -211,5 +213,22 @@ plt.list <- make_test_plots(unweighted.df)
   
 ggsave(plot=plt.list[[1]],filename=plot.dir%&%"Wilcox-compare-max_unweighted.png",height=3,width=7)
 ggsave(plot=plt.list[[2]],filename=plot.dir%&%"Wilcox-compare-num_unweighted.png",height=3,width=7)
+```
+
+# Alternative 
+
+```{r}
+
+comp.df <- build_comp_df(alt.df)
+
+grp1 <- filter(comp.df,group=="islet")
+wilcox.test(grp1$islet.max.vs.null,grp1$multi.max.vs.null) 
+
+
+plt.list <- make_test_plots(alt.df)
+  
+ggsave(plot=plt.list[[1]],filename=plot.dir%&%"Wilcox-compare-max_alternative.png",height=3,width=7)
+ggsave(plot=plt.list[[2]],filename=plot.dir%&%"Wilcox-compare-num_alternative.png",height=3,width=7)
+
 ```
 
