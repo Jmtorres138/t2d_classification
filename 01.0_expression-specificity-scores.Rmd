@@ -84,10 +84,10 @@ Note of the gene that interect, lengths seem to be mostly concordant, however, t
 
 ```{r}
 
-write.table(ensid.v2.df,file=afile.dir%&%"gencode.v19.gene_lengths.txt",
-            sep="\t",quote=FALSE,row.names=FALSE)
-ensid.v2.df <- read.table(afile.dir%&%"gencode.v19.gene_lengths.txt",header=TRUE,
-                          stringsAsFactors=FALSE)
+#write.table(ensid.v2.df,file=afile.dir%&%"gencode.v19.gene_lengths.txt",
+#            sep="\t",quote=FALSE,row.names=FALSE)
+#ensid.v2.df <- read.table(afile.dir%&%"gencode.v19.gene_lengths.txt",header=TRUE,
+#                          stringsAsFactors=FALSE)
 ```
 
 
@@ -291,6 +291,22 @@ average_tpm_rn <- function(tpm.df){
   return(out.df)
 }
 
+average_tpm_rr <- function(tpm.df){ # Reverse Rank approach # alternative
+  out.df <- c()
+  pb <- txtProgressBar(min=0,max=dim(tpm.df)[1],style=3)
+  for (i in 1:(dim(tpm.df)[1])){
+    setTxtProgressBar(pb,i)
+    GeneID <- tpm.df$GeneID[i]
+    GeneName <- tpm.df$GeneName[i]
+    Avg <- tpm.df[i,3:dim(tpm.df)[2]] %>% as.numeric(.) %>% mean(.)
+    build.df <- data.frame(GeneID,GeneName,Avg,stringsAsFactors = FALSE)
+    out.df <- rbind(out.df,build.df)
+  }
+  RN <- rank(out.df$Avg)
+  out.df$RN <- RN
+  return(out.df)
+}
+
 build_rn_df <- function(){
   df1 <- average_tpm_rn(islet.tpm.df)
   df2 <- average_tpm_rn(mus.tpm.df)
@@ -304,22 +320,73 @@ build_rn_df <- function(){
   return(df)
 }
 
+build_rr_df <- function(){
+  df1 <- average_tpm_rr(islet.tpm.df)
+  df2 <- average_tpm_rr(mus.tpm.df)
+  df3 <- average_tpm_rr(adi.tpm.df)
+  df4 <- average_tpm_rr(liv.tpm.df)
+  df <- inner_join(df1,df2,by="GeneID")
+  df <- inner_join(df,df3,by="GeneID")
+  df <- inner_join(df,df4,by="GeneID")
+  df <- dplyr::select(df,one_of("GeneID","GeneName.x","RN.x","RN.y","RN.x.x","RN.y.y"))
+  names(df) <- c("GeneID","GeneName","islet","muscle","adipose","liver")
+  return(df)
+}
 
 ess_rn_scores <- function(rn.df){
-  rn.df$islet <- rn.df$islet + 2
-  rn.df$muscle <- rn.df$muscle + 2 
-  rn.df$adipose <- rn.df$adipose + 2 
-  rn.df$liver <- rn.df$liver + 2
+  rn.df$islet <- rn.df$islet 
+  rn.df$muscle <- rn.df$muscle  
+  rn.df$adipose <- rn.df$adipose 
+  rn.df$liver <- rn.df$liver 
   out.df <- c()
   pb <- txtProgressBar(min=0,max=dim(rn.df)[1],style=3)
   for (i in 1:dim(rn.df)[1]){
     setTxtProgressBar(pb,i)
     tot <- dplyr::select(rn.df[i,],-one_of("GeneID","GeneName")) %>% as.numeric(.) %>% sum(.)
     ens <- rn.df$GeneID[i]; ensname <- rn.df$GeneName[i]
-    islet.score <- rn.df$islet[i] / tot
-    muscle.score <- rn.df$muscle[i] / tot
-    adipose.score <- rn.df$adipose[i] / tot
-    liver.score <- rn.df$liver[i] / tot
+    
+    if (tot<0){
+      islet.score <- 0.25
+      muscle.score <- 0.25
+      adipose.score <- 0.25
+      liver.score <- 0.25     
+    } else{
+      vec <- dplyr::select(rn.df[i,],-one_of("GeneID","GeneName")) %>%
+        as.numeric(.)
+      vec[vec<0] <- 0
+      tot <- vec %>% sum(.)
+      val <- ifelse(rn.df$islet[i]>0,rn.df$islet[i],0)
+      islet.score <- val / tot
+      val <- ifelse(rn.df$muscle[i]>0,rn.df$muscle[i],0)
+      muscle.score <- val / tot
+      val <- ifelse(rn.df$adipose[i]>0,rn.df$adipose[i],0)
+      adipose.score <- val / tot
+      val <- ifelse(rn.df$liver[i]>0,rn.df$liver[i],0)
+      liver.score <- val / tot      
+    }
+
+    build.df <- data.frame(GeneID=ens,GeneName=ensname,islet.score,muscle.score,
+                           adipose.score,liver.score,stringsAsFactors=FALSE)
+    out.df <- rbind(out.df,build.df)
+  }
+  return(out.df)
+}
+
+ess_rr_scores <- function(rr.df){
+  rr.df$islet <- rr.df$islet 
+  rr.df$muscle <- rr.df$muscle 
+  rr.df$adipose <- rr.df$adipose 
+  rr.df$liver <- rr.df$liver 
+  out.df <- c()
+  pb <- txtProgressBar(min=0,max=dim(rr.df)[1],style=3)
+  for (i in 1:dim(rn.df)[1]){
+    setTxtProgressBar(pb,i)
+    tot <- dplyr::select(rr.df[i,],-one_of("GeneID","GeneName")) %>% as.numeric(.) %>% sum(.)
+    ens <- rr.df$GeneID[i]; ensname <- rr.df$GeneName[i]
+    islet.score <- rr.df$islet[i] / tot
+    muscle.score <- rr.df$muscle[i] / tot
+    adipose.score <- rr.df$adipose[i] / tot
+    liver.score <- rr.df$liver[i] / tot
     build.df <- data.frame(GeneID=ens,GeneName=ensname,islet.score,muscle.score,
                            adipose.score,liver.score,stringsAsFactors=FALSE)
     out.df <- rbind(out.df,build.df)
@@ -328,14 +395,24 @@ ess_rn_scores <- function(rn.df){
 }
 
 
-
-
 ```
 
 
 ```{r}
 
 rn.df <- build_rn_df()
+write.table(rn.df,file=afile.dir%&%
+            "rntransform.txt",
+            sep="\t",quote=F,row.names=F)
+#rn.df <- fread(afile.dir%&%"rntransform.txt")
+
+rr.df <- build_rr_df()
+write.table(rr.df,file=afile.dir%&%
+            "reverse-rank.txt",
+            sep="\t",quote=F,row.names=F)
+#rr.df <- fread(afile.dir%&%"reverse-rank.txt")
+
+
 ess.rn.df <- ess_rn_scores(rn.df)
 write.table(ess.rn.df,file=afile.dir%&%"expression_specificity_scores-rntransform.txt",
             sep="\t",quote=F,row.names=F)
