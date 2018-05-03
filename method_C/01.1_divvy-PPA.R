@@ -129,33 +129,33 @@ divvy_ppa_snp <- function(loc.id,snp.id,mode="full",weights=TRUE){
   genenh.vec <- handle_annotation(annot.df,"genic_enhancer",ppa)
   if (weights==TRUE){
     c.df <- filter(weight.all.df,annotation=="coding")
-    c.scores <- c(filter(c.df,tissue=="islet")$weight, filter(c.df,tissue=="muscle")$weight,
-                  filter(c.df,tissue=="adipose")$weight,filter(c.df,tissue=="liver")$weight)
+    c.scores <- c(2^(filter(c.df,tissue=="islet")$weight), 2^(filter(c.df,tissue=="muscle")$weight),
+                  2^(filter(c.df,tissue=="adipose")$weight),2^(filter(c.df,tissue=="liver")$weight))
     coding.vec <- coding.vec  * c.scores
 
     se.df <- filter(weight.all.df,annotation=="strong.enhancers")
-    se.scores <- c(filter(se.df,tissue=="islet")$weight, filter(se.df,tissue=="muscle")$weight,
-                   filter(se.df,tissue=="adipose")$weight,filter(se.df,tissue=="liver")$weight)
+    se.scores <- c(2^(filter(se.df,tissue=="islet")$weight), 2^(filter(se.df,tissue=="muscle")$weight),
+                   2^(filter(se.df,tissue=="adipose")$weight),2^(filter(se.df,tissue=="liver")$weight))
     strongenh.vec <- strongenh.vec * se.scores
 
     we.df <- filter(weight.all.df,annotation=="weak.enhancers")
-    we.scores <- c(filter(we.df,tissue=="islet")$weight, filter(we.df,tissue=="muscle")$weight,
-                   filter(we.df,tissue=="adipose")$weight,filter(we.df,tissue=="liver")$weight)
+    we.scores <- c(2^(filter(we.df,tissue=="islet")$weight), 2^(filter(we.df,tissue=="muscle")$weight),
+                   2^(filter(we.df,tissue=="adipose")$weight),2^(filter(we.df,tissue=="liver")$weight))
     weakenh.vec <- weakenh.vec * we.scores
 
     gt.df <- filter(weight.all.df,annotation=="gene.transcription")
-    gt.scores <- c(filter(gt.df,tissue=="islet")$weight, filter(gt.df,tissue=="muscle")$weight,
-                   filter(gt.df,tissue=="adipose")$weight,filter(gt.df,tissue=="liver")$weight)
+    gt.scores <- c(2^(filter(gt.df,tissue=="islet")$weight), 2^(filter(gt.df,tissue=="muscle")$weight),
+                   2^(filter(gt.df,tissue=="adipose")$weight),2^(filter(gt.df,tissue=="liver")$weight))
     genetrans.vec <- genetrans.vec * gt.scores
 
     pr.df <- filter(weight.all.df,annotation=="promoters")
-    pr.scores <- c(filter(pr.df,tissue=="islet")$weight, filter(pr.df,tissue=="muscle")$weight,
-                   filter(pr.df,tissue=="adipose")$weight, filter(pr.df,tissue=="liver")$weight)
+    pr.scores <- c(2^(filter(pr.df,tissue=="islet")$weight), 2^(filter(pr.df,tissue=="muscle")$weight),
+                   2^(filter(pr.df,tissue=="adipose")$weight), 2^(filter(pr.df,tissue=="liver")$weight))
     prom.vec <- prom.vec * pr.scores
 
     ge.df <- filter(weight.all.df,annotation=="genic.enhancer")
-    ge.scores <- c(filter(ge.df,tissue=="islet")$weight,filter(ge.df,tissue=="muscle")$weight,
-                   filter(ge.df,tissue=="adipose")$weight,filter(ge.df,tissue=="liver")$weight)
+    ge.scores <- c(2^(filter(ge.df,tissue=="islet")$weight),2^(filter(ge.df,tissue=="muscle")$weight),
+                   2^(filter(ge.df,tissue=="adipose")$weight),2^(filter(ge.df,tissue=="liver")$weight))
     genenh.vec <- genenh.vec * ge.scores
   }
   if (mode=="full"){
