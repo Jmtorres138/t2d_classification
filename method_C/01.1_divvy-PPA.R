@@ -227,8 +227,10 @@ build_ppa_partition_df <- function(mode="full",weights=TRUE,scaled=FALSE){
 part.fullWU.df <- build_ppa_partition_df(mode="full",weights=TRUE,scaled=FALSE)
 
 
-#write.table(x=part.fullWS.df,file=out.dir%&%"tissue_ppa_divvy-full-weighted-scaled-CodingRN.txt",
-#            sep="\t",quote=FALSE,row.names=FALSE)
-
 write.table(x=part.fullWU.df,file=out.dir%&%"tissue_ppa_divvy-full-weighted-unscaled-CodingRN.txt",
             sep="\t",quote=FALSE,row.names=FALSE)
+
+
+#write.table(x=part.fullWU.df,file=out.dir%&%"tissue_ppa_divvy-full-weighted-unscaled-CodingNotRN.txt",
+#            sep="\t",quote=FALSE,row.names=FALSE)
+

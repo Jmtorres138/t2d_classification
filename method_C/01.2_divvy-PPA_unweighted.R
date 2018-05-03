@@ -213,3 +213,8 @@ part.fullUU.df <- build_ppa_partition_df(mode="full",weights=FALSE,scaled=FALSE)
 
 write.table(x=part.fullUU.df,file=out.dir%&%"tissue_ppa_divvy-full-unweighted-unscaled-CodingRN.txt",
             sep="\t",quote=FALSE,row.names=FALSE)
+
+
+#write.table(x=part.fullUU.df,file=out.dir%&%"tissue_ppa_divvy-full-unweighted-unscaled-CodingNotRN.txt",
+#            sep="\t",quote=FALSE,row.names=FALSE)
+
