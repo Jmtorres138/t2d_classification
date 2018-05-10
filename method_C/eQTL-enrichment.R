@@ -11,7 +11,7 @@ serv.dir1 <- "/well/got2d/jason/"
 serv.dir2 <- "/well/mccarthy/users/jason/"
 
 proj.dir <- serv.dir2 %&% "projects/t2d_classification/"
-work.dir <- proj.dir %&% "method_A/"
+work.dir <- proj.dir %&% "method_C/"
 
 gwas.dir <- serv.dir1 %&% "reference/gwas/diamante-ukbb_hrc/"
 gwas.df <- fread(gwas.dir %&% "ukbb_diamante-euro.bed") # will take a while to load, 0.681 GB file
@@ -112,62 +112,66 @@ enrich_test_across_tissue <- function(query.vec,iter){
   return(out.df)
 }
 
-evaluate_threshold <- function(x,fcred.df,input.df,iter){
-  # x is evaluated threshold
-  classified <- map(input.df$Locus.ID,function(id){
-    sub <- filter(input.df,Locus.ID==id) %>% dplyr::select(-one_of("Locus.ID","other")) %>%
-      sort(.,decreasing=TRUE) %>% as.data.frame(.)
-    tiss <- names(sub)[1]
-    val <- sub[,1]
-    tiss <- ifelse(val>=x,tiss,"unclassified")
-    return(tiss)
-  }) %>% as.character(.)
+evaluate_threshold <- function(input.df,classified,iter,threshold){
   islet.loci <- input.df$Locus.ID[classified=="islet"]
   liver.loci <- input.df$Locus.ID[classified=="liver"]
   adipose.loci <- input.df$Locus.ID[classified=="adipose"]
   muscle.loci <- input.df$Locus.ID[classified=="muscle"]
-  islet.snps <- filter(fcred.df,Locus.ID %in% islet.loci)$SNPID
-  liver.snps <- filter(fcred.df,Locus.ID %in% liver.loci)$SNPID
-  adipose.snps <- filter(fcred.df,Locus.ID %in% adipose.loci)$SNPID
-  muscle.snps <- filter(fcred.df,Locus.ID %in% muscle.loci)$SNPID
-  df1 <- enrich_test(islet.snps,islet.eqtls,iter)
-  df2 <- enrich_test(liver.snps,liv.eqtls,iter)
-  df3 <- enrich_test(adipose.snps,adi.eqtls,iter)
-  df4 <- enrich_test(muscle.snps,mus.eqtls,iter)
-  df0 <- data.frame(tissue=c("islet","liver","adipose","muscle"))
-  out.df <- rbind(df1,df2,df3,df4)
+  islet.snps <- filter(cred.df,Locus.ID %in% islet.loci)$SNPID
+  liver.snps <- filter(cred.df,Locus.ID %in% liver.loci)$SNPID
+  adipose.snps <- filter(cred.df,Locus.ID %in% adipose.loci)$SNPID
+  muscle.snps <- filter(cred.df,Locus.ID %in% muscle.loci)$SNPID
+  
+  df1a <- enrich_test(islet.snps,islet.eqtls,iter)
+  df1b <- enrich_test(islet.snps,liv.eqtls,iter)
+  df1c <- enrich_test(islet.snps,adi.eqtls,iter)
+  df1d <- enrich_test(islet.snps,mus.eqtls,iter)
+  
+  df2a <- enrich_test(liver.snps,islet.eqtls,iter)
+  df2b <- enrich_test(liver.snps,liv.eqtls,iter)
+  df2c <- enrich_test(liver.snps,adi.eqtls,iter)
+  df2d <- enrich_test(liver.snps,mus.eqtls,iter)
+  
+  df3a <- enrich_test(adipose.snps,islet.eqtls,iter)
+  df3b <- enrich_test(adipose.snps,liv.eqtls,iter)
+  df3c <- enrich_test(adipose.snps,adi.eqtls,iter)
+  df3d <- enrich_test(adipose.snps,mus.eqtls,iter)
+  
+  df4a <- enrich_test(muscle.snps,islet.eqtls,iter)
+  df4b <- enrich_test(muscle.snps,liv.eqtls,iter)
+  df4c <- enrich_test(muscle.snps,adi.eqtls,iter)
+  df4d <- enrich_test(muscle.snps,mus.eqtls,iter)
+  
+  
+  df0 <- data.frame(tissue=c(rep("islet",4),rep("liver",4),rep("adipose",4),rep("muscle",4)),
+                    eQTL=rep(c("islet","liver","adipose","muscle"),4))
+  out.df <- rbind(df1a,df1b,df1c,df1d,df2a,df2b,df2c,df2d,df3a,df3b,df3c,df3d,df4a,df4b,df4c,df4d)
   out.df <- cbind(df0,out.df)
   out.df$tissue <- as.character(out.df$tissue)
-  out.df$threshold <- rep(x,dim(out.df)[1])
+  out.df$threshold <- rep(threshold,dim(out.df)[1])
   return(out.df)
 }
 
-evaluate_thresholds <- function(x.vec=seq(0,1,0.05),fcred.df,input.df,iter){
-  out.df <- c()
-  for (x in x.vec){
-    print("Threshold:");print(x)
-    build.df <- evaluate_threshold(x,fcred.df,input.df,iter)
-    out.df <- rbind(out.df,build.df)
-  }
+evaluate_thresholds <- function(input.df,iter){
+  print("Threshold:");print("0.20")
+  df20 <- evaluate_threshold(input.df,classified=input.df$assigned_20,iter,"0.20")
+  print("Threshold:");print("0.50")
+  df50 <- evaluate_threshold(input.df,classified=input.df$assigned_50,iter,"0.50")
+  print("Threshold:");print("0.80")
+  df80 <- evaluate_threshold(input.df,classified=input.df$assigned_80,iter,"0.80")
+  out.df <- rbind(df20,df50,df80)
   return(out.df)
 }
 
 
-fcred.dir <- serv.dir2 %&% "projects/t2d_classification/method_A/multi_results/"
-fcred.df <- fread(fcred.dir %&% "results_func-cred-sets.txt")
 
-input1.df <- fread(proj.dir %&% "method_A/analysis_files/tissue_ppa_divvy-full-weighted-scaled.txt")
-thresh1.df <- evaluate_thresholds(x.vec=seq(0,1,0.05),fcred.df,input1.df,iter=1000)
-write.table(x=thresh1.df,file=proj.dir%&%"method_A/analysis_files/select-thresh-eqtl_full-LocusScaled.txt",
+cred.dir <- serv.dir2 %&% "projects/t2d_classification/method_C/genetic_credible_sets/"
+cred.df <- fread(cred.dir %&% "gencred.txt")
+
+input1.df <- fread(proj.dir %&% "method_C/analysis_files/classified-loci_weighted.txt")
+thresh1.df <- evaluate_thresholds(input.df,iter=2)
+write.table(x=thresh1.df,file=proj.dir%&%"method_C/analysis_files/eqtl-validation_weighted.txt",
             sep="\t",quote=FALSE,row.names=FALSE)
 
 
-input2.df <- fread(proj.dir %&% "method_A/analysis_files/tissue_ppa_divvy-full-weighted-unscaled.txt")
-thresh2.df <- evaluate_thresholds(x.vec=seq(0,1,0.05),fcred.df,input2.df,iter=1000)
-write.table(x=thresh2.df,file=proj.dir%&%"method_A/analysis_files/select-thresh-eqtl_full-unscaled.txt",
-            sep="\t",quote=FALSE,row.names=FALSE)
 
-#input2.df <- fread(proj.dir %&% "method_A/analysis_files/tissue_ppa_divvy-coding-strongEnhancers.txt")
-#thresh2.df <- evaluate_thresholds(x.vec=seq(0,1,0.05),fcred.df,input2.df,iter=100)
-#write.table(x=thresh2.df,file=proj.dir%&%"method_A/analysis_files/select-thresh-eqtl_cse.txt",
-#            sep="\t",quote=FALSE,row.names=FALSE)
