@@ -114,6 +114,10 @@ handle_annotation <- function(annot.df, annot.name, ppa){
 divvy_ppa_snp <- function(loc.id,snp.id,mode="full",weights=TRUE){
   # set weights=NULL if unweighted
   sub.df <- filter(cred.df,Locus.ID==loc.id,SNPID==snp.id)
+  if (dim(sub.df)[1]>1){
+    sub.df <- sub.df[1,]
+    print("\nduplicate snp: " %&% sub.df$IndexSNP %&% " : Locus.ID " %&% loc.id)
+  }
   chrom <- sub.df$CHR; pos <- sub.df$POS;
   ppa <- sub.df$PPA; coding <- sub.df$coding
   if (coding==1){
