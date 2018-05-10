@@ -20,8 +20,8 @@ sym.df <- select(Homo.sapiens,key=sym.ids,keytype="SYMBOL",
                  columns=c("ENSEMBL"))
 
 ess.dir <- proj.dir %&% "analysis_files/"
-#ess.df <- fread(ess.dir %&% "expression_specificity_scores.txt")
-ess.df <- fread(ess.dir %&% "expression_specificity_scores-rntransform.txt")
+ess.df <- fread(ess.dir %&% "expression_specificity_scores.txt")
+#ess.df <- fread(ess.dir %&% "expression_specificity_scores-rntransform.txt")
 weight.all.df <- fread(work.dir %&%  "analysis_files/weight-enrich-all.txt")
 
 
@@ -227,10 +227,10 @@ build_ppa_partition_df <- function(mode="full",weights=TRUE,scaled=FALSE){
 part.fullWU.df <- build_ppa_partition_df(mode="full",weights=TRUE,scaled=FALSE)
 
 
-write.table(x=part.fullWU.df,file=out.dir%&%"tissue_ppa_divvy-full-weighted-unscaled-CodingRN.txt",
-            sep="\t",quote=FALSE,row.names=FALSE)
-
-
-#write.table(x=part.fullWU.df,file=out.dir%&%"tissue_ppa_divvy-full-weighted-unscaled-CodingNotRN.txt",
+#write.table(x=part.fullWU.df,file=out.dir%&%"tissue_ppa_divvy-full-weighted-unscaled-CodingRN.txt",
 #            sep="\t",quote=FALSE,row.names=FALSE)
+
+
+write.table(x=part.fullWU.df,file=out.dir%&%"tissue_ppa_divvy-full-weighted-unscaled-CodingNotRN.txt",
+            sep="\t",quote=FALSE,row.names=FALSE)
 
