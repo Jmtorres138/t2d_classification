@@ -10,9 +10,9 @@ library("Homo.sapiens")
 
 serv.dir <- "/well/mccarthy/users/jason/"
 proj.dir <- serv.dir %&% "projects/t2d_classification/"
-work.dir <- proj.dir %&% "method_A/"
+work.dir <- proj.dir %&% "method_C/"
 out.dir <- proj.dir %&% "method_C/analysis_files/"
-res.dir <- work.dir %&% "null_results/"
+res.dir <- work.dir %&% "genetic_credible_sets/" #"null_results/"
 input.dir <- proj.dir %&% "analysis_files/"
 
 sym.ids <- unique(keys(Homo.sapiens, keytype = "SYMBOL"))
@@ -22,15 +22,15 @@ sym.df <- select(Homo.sapiens,key=sym.ids,keytype="SYMBOL",
 ess.dir <- proj.dir %&% "analysis_files/"
 ess.df <- fread(ess.dir %&% "expression_specificity_scores.txt")
 #ess.df <- fread(ess.dir %&% "expression_specificity_scores-rntransform.txt")
-weight.all.df <- fread(work.dir %&%  "analysis_files/weight-enrich-all.txt")
+
+weight.all.df <- fread(proj.dir %&%  "method_A/analysis_files/weight-enrich-all.txt")
 
 
 
 
 
-
-blk.df <- fread(res.dir %&% "null_results_blocks.txt")
-fcred.df <- fread(res.dir %&% "null_results_func-cred-sets.txt")
+#blk.df <- fread(res.dir %&% "null_results_blocks.txt")
+cred.df <- fread(res.dir %&% "gencred.txt")
 bed1.df <- fread(input.dir %&% "all_shared.bed")
 bed2.df <- fread(input.dir %&% "shared_processed.txt")
 shared.df <- rbind(bed1.df,bed2.df); rm(bed1.df); rm(bed2.df)
@@ -40,23 +40,23 @@ states.df <- rbind(shared.df,specific.df)
 
 # Append necessary information 
 
-mult.df <- fread(work.dir %&% "multi_results/results_func-cred-sets.txt")
+#mult.df <- fread(proj.dir %&%  "method_A/multi_results/results_func-cred-sets.txt")
 
-fgwas.path <- "/well/got2d/jason/projects/t2d-integration/fgwas/" %&% 
-  "diagram_hrc/cross_tissue/multi_tissue_joint_analysis/fgwas_input/" %&% 
-  "ukbb_diamante-euro.fgwas.gz"
+#fgwas.path <- "/well/got2d/jason/projects/t2d-integration/fgwas/" %&% 
+#  "diagram_hrc/cross_tissue/multi_tissue_joint_analysis/fgwas_input/" %&% 
+#  "ukbb_diamante-euro.fgwas.gz"
 
-fgwas.df <- fread("cat " %&% fgwas.path %&% " | zmore")
-names(fgwas.df)[names(fgwas.df)=="distance_tss"] <- "distance_tss_0_5000"
-fgwas.df <- dplyr::select(fgwas.df,one_of(names(mult.df))) %>% 
-  dplyr::select(.,-one_of("CHR","POS","Z"))
+#fgwas.df <- fread("cat " %&% fgwas.path %&% " | zmore")
+#names(fgwas.df)[names(fgwas.df)=="distance_tss"] <- "distance_tss_0_5000"
+#fgwas.df <- dplyr::select(fgwas.df,one_of(names(mult.df))) %>% 
+#  dplyr::select(.,-one_of("CHR","POS","Z"))
 
-fcred.df <- inner_join(fcred.df,fgwas.df,by="SNPID")
+#cred.df <- inner_join(cred.df,fgwas.df,by="SNPID")
 
 # Divvy function
 
 locid_to_symbol <- function(loc.id){
-  return(filter(blk.df,Locus.ID==loc.id)$refseq %>% as.character(.))
+  return(filter(cred.df,Locus.ID==loc.id)$symbol %>% as.character(.) %>% unique(.))
 }
 
 
@@ -113,7 +113,7 @@ handle_annotation <- function(annot.df, annot.name, ppa){
 
 divvy_ppa_snp <- function(loc.id,snp.id,mode="full",weights=TRUE){
   # set weights=NULL if unweighted
-  sub.df <- filter(fcred.df,Locus.ID==loc.id,SNPID==snp.id)
+  sub.df <- filter(cred.df,Locus.ID==loc.id,SNPID==snp.id)
   chrom <- sub.df$CHR; pos <- sub.df$POS;
   ppa <- sub.df$PPA; coding <- sub.df$coding
   if (coding==1){
@@ -177,7 +177,7 @@ divvy_ppa_snp <- function(loc.id,snp.id,mode="full",weights=TRUE){
 }
 
 divvy_ppa_loc <- function(loc.id,mode="full",weights=TRUE,scaled=FALSE){
-  sub.df <- filter(fcred.df,Locus.ID==loc.id)
+  sub.df <- filter(cred.df,Locus.ID==loc.id)
   out.df <- c()
   pb <- txtProgressBar(min=0,max=dim(sub.df)[1],style=3)
   #print(loc.id)
@@ -200,11 +200,12 @@ divvy_ppa_loc <- function(loc.id,mode="full",weights=TRUE,scaled=FALSE){
   }
   out.df <- as.data.frame(t(vec))
   out.df <- data.frame(Locus.ID=loc.id,out.df)
+  out.df$Locus.ID <- out.df$Locus.ID %>% as.character(.)
   return(out.df)
 }
 
 build_ppa_partition_df <- function(mode="full",weights=TRUE,scaled=FALSE){
-  loc.ids <- fcred.df$Locus.ID %>% unique(.)
+  loc.ids <- cred.df$Locus.ID %>% unique(.)
   out.df <- c()
   pb <- txtProgressBar(min=0,max=length(loc.ids),style=3)
   for (i in 1:length(loc.ids)){
@@ -221,16 +222,16 @@ build_ppa_partition_df <- function(mode="full",weights=TRUE,scaled=FALSE){
 
 #Generate and save tables
 
-
-#part.fullWS.df <- build_ppa_partition_df(mode="full",weights=TRUE,scaled=TRUE)
-
 part.fullWU.df <- build_ppa_partition_df(mode="full",weights=TRUE,scaled=FALSE)
 
 
-#write.table(x=part.fullWU.df,file=out.dir%&%"tissue_ppa_divvy-full-weighted-unscaled-CodingRN.txt",
-#            sep="\t",quote=FALSE,row.names=FALSE)
 
 
-write.table(x=part.fullWU.df,file=out.dir%&%"tissue_ppa_divvy-full-weighted-unscaled-CodingNotRN.txt",
+
+
+
+write.table(x=part.fullWU.df,file=out.dir%&%"tissue_ppa_divvy-full-weighted-unscaled.txt",
             sep="\t",quote=FALSE,row.names=FALSE)
+
+
 
