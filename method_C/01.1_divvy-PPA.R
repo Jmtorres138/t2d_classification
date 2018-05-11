@@ -115,11 +115,15 @@ divvy_ppa_snp <- function(loc.id,snp.id,mode="full",weights=TRUE){
   # set weights=NULL if unweighted
   sub.df <- filter(cred.df,Locus.ID==loc.id,SNPID==snp.id)
   if (dim(sub.df)[1]>1){
+    ppa <- sub.df$PPA %>% sum(.)
     sub.df <- sub.df[1,]
-    print("\nduplicate snp: " %&% sub.df$IndexSNP %&% " : Locus.ID " %&% loc.id)
+    print("\nduplicate snp: " %&% snp.id %&% " : Locus.ID " %&% loc.id)
+    chrom <- sub.df$CHR; pos <- sub.df$POS;
+    coding <- sub.df$coding  
+  } else{
+    chrom <- sub.df$CHR; pos <- sub.df$POS;
+    ppa <- sub.df$PPA; coding <- sub.df$coding    
   }
-  chrom <- sub.df$CHR; pos <- sub.df$POS;
-  ppa <- sub.df$PPA; coding <- sub.df$coding
   if (coding==1){
     coding.vec <- handle_coding(loc.id,ppa) # islet, muscle, adipose, liver
   } else{
@@ -183,12 +187,11 @@ divvy_ppa_snp <- function(loc.id,snp.id,mode="full",weights=TRUE){
 divvy_ppa_loc <- function(loc.id,mode="full",weights=TRUE,scaled=FALSE){
   sub.df <- filter(cred.df,Locus.ID==loc.id)
   out.df <- c()
-  pb <- txtProgressBar(min=0,max=dim(sub.df)[1],style=3)
-  #print(loc.id)
-  for (i in 1:dim(sub.df)[1]){
-    #print(i)
+  snp.vec <- sub.df$SNPID %>% unique(.)
+  pb <- txtProgressBar(min=0,max=length(snp.vec),style=3)
+  for (i in 1:length(snp.vec)){
     setTxtProgressBar(pb,i)
-    snp.id <- sub.df$SNPID[i]
+    snp.id <- snp.vec[i]
     build.df <- divvy_ppa_snp(loc.id,snp.id,mode,weights)
     out.df <- rbind(out.df,build.df)
   }
@@ -227,10 +230,6 @@ build_ppa_partition_df <- function(mode="full",weights=TRUE,scaled=FALSE){
 #Generate and save tables
 
 part.fullWU.df <- build_ppa_partition_df(mode="full",weights=TRUE,scaled=FALSE)
-
-
-
-
 
 
 
