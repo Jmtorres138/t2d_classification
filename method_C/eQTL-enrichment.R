@@ -169,7 +169,7 @@ cred.dir <- serv.dir2 %&% "projects/t2d_classification/method_C/genetic_credible
 cred.df <- fread(cred.dir %&% "gencred.txt")
 
 input1.df <- fread(proj.dir %&% "method_C/analysis_files/classified-loci_weighted.txt")
-thresh1.df <- evaluate_thresholds(input.df,iter=1000)
+thresh1.df <- evaluate_thresholds(input1.df,iter=1000)
 write.table(x=thresh1.df,file=proj.dir%&%"method_C/analysis_files/eqtl-validation_weighted.txt",
             sep="\t",quote=FALSE,row.names=FALSE)
 
