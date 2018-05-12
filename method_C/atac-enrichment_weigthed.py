@@ -24,13 +24,13 @@ liv_bed = "/well/got2d/jason/reference/encode/liver/liver.hg19.bed"
 mus_bed = "/well/got2d/jason/reference/encode/muscle/muscle.hg19.bed"
 
 def get_intersect(snp_bed,annot_bed,temp_name):
-	command = ["/apps/well/bedtools/2.24.0/bedtools", "intersect", "-wa","-a",snp_bed,"-b",annot_bed,"|","uniq",">",out_dir+"inter.temp."+temp_name+".bed"]
+	command = ["/apps/well/bedtools/2.24.0/bedtools", "intersect", "-wa","-a",snp_bed,"-b",annot_bed,"|","uniq",">",proc_dir+"inter.temp."+temp_name+".bed"]
 	sp.check_call(" ".join(command),shell=True)
-	command = ["cat", out_dir+"inter.temp."+temp_name+".bed","|","wc -l"]
+	command = ["cat", proc_dir+"inter.temp."+temp_name+".bed","|","wc -l"]
 	p = sp.Popen(" ".join(command),shell=True, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE)
 	output, err = p.communicate(b"input data that is passed to subprocess' stdin")
 	count = output.strip()
-	os.remove(out_dir+"inter.temp."+temp_name+".bed")
+	os.remove(proc_dir+"inter.temp."+temp_name+".bed")
 	return count
 
 def enrich(fname,snp_bed):
