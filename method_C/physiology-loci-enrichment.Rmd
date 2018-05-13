@@ -14,6 +14,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 
+set.seed(1)
+
 "%&%" <- function(a,b) paste0(a,b)
 
 
@@ -81,7 +83,7 @@ enrich_test <- function(query.vec,ref.vec,iter=10000){
 
 build_enrich_df <- function(class.df){
   tvec <- c("assigned_20","assigned_50","assigned_80")
-  tiss.vec <- c("islet","liver","adipose","muscle")
+  tiss.vec <- c("islet","liver","adipose","muscle","peripheral")
   phys.vec <- c("BMI-Dys","Insulin_Action","Insulin_Secretion")
   out.df <- c()
   for (t in tvec){
@@ -90,7 +92,11 @@ build_enrich_df <- function(class.df){
     sub <- dplyr::select(class.df,one_of(cond,threshold))
     names(sub)[2] <- "assigned"
     for (tiss in tiss.vec){
-      query.vec <- filter(sub,assigned==tiss)$Cond.ID %>% unique(.)
+      if (tiss=="peripheral"){
+        query.vec <- filter(sub,assigned!="islet")$Cond.ID %>% unique(.)
+      } else{
+        query.vec <- filter(sub,assigned==tiss)$Cond.ID %>% unique(.)
+      }
       for (phys in phys.vec){
         ref.vec <- filter(phys.df,Physiology==phys)$Locus.ID_inCREDS %>% 
           unique(.)
@@ -100,7 +106,8 @@ build_enrich_df <- function(class.df){
         test.df <- dplyr::select(test.df,one_of("tissue","physiology",
                                                 "observed.count",
                                                 "mean.null",
-                                                "enrichment","p"))
+                                                "enrichment","p",
+                                                "threshold"))
         out.df <- rbind(out.df,test.df)
       }
     }
