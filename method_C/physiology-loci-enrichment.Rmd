@@ -1,0 +1,125 @@
+---
+title: "physiology-loci-enrichment.Rmd"
+author: "Jason Torres"
+date: "5/13/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup
+
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+
+library("tidyverse")
+library("data.table")
+
+serv.dir <- "/home/jason/science/servers/FUSE5/"
+#serv.dir <- "/Users/jtorres/FUSE5/"
+
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "method_C/"
+
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+
+```
+
+
+```{r}
+
+phys.df <- fread(proj.dir %&% "analysis_files/physiology_hrc_for_Jason.txt")
+phys.df$Locus.ID_inCREDS <- map(1:dim(phys.df)[1],function(i){
+  s <- phys.df$Locus.ID_inCREDS[i]
+  ifelse(grepl("_",s)==FALSE,s%&%"_1",s)
+}) %>% as.character(.)
+
+```
+
+
+```{r}
+
+append_condid <- function(class.df){
+  Cond.ID <- map(1:dim(class.df)[1],function(i){
+    filter(cred.df,Locus.ID==class.df$Locus.ID[i])$CondID %>% unique(.)
+  }) %>% as.character(.)
+  class.df$Cond.ID <- Cond.ID
+  return(class.df)
+}
+
+unweighted.df <- fread(work.dir %&% "analysis_files/" %&% 
+                     "classified-loci_unweighted.txt") %>% append_condid(.)
+weighted.df <- fread(work.dir %&% "analysis_files/" %&% 
+                     "classified-loci_weighted.txt") %>% append_condid(.)
+```
+
+
+```{r}
+
+enrich_test <- function(query.vec,ref.vec,iter=10000){
+  vec <- cred.df$CondID %>% unique(.)
+  obs <- (query.vec %in% ref.vec) %>% sum(.)
+  null.vec <- c()
+  pb <- txtProgressBar(min=0,max=iter,style=3)
+  for (i in 1:iter){
+    setTxtProgressBar(pb,i)
+    samp <- sample(x=vec,size=length(query.vec),replace=FALSE)
+    count <- (samp %in% ref.vec) %>% sum(.)
+    null.vec <- append(null.vec,count)
+  }
+  enrichment <- obs/(mean(null.vec))
+  p <- (sum(null.vec >= obs) + 1) / (iter + 1)
+  out.df <- data.frame(observed.count=obs,mean.null=mean(null.vec),
+                       enrichment=enrichment,p=p,stringsAsFactors = FALSE)
+  return(out.df)
+}
+
+build_enrich_df <- function(class.df){
+  tvec <- c("assigned_20","assigned_50","assigned_80")
+  tiss.vec <- c("islet","liver","adipose","muscle")
+  phys.vec <- c("BMI-Dys","Insulin_Action","Insulin_Secretion")
+  out.df <- c()
+  for (t in tvec){
+    cond <- "Cond.ID"
+    threshold <- t
+    sub <- dplyr::select(class.df,one_of(cond,threshold))
+    names(sub)[2] <- "assigned"
+    for (tiss in tiss.vec){
+      query.vec <- filter(sub,assigned==tiss)$Cond.ID %>% unique(.)
+      for (phys in phys.vec){
+        ref.vec <- filter(phys.df,Physiology==phys)$Locus.ID_inCREDS %>% 
+          unique(.)
+        test.df <- enrich_test(query.vec,ref.vec,iter=10000)
+        test.df$threshold <- threshold; test.df$tissue <- tiss
+        test.df$physiology <- phys
+        test.df <- dplyr::select(test.df,one_of("tissue","physiology",
+                                                "observed.count",
+                                                "mean.null",
+                                                "enrichment","p"))
+        out.df <- rbind(out.df,test.df)
+      }
+    }
+  }
+  return(out.df)
+}
+
+```
+
+
+```{r}
+
+df1 <- build_enrich_df(unweighted.df)
+write.table(x=df1,file = work.dir %&% "analysis_files/" %&% 
+              "phys-enrich_unweighted.txt",sep="\t",quote=F,row.names=F)
+
+df2 <- build_enrich_df(weighted.df)
+write.table(x=df2,file = work.dir %&% "analysis_files/" %&% 
+              "phys-enrich_weighted.txt",sep="\t",quote=F,row.names=F)
+
+```
+
