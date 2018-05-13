@@ -82,7 +82,7 @@ enrich_test <- function(query.vec,ref.vec,iter=10000){
 }
 
 build_enrich_df <- function(class.df){
-  tvec <- c("assigned_20","assigned_50","assigned_80")
+  tvec <- c("assigned_00","assigned_20","assigned_50","assigned_80")
   tiss.vec <- c("islet","liver","adipose","muscle","peripheral")
   phys.vec <- c("BMI-Dys","Insulin_Action","Insulin_Secretion")
   out.df <- c()
