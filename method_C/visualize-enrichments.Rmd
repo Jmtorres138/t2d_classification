@@ -1,0 +1,185 @@
+---
+title: "visualize-enrichments.Rmd"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+
+library("tidyverse")
+library("data.table")
+
+serv.dir <- "/home/jason/science/servers/FUSE5/"
+#serv.dir <- "/Users/jtorres/FUSE5/"
+
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "method_C/"
+plot.dir <- work.dir %&% "plots/"
+
+#cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+
+```
+
+
+
+# eQTL enrichments 
+
+```{r}
+
+library("viridis")
+
+eqtl_enrich_plot <- function(enrich.df,myname){
+  ggplot(data=enrich.df,aes(x=tissue,y=enrichment)) + 
+    geom_point(size=2,aes(fill=-log(pvalue,base=10),shape=as.factor(threshold))) + 
+    facet_wrap(~eQTL) + 
+    theme_bw() + 
+    scale_shape_manual(values=c(21,22,23),name="Classifer Threshold") +
+    scale_fill_gradient2(low=viridis(n=2)[2],high=viridis(n=2)[1],
+                         midpoint=-log(0.05,base=10),name=expression(-log10(p))) + 
+    xlab("Classified Tissue") + ylab("Enrichment") + 
+    ggtitle(myname)
+}
+ 
+```
+
+```{r}
+
+unweighted.df <- fread(work.dir %&% "analysis_files/eqtl-validation_unweighted.txt")
+weighted.df <- fread(work.dir %&% "analysis_files/eqtl-validation_weighted.txt")
+
+plt1 <- eqtl_enrich_plot(unweighted.df,myname="eQTL enrichment for classifed loci (unweighted)")
+ggsave(plot=plt1,filename = plot.dir %&% "enrichment-eqtl_unweighted.png",width=7,height=4)
+plt2 <- eqtl_enrich_plot(weighted.df,myname="eQTL enrichment for classifed loci (weighted)")
+ggsave(plot=plt2,filename = plot.dir %&% "enrichment-eqtl_weighted.png",width=7,height=4)
+
+```
+
+
+# ATAC enrichments 
+
+
+```{r}
+
+atac_enrich_plot <- function(enrich.df,myname){
+  ggplot(data=enrich.df,aes(x=tissue,y=enrich.factor)) + 
+    geom_point(size=2,aes(fill=-log(p.val,base=10),shape=as.factor(threshold))) + 
+    facet_wrap(~atac) + 
+    theme_bw() + 
+    scale_shape_manual(values=c(21,22,23),name="Classifer Threshold") +
+    scale_fill_gradient2(low=viridis(n=2)[2],high=viridis(n=2)[1],
+                         midpoint=-log(0.05,base=10),name=expression(-log10(p))) + 
+    xlab("Classified Tissue") + ylab("Enrichment") + 
+    ggtitle(myname)
+}
+
+```
+
+
+```{r}
+
+read_input <- function(readstring="atac-enrichment_unweighted_thresh"){
+  fvec <- list.files(work.dir %&% "analysis_files/")
+  fvec <- fvec[grepl(readstring,fvec)]
+  out.df <- c()
+  for (f in fvec){
+    threshold <- "0." %&% (strsplit(x=f,split="thresh")[[1]][2] %>% strsplit(.,".",fixed=TRUE))[[1]][1] %>% 
+      as.numeric(.)
+    sub <- fread(work.dir%&%"analysis_files/"%&%f)
+    sub$threshold <- threshold
+    out.df <- rbind(out.df,sub)
+  }
+  return(out.df)
+}
+
+unweighted.df <- read_input("atac-enrichment_unweighted_thresh")
+weighted.df <- read_input("atac-enrichment_weighted_thresh")
+
+
+plt3 <- atac_enrich_plot(unweighted.df,myname="ATAC enrichment for classifed loci (unweighted)")
+ggsave(plot=plt3,filename = plot.dir %&% "enrichment-atac_unweighted.png",width=7,height=4)
+plt4 <- atac_enrich_plot(weighted.df,myname="ATAC enrichment for classifed loci (weighted)")
+ggsave(plot=plt4,filename = plot.dir %&% "enrichment-atac_weighted.png",width=7,height=4)
+
+
+```
+
+
+
+# Physiology (hard clustering) enrichment 
+
+
+```{r}
+
+phys_enrich_plot <- function(enrich.df,myname){
+  ggplot(data=enrich.df,aes(x=tissue,y=enrichment)) + 
+    geom_point(size=2,aes(fill=-log(p,base=10)),shape=21) + #,shape=as.factor(threshold))) + 
+    facet_wrap(~physiology+threshold) + 
+    theme_bw() + 
+    #scale_shape_manual(values=c(21,22,23,24),name="Classifer Threshold") +
+    scale_fill_gradient2(low=viridis(n=2)[2],high=viridis(n=2)[1],
+                         midpoint=-log(0.05,base=10),name=expression(-log10(p))) + 
+    xlab("Classified Tissue") + ylab("Enrichment") + 
+    ggtitle(myname)
+}
+
+
+
+```
+
+```{r}
+
+mod_thresh <- function(enrich.df){
+  enrich.df$threshold <- gsub("assigned_","0.",enrich.df$threshold)
+  return(enrich.df)
+}
+
+unweighted.df <- fread(work.dir %&% "analysis_files/phys-enrich_unweighted.txt") %>% mod_thresh(.)
+weighted.df <- fread(work.dir %&% "analysis_files/phys-enrich_weighted.txt") %>% mod_thresh(.)
+
+plt5 <- phys_enrich_plot(unweighted.df,myname="Physiology enrichment for classifed loci (unweighted)")
+ggsave(plot=plt5,filename = plot.dir %&% "enrichment-phys_unweighted.png",width=12,height=8)
+plt6 <- phys_enrich_plot(weighted.df,myname="Physiology enrichment for classifed loci (weighted)")
+ggsave(plot=plt6,filename = plot.dir %&% "enrichment-phys_weighted.png",width=12,height=8)
+
+
+```
+
+
+## Version 2 
+
+
+```{r}
+
+
+phys_enrich_plot_v2 <- function(enrich.df,myname){
+  ggplot(data=enrich.df,aes(x=physiology,y=enrichment)) + 
+    geom_point(size=2,aes(fill=-log(p,base=10)),shape=21) +
+    facet_wrap(~tissue) + 
+    theme_bw() + 
+    scale_fill_gradient2(low=viridis(n=2)[2],high=viridis(n=2)[1],
+                         midpoint=-log(0.05,base=10),name=expression(-log10(p))) + 
+    xlab("Classified Locus") + ylab("Enrichment") + 
+    ggtitle(myname)
+}
+
+unweighted.df <- fread(work.dir %&% "analysis_files/phys-enrich-V2_unweighted.txt") 
+weighted.df <- fread(work.dir %&% "analysis_files/phys-enrich-V2_weighted.txt") 
+
+plt7 <- phys_enrich_plot_v2(unweighted.df,myname="Physiology enrichment for classifed loci (unweighted)")
+ggsave(plot=plt7,filename = plot.dir %&% "enrichment-phys-V2_unweighted.png",width=12,height=5)
+plt8 <- phys_enrich_plot_v2(weighted.df,myname="Physiology enrichment for classifed loci (weighted)")
+ggsave(plot=plt8,filename = plot.dir %&% "enrichment-phys-V2_weighted.png",width=12,height=5)
+
+```
+
+
+
