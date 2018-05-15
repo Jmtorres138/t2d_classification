@@ -27,23 +27,25 @@ work.dir <- proj.dir %&% "method_C/"
 analysis.dir <- work.dir %&% "analysis_files/"
 plot.dir <- work.dir %&% "plots/"
 
-block.df <- fread(methA.dir%&%"null_results/null_results_blocks.txt",sep="\t")
-fcred.df <- fread(methA.dir %&% "null_results/null_results_func-cred-sets.txt")
-
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
 
 ```
 
 
 ```{r}
 
-keep.df <- fread(proj.dir %&% "input_data/" %&% "380.locus.ID.txt")
-keep.vec <- keep.df$Locus.ID_inCREDS
+map_condids <- function(df){
+  Cond.ID <- map(1:dim(df)[1],function(i){
+    filter(cred.df,Locus.ID==df$Locus.ID[i])$CondID %>% unique(.)
+  }) %>% as.character(.)
+  df$Locus.ID <- Cond.ID
+  return(df)
+}
 
-full.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-unweighted-unscaled-CodingNotRN.txt") %>% 
-  filter(.,Locus.ID %in% keep.vec)
-wfull.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-weighted-unscaled-CodingNotRN.txt") %>% filter(.,Locus.ID %in% keep.vec)
-alt.df <- fread(analysis.dir %&% "tissue-scores-alternative_CodingNotRN.txt") %>% 
-  filter(.,Locus.ID %in% keep.vec)  
+
+
+full.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-unweighted-unscaled.txt") %>% map_condids(.)
+wfull.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-weighted-unscaled.txt") %>% map_condids(.)
 
 ```
 
@@ -54,8 +56,8 @@ alt.df <- fread(analysis.dir %&% "tissue-scores-alternative_CodingNotRN.txt") %>
 
 create_plot_df <- function(){
   df <- rbind(mutate(full.df,method="full"),
-              mutate(wfull.df,method="weighted.full"),
-              mutate(alt.df,method="alternative"))
+              mutate(wfull.df,method="weighted.full"))#,
+              #mutate(alt.df,method="alternative"))
   loc.ids <- df$Locus.ID %>% unique(.)
   out.df <- c()
   pb <- txtProgressBar(min=0,max=length(loc.ids),style=3)
@@ -65,13 +67,13 @@ create_plot_df <- function(){
     sub.df <- filter(df,Locus.ID==loc.id)
     ppa.score.full <- sub.df[1,2:6] %>% as.numeric(.)
     ppa.score.wfull <- sub.df[2,2:6] %>% as.numeric(.)
-    ppa.score.alt <- sub.df[3,2:6] %>% as.numeric(.)
+    #ppa.score.alt <- sub.df[3,2:6] %>% as.numeric(.)
 
     tissue <- names(sub.df)[2:6]
     build.df <- data.frame(Locus.ID=loc.id,tissue,
                            ppa.score.full,
-                           ppa.score.wfull,
-                           ppa.score.alt)
+                           ppa.score.wfull)#,
+                           #ppa.score.alt)
     out.df <- rbind(out.df,build.df)
   }
   out.df$Locus.ID <- out.df$Locus.ID %>% as.character(.)
@@ -103,18 +105,18 @@ pltA <- ggplot(data=plot.df,aes(x=ppa.score.full,y=ppa.score.wfull)) +
 ggsave(plot=pltA,filename=plot.dir%&%"ppa-score-compare-weighted.png",
        height = 6,width=6)
 
-pltB <- ggplot(data=plot.df,aes(x=ppa.score.full,y=ppa.score.alt)) + 
-  geom_point(shape=21,color="black",aes(fill=tissue)) + 
-  geom_abline(slope=1,intercept=0,linetype=1,alpha=0.8) +
-  facet_wrap(~tissue,nrow=3) + 
-  theme_classic() + 
-  scale_fill_brewer(palette="Set3") + 
-  theme(legend.position = "none") + 
-  xlab('ppa score (unweighted)') + 
-  ylab('tissue score (alternative)') + 
-  ggtitle("Comparison of Scores")
-ggsave(plot=pltB,filename=plot.dir%&%"ppa-score-compare-alternative.png",
-       height = 6,width=6)
+#pltB <- ggplot(data=plot.df,aes(x=ppa.score.full,y=ppa.score.alt)) + 
+#  geom_point(shape=21,color="black",aes(fill=tissue)) + 
+#  geom_abline(slope=1,intercept=0,linetype=1,alpha=0.8) +
+#  facet_wrap(~tissue,nrow=3) + 
+#  theme_classic() + 
+#  scale_fill_brewer(palette="Set3") + 
+#  theme(legend.position = "none") + 
+#  xlab('ppa score (unweighted)') + 
+#  ylab('tissue score (alternative)') + 
+#  ggtitle("Comparison of Scores")
+#ggsave(plot=pltB,filename=plot.dir%&%"ppa-score-compare-alternative.png",
+#       height = 6,width=6)
 
 
 plot.df <- mutate(plot.df,ppa.score.diff=(ppa.score.wfull-ppa.score.full))
@@ -154,12 +156,12 @@ filter(plot.df,tissue=="liver")$ppa.score.diff %>% summary(.)
 filter(plot.df,tissue=="other")$ppa.score.diff %>% summary(.)
 
 
-refseq <- map(plot.df$Locus.ID,function(loc.id){
-  filter(block.df,Locus.ID==loc.id)$refseq
+symbol <- map(plot.df$Locus.ID,function(loc.id){
+  filter(cred.df,CondID==loc.id)$symbol %>% unique(.)
 }) %>% as.character(.)
 
-plot.df <- cbind(refseq,plot.df)
-plot.df$refseq <- as.character(plot.df$refseq)
+plot.df <- cbind(symbol,plot.df)
+plot.df$symbol <- as.character(plot.df$symbol)
 
 
 arrange(plot.df,desc(ppa.score.diff)) %>% filter(tissue=="islet") %>%
@@ -177,18 +179,13 @@ arrange(plot.df,desc(ppa.score.diff)) %>% filter(tissue=="liver") %>%
 arrange(plot.df,ppa.score.diff) %>% filter(tissue=="liver") %>%
   head(20) %>% View(.)# See which are boosted by the reduced model
 
-filter(plot.df,refseq=="CDC123")
-filter(fcred.df,Locus.ID=="126")
 
 
-filter(plot.df,refseq=="PPARG",Locus.ID=="30_1")
-filter(fcred.df,Locus.ID=="30_1")
+(filter(full.df,other<0.50) %>% dim(.))[1] # 306 loci with other scores < 0.50
+(filter(wfull.df,other<0.50) %>% dim(.))[1] # 306 loci with other scores < 0.50
 
-(filter(full.df,other<0.50) %>% dim(.))[1] # 308 loci with other scores < 0.50
-(filter(wfull.df,other<0.50) %>% dim(.))[1] # 308 loci with other scores < 0.50
-
-(filter(full.df,other<0.10) %>% dim(.))[1] # 262 loci with other scores < 0.10
-(filter(wfull.df,other<0.10) %>% dim(.))[1] # 261 loci with other scores < 0.10
+(filter(full.df,other<0.10) %>% dim(.))[1] # 259 loci with other scores < 0.10
+(filter(wfull.df,other<0.10) %>% dim(.))[1] # 259 loci with other scores < 0.10
 
 ```
 
@@ -200,7 +197,7 @@ filter(fcred.df,Locus.ID=="30_1")
 
 
 look_up_number <- function(loc.id){
-  return((filter(fcred.df,Locus.ID==loc.id) %>% dim(.))[1])
+  return((filter(cred.df,CondID==loc.id) %>% dim(.))[1])
 }
 
 pb <- txtProgressBar(min=0,max=dim(plot.df)[1],style=3)
