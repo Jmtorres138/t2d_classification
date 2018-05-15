@@ -71,10 +71,10 @@ ggsave(plot=plt2,filename = plot.dir %&% "enrichment-eqtl_weighted.png",width=7,
 
 atac_enrich_plot <- function(enrich.df,myname){
   ggplot(data=enrich.df,aes(x=tissue,y=enrich.factor)) + 
-    geom_point(size=2,aes(fill=-log(p.val,base=10),shape=as.factor(threshold))) + 
-    facet_wrap(~atac) + 
+    geom_point(size=2,aes(fill=-log(p.val,base=10)),shape=21) + #shape=as.factor(threshold))) + 
+    facet_wrap(~atac+threshold) + 
     theme_bw() + 
-    scale_shape_manual(values=c(21,22,23),name="Classifer Threshold") +
+    #scale_shape_manual(values=c(21,22,23,24),name="Classifer Threshold") +
     scale_fill_gradient2(low=viridis(n=2)[2],high=viridis(n=2)[1],
                          midpoint=-log(0.05,base=10),name=expression(-log10(p))) + 
     xlab("Classified Tissue") + ylab("Enrichment") + 
@@ -105,9 +105,9 @@ weighted.df <- read_input("atac-enrichment_weighted_thresh")
 
 
 plt3 <- atac_enrich_plot(unweighted.df,myname="ATAC enrichment for classifed loci (unweighted)")
-ggsave(plot=plt3,filename = plot.dir %&% "enrichment-atac_unweighted.png",width=7,height=4)
+ggsave(plot=plt3,filename = plot.dir %&% "enrichment-atac_unweighted.png",width=12,height=8)
 plt4 <- atac_enrich_plot(weighted.df,myname="ATAC enrichment for classifed loci (weighted)")
-ggsave(plot=plt4,filename = plot.dir %&% "enrichment-atac_weighted.png",width=7,height=4)
+ggsave(plot=plt4,filename = plot.dir %&% "enrichment-atac_weighted.png",width=12,height=8)
 
 
 ```
