@@ -18,6 +18,8 @@ knitr::opts_chunk$set(echo = TRUE)
 library("tidyverse")
 library("GenomicRanges")
 library("viridis")
+library("data.table")
+library("RColorBrewer")
 
 #serv.dir <- "/Users/jtorres/FUSE5/"
 serv.dir <- "/home/jason/science/servers/FUSE5/"
@@ -28,10 +30,26 @@ work.dir <- proj.dir %&% "method_C/"
 analysis.dir <- work.dir %&% "analysis_files/"
 plot.dir <- work.dir %&% "plots/"
 
+
+modify_keepvec <- function(keep.vec){
+  pb <- txtProgressBar(min=0,max=length(keep.vec),style=3)
+  vec <- map(1:length(keep.vec),function(i){
+    setTxtProgressBar(pb,i)
+    val <- keep.vec[i]
+    ifelse(grepl("_",val)==FALSE,val%&%"_1",val)
+  }) %>% as.character(.)
+  return(vec)
+}
+
 keep.df <- fread(proj.dir %&% "input_data/" %&% "380.locus.ID.txt")
-keep.vec <- keep.df$Locus.ID_inCREDS
+keep.vec <- keep.df$Locus.ID_inCREDS %>% modify_keepvec(.)
+
+
 
 block.df <- fread(methA.dir %&% "multi_results/results_blocks.txt")
+
+
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
 
 ```
 
@@ -43,13 +61,29 @@ Read data files
 block.df <- fread(methA.dir %&%"multi_results/results_blocks.txt",sep="\t")
 fcred.df <- fread(methA.dir %&%"multi_results/results_func-cred-sets.txt",sep="\t")
 
-weighted.df <- fread(analysis.dir  %&% "classified-loci_weighted.txt")
-unweighted.df <- fread(analysis.dir  %&% "classified-loci_unweighted.txt")
-alt.df <- fread(analysis.dir  %&% "classified-loci_alternative.txt")
+append_condid <- function(class.df){
+  Cond.ID <- map(1:dim(class.df)[1],function(i){
+    filter(cred.df,Locus.ID==class.df$Locus.ID[i])$CondID %>% unique(.)
+  }) %>% as.character(.)
+  class.df$Locus.ID <- Cond.ID
+  return(class.df)
+}
 
-weighted.df$assigned_20 <- gsub("other","unclassified",weighted.df$assigned_20)
+unweighted.df <- fread(work.dir %&% "analysis_files/" %&% 
+                     "classified-loci_unweighted.txt") %>% append_condid(.)
+weighted.df <- fread(work.dir %&% "analysis_files/" %&% 
+                     "classified-loci_weighted.txt") %>% append_condid(.)
+
+unweighted.df$assigned_00 <- gsub("other","unclassified",unweighted.df$assigned_00)
 unweighted.df$assigned_20 <- gsub("other","unclassified",unweighted.df$assigned_20)
-alt.df$assigned_20 <- gsub("other","unclassified",alt.df$assigned_20)
+unweighted.df$assigned_50 <- gsub("other","unclassified",unweighted.df$assigned_50)
+unweighted.df$assigned_80 <- gsub("other","unclassified",unweighted.df$assigned_80)
+
+weighted.df$assigned_00 <- gsub("other","unclassified",weighted.df$assigned_00)
+weighted.df$assigned_20 <- gsub("other","unclassified",weighted.df$assigned_20)
+weighted.df$assigned_50 <- gsub("other","unclassified",weighted.df$assigned_50)
+weighted.df$assigned_80 <- gsub("other","unclassified",weighted.df$assigned_80)
+
 
 ```
 
@@ -73,10 +107,24 @@ get_num_vs_null <- function(id,query.df,null.df){
   dif <- q - n 
 }
 
-build_comp_df <- function(group.df){
-  fcred.multi.df <- fread(methA.dir%&%"multi_results/results_func-cred-sets.txt",sep="\t")
-  fcred.islet.df <- fread(methA.dir%&%"islet_results/results_func-cred-sets.txt",sep="\t")
-  fcred.null.df <- fread(methA.dir%&%"null_results/null_results_func-cred-sets.txt",sep="\t")
+modify_loc_ids <- function(df){
+  pb <- txtProgressBar(min=0,max=dim(df)[1],style=3)
+  Locus.ID <- map(1:dim(df)[1],function(i){
+    setTxtProgressBar(pb,i)
+    val <- df$Locus.ID[i]
+    ifelse(grepl("_",val)==FALSE,val%&%"_1",val)
+  }) %>% as.character(.)
+  df$Locus.ID <- Locus.ID 
+  return(df)
+}
+
+build_comp_df <- function(group.df,thresh){
+  fcred.multi.df <- fread(methA.dir%&%"multi_results/results_func-cred-sets.txt",sep="\t") %>%
+    modify_loc_ids(.)
+  fcred.islet.df <- fread(methA.dir%&%"islet_results/results_func-cred-sets.txt",sep="\t") %>% 
+    modify_loc_ids(.)
+  fcred.null.df <- fread(methA.dir%&%"null_results/null_results_func-cred-sets.txt",sep="\t") %>% 
+    modify_loc_ids(.)    
   Locus.ID <- unique(fcred.multi.df$Locus.ID)
   islet.max.vs.null <- map(Locus.ID,function(id){
     q <- max(filter(fcred.islet.df,Locus.ID==id)$PPA)
@@ -101,15 +149,38 @@ build_comp_df <- function(group.df){
   out.df <- data.frame(Locus.ID,islet.max.vs.null,islet.num.vs.null,
                        multi.max.vs.null,multi.num.vs.null,stringsAsFactors=FALSE)
   out.df <- filter(out.df,Locus.ID %in% keep.vec)
-  out.df$refseq <- map(out.df$Locus.ID,function(id){filter(block.df,Locus.ID==id)$refseq}) %>% 
+  out.df$symbol <- map(out.df$Locus.ID,function(id){filter(cred.df,CondID==id)$symbol %>% unique(.)}) %>% 
     as.character(.)
-  out.df$group <- map(out.df$Locus.ID,function(id){filter(group.df,Locus.ID==id)$assigned_20}) %>% 
-    as.character(.)
+  if (thresh==0.00){
+      out.df$group <- map(out.df$Locus.ID,function(id){filter(group.df,Locus.ID==id)$assigned_00}) %>% 
+      as.character(.)   
+  } else if (thresh==0.20){
+      out.df$group <- map(out.df$Locus.ID,function(id){filter(group.df,Locus.ID==id)$assigned_20}) %>% 
+      as.character(.)
+  } else if (thresh==0.50){
+      out.df$group <- map(out.df$Locus.ID,function(id){filter(group.df,Locus.ID==id)$assigned_50}) %>% 
+      as.character(.)  
+  } else if (thresh==0.80){
+      out.df$group <- map(out.df$Locus.ID,function(id){filter(group.df,Locus.ID==id)$assigned_80}) %>% 
+      as.character(.)  } 
+  else{
+      print("Thresh must be 0.00, 0.20, 0.50, or 0.80")
+  }
   return(out.df)
 }
 
-build_test_df <- function(comp.df,group.df){
-  grps <- unique(group.df$assigned_20) 
+build_test_df <- function(comp.df,group.df,thresh){
+  if (thresh==0.00){
+    grps <- unique(group.df$assigned_00)     
+  } else if (thresh==0.20){
+    grps <- unique(group.df$assigned_20)     
+  } else if (thresh==0.50){
+    grps <- unique(group.df$assigned_50)     
+  } else if (thresh==0.80){
+    grps <- unique(group.df$assigned_80)     
+  } else{
+    print("Thresh must be 0.00, 0.20, 0.50, or 0.80")
+  }
   grps <- (grps)[!(grps %in% c("NA"))]
   Group <- c()
   w.pval.max <- c()
@@ -130,12 +201,25 @@ build_test_df <- function(comp.df,group.df){
   w.pval.max <- c(w.pval.max,pval1)
   w.pval.num <- c(w.pval.num,pval2)  
   out.df <- data.frame(Group,w.pval.max,w.pval.num,stringsAsFactors=FALSE)
+  out.df$threshold <- thresh
   return(out.df)
 }
 
-make_test_plots <- function(group.df){
-  comp.df <- build_comp_df(group.df)
-  test.df <- build_test_df(comp.df,group.df)
+build_full_test_df <- function(group.df){
+  comp00.df <- build_comp_df(group.df,thresh=0.00)
+  test00.df <- build_test_df(comp00.df,group.df,thresh=0.00)  
+  comp20.df <- build_comp_df(group.df,thresh=0.20)
+  test20.df <- build_test_df(comp20.df,group.df,thresh=0.20)  
+  comp50.df <- build_comp_df(group.df,thresh=0.50)
+  test50.df <- build_test_df(comp50.df,group.df,thresh=0.50)  
+  comp80.df <- build_comp_df(group.df,thresh=0.80)
+  test80.df <- build_test_df(comp80.df,group.df,thresh=0.80)  
+  out.df <- rbind(test00.df,test20.df,test50.df,test80.df)
+  return(out.df)
+}
+
+make_test_plot <- function(group.df){
+  test.df <- build_full_test_df(group.df)
   test.df$Group <- factor(test.df$Group,levels=c("islet",
                                                  "liver",
                                                  "muscle",
@@ -146,6 +230,7 @@ make_test_plots <- function(group.df){
   plt1 <- ggplot(data=test.df,aes(x=Group,y=-log(w.pval.max,base=10))) + 
     geom_point(shape=21,color="black",
                fill="grey",size=2) + 
+    facet_wrap(~threshold) + 
     scale_y_continuous(limits=c(0,3),breaks=seq(0,3,0.5)) + 
     theme_bw() + geom_hline(yintercept=-log(0.05,base=10),
                             color="firebrick3",linetype=2) + 
@@ -154,17 +239,17 @@ make_test_plots <- function(group.df){
             subtitle="Mean of Islet-only fgwas = " %&% round(mean(comp.df$islet.max.vs.null),5) %&% 
             "\nMean of multi-tissue fgwas = " %&% round(mean(comp.df$multi.max.vs.null),5))
     
-  plt2 <- ggplot(data=test.df,aes(x=Group,y=-log(w.pval.num,base=10))) + 
-    geom_point(shape=21,color="black",
-               fill=brewer.pal(11,"Spectral")[9],size=2) + 
-    scale_y_continuous(limits=c(0,3),breaks=seq(0,3,0.5)) + 
-    theme_bw() + geom_hline(yintercept=-log(0.05,base=10),
-                            color="firebrick3",linetype=2) + 
-    ylab(expression(-log[10](p[value]))) + 
-    ggtitle("Wilcoxon test for difference in change of credible set size vs null",
-            subtitle="Median of Islet-only fgwas = " %&% round(median(comp.df$islet.num.vs.null),1) %&% 
-            "\nMedian of multi-tissue fgwas = " %&% round(median(comp.df$multi.num.vs.null),1))
-  return(list(plt1,plt2))
+  #plt2 <- ggplot(data=test.df,aes(x=Group,y=-log(w.pval.num,base=10))) + 
+  #  geom_point(shape=21,color="black",
+  #             fill=brewer.pal(11,"Spectral")[9],size=2) + 
+  ##  scale_y_continuous(limits=c(0,3),breaks=seq(0,3,0.5)) + 
+  #  theme_bw() + geom_hline(yintercept=-log(0.05,base=10),
+  #                          color="firebrick3",linetype=2) + 
+  #  ylab(expression(-log[10](p[value]))) + 
+  #  ggtitle("Wilcoxon test for difference in change of credible set size vs null",
+   #         subtitle="Median of Islet-only fgwas = " %&% round(median(comp.df$islet.num.vs.null),1) %&% 
+   #         "\nMedian of multi-tissue fgwas = " %&% round(median(comp.df$multi.num.vs.null),1))
+  return(list(plt1))
 }
 
 
@@ -176,25 +261,25 @@ make_test_plots <- function(group.df){
 
 ```{r}
 
-comp.df <- build_comp_df(weighted.df)
+#comp.df <- build_comp_df(weighted.df)
 
-grp1 <- filter(comp.df,group=="islet")
-shapiro.test(grp1$islet.max.vs.null) # p-value = 7.016e-06
-shapiro.test(grp1$multi.max.vs.null) # p-value = 2.037e-12
+#grp1 <- filter(comp.df,group=="islet")
+#shapiro.test(grp1$islet.max.vs.null) # p-value = 7.016e-06
+#shapiro.test(grp1$multi.max.vs.null) # p-value = 2.037e-12
 # Data is not likely normally distributed 
-wilcox.test(grp1$islet.max.vs.null,grp1$multi.max.vs.null) 
+#wilcox.test(grp1$islet.max.vs.null,grp1$multi.max.vs.null) 
 
-grp2 <- filter(comp.df,group!="islet")
-shapiro.test(grp2$islet.max.vs.null) # p-value = 3.919e-06
-shapiro.test(grp2$multi.max.vs.null) # p-value = 9.251e-11
+#grp2 <- filter(comp.df,group!="islet")
+#shapiro.test(grp2$islet.max.vs.null) # p-value = 3.919e-06
+#shapiro.test(grp2$multi.max.vs.null) # p-value = 9.251e-11
 # Data is not likely normally distributed 
 
 
 
-plt.list <- make_test_plots(weighted.df)
+plt.list <- make_test_plot(weighted.df)
   
 ggsave(plot=plt.list[[1]],filename=plot.dir%&%"Wilcox-compare-max_weighted.png",height=3,width=7)
-ggsave(plot=plt.list[[2]],filename=plot.dir%&%"Wilcox-compare-num_weighted.png",height=3,width=7)
+#ggsave(plot=plt.list[[2]],filename=plot.dir%&%"Wilcox-compare-num_weighted.png",height=3,width=7)
 
 ```
 
@@ -203,32 +288,14 @@ ggsave(plot=plt.list[[2]],filename=plot.dir%&%"Wilcox-compare-num_weighted.png",
 
 ```{r}
 
-comp.df <- build_comp_df(unweighted.df)
+#comp.df <- build_comp_df(unweighted.df)
 
-grp1 <- filter(comp.df,group=="islet")
-wilcox.test(grp1$islet.max.vs.null,grp1$multi.max.vs.null) 
+#grp1 <- filter(comp.df,group=="islet")
+#wilcox.test(grp1$islet.max.vs.null,grp1$multi.max.vs.null) 
 
 
 plt.list <- make_test_plots(unweighted.df)
   
 ggsave(plot=plt.list[[1]],filename=plot.dir%&%"Wilcox-compare-max_unweighted.png",height=3,width=7)
-ggsave(plot=plt.list[[2]],filename=plot.dir%&%"Wilcox-compare-num_unweighted.png",height=3,width=7)
+#ggsave(plot=plt.list[[2]],filename=plot.dir%&%"Wilcox-compare-num_unweighted.png",height=3,width=7)
 ```
-
-# Alternative 
-
-```{r}
-
-comp.df <- build_comp_df(alt.df)
-
-grp1 <- filter(comp.df,group=="islet")
-wilcox.test(grp1$islet.max.vs.null,grp1$multi.max.vs.null) 
-
-
-plt.list <- make_test_plots(alt.df)
-  
-ggsave(plot=plt.list[[1]],filename=plot.dir%&%"Wilcox-compare-max_alternative.png",height=3,width=7)
-ggsave(plot=plt.list[[2]],filename=plot.dir%&%"Wilcox-compare-num_alternative.png",height=3,width=7)
-
-```
-
