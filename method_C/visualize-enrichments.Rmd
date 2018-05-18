@@ -39,14 +39,14 @@ library("viridis")
 
 eqtl_enrich_plot <- function(enrich.df,myname){
   ggplot(data=enrich.df,aes(x=tissue,y=enrichment)) + 
-    geom_point(size=2,aes(fill=-log(pvalue,base=10),shape=as.factor(threshold))) + 
-    facet_wrap(~eQTL) + 
+    geom_point(size=2,shape=21,aes(fill=-log(pvalue,base=10))) + #,shape=as.factor(threshold))) + 
+    facet_wrap(~eQTL+threshold) + 
     theme_bw() + 
-    scale_shape_manual(values=c(21,22,23),name="Classifer Threshold") +
+    #scale_shape_manual(values=c(21,22,23,24),name="Classifer Threshold") +
     scale_fill_gradient2(low=viridis(n=2)[2],high=viridis(n=2)[1],
                          midpoint=-log(0.05,base=10),name=expression(-log10(p))) + 
     xlab("Classified Tissue") + ylab("Enrichment") + 
-    ggtitle(myname)
+    ggtitle(myname) #+ coord_cartesian(ylim=c(0,20))
 }
  
 ```
@@ -60,6 +60,19 @@ plt1 <- eqtl_enrich_plot(unweighted.df,myname="eQTL enrichment for classifed loc
 ggsave(plot=plt1,filename = plot.dir %&% "enrichment-eqtl_unweighted.png",width=7,height=4)
 plt2 <- eqtl_enrich_plot(weighted.df,myname="eQTL enrichment for classifed loci (weighted)")
 ggsave(plot=plt2,filename = plot.dir %&% "enrichment-eqtl_weighted.png",width=7,height=4)
+
+```
+
+
+```{r}
+
+unweighted.df <- fread(work.dir %&% "analysis_files/eqtl-specific-validation_unweighted.txt")
+weighted.df <- fread(work.dir %&% "analysis_files/eqtl-specific-validation_weighted.txt")
+
+plt1 <- eqtl_enrich_plot(unweighted.df,myname="eQTL enrichment for classifed loci (unweighted)")
+ggsave(plot=plt1,filename = plot.dir %&% "enrichment-eqtl-specific_unweighted.png",width=7,height=4)
+plt2 <- eqtl_enrich_plot(weighted.df,myname="eQTL enrichment for classifed loci (weighted)")
+ggsave(plot=plt2,filename = plot.dir %&% "enrichment-eqtl-specific_weighted.png",width=7,height=4)
 
 ```
 
