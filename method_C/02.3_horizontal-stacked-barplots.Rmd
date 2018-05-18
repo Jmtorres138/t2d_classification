@@ -18,6 +18,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library("tidyverse")
 library("data.table")
 library("Homo.sapiens")
+library("grid");library("gridExtra")
 
 #fuse.path <- "/Users/jtorres/"
 fuse.path <- "/home/jason/science/servers/"
@@ -28,8 +29,7 @@ work.dir <- proj.dir %&% "method_C/"
 analysis.dir <- work.dir %&% "analysis_files/"
 plot.dir <- work.dir %&% "plots/"
 
-block.df <- fread(methA.dir%&%"null_results/null_results_blocks.txt",sep="\t")
-fcred.df <- fread(methA.dir %&%"null_results/null_results_func-cred-sets.txt")
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
 
 
 ```
@@ -37,16 +37,18 @@ fcred.df <- fread(methA.dir %&%"null_results/null_results_func-cred-sets.txt")
 
 ```{r}
 
-keep.df <- fread(proj.dir %&% "input_data/" %&% "380.locus.ID.txt")
-keep.vec <- keep.df$Locus.ID_inCREDS
+map_condids <- function(df){
+  Cond.ID <- map(1:dim(df)[1],function(i){
+    filter(cred.df,Locus.ID==df$Locus.ID[i])$CondID %>% unique(.)
+  }) %>% as.character(.)
+  df$Locus.ID <- Cond.ID
+  return(df)
+}
 
-weighted.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-weighted-unscaled-CodingNotRN.txt") %>% 
-  filter(.,Locus.ID %in% keep.vec)
-unweighted.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-unweighted-unscaled-CodingNotRN.txt") %>% 
-  filter(.,Locus.ID %in% keep.vec)
-alt.df <- fread(analysis.dir %&% "tissue-scores-alternative_CodingNotRN.txt") %>% 
-  filter(.,Locus.ID %in% keep.vec)  
 
+
+unweighted.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-unweighted-unscaled.txt") %>% map_condids(.)
+weighted.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-weighted-unscaled.txt") %>% map_condids(.) 
 ```
 
 
@@ -57,7 +59,7 @@ stringToQuoser <- function(varName) {
   wrapr::let(c(VARNAME = varName), quo(VARNAME))
 }
 
-reformat_ppa_df <- function(ppa.df,fcred.df){
+reformat_ppa_df <- function(ppa.df,cred.df){
   format.df <- c() 
   pb <- txtProgressBar(min=0,max=dim(ppa.df)[1],style=3)
   for (i in 1:dim(ppa.df)[1]){
@@ -76,7 +78,7 @@ reformat_ppa_df <- function(ppa.df,fcred.df){
   for (i in 1:dim(format.df)[1]){
     setTxtProgressBar(pb,i)
     loc <- format.df$Locus.ID[i]
-    symb <- filter(fcred.df,Locus.ID==loc)$symbol[1]
+    symb <- filter(cred.df,CondID==loc)$symbol %>% unique(.)
     Symbol <- c(Symbol,symb)
   }
   format.df <- cbind(Symbol,format.df)  
@@ -94,10 +96,10 @@ ppa_plot <- function(ppa.df,col.vec=c("olivedrab2","red","gold1","brown","grey")
   rank.by <- stringToQuoser(rankby)
   append.df <- ppa.df
   append.df$PlotID <- map(ppa.df$Locus.ID,function(loc.id){
-    loc.id %&% ": " %&% filter(block.df,Locus.ID==loc.id)$refseq
+    loc.id %&% ": " %&% (filter(cred.df,CondID==loc.id)$symbol%>%unique(.))
   }) %>% as.character(.)
   
-  format.df <- reformat_ppa_df(ppa.df,fcred.df)
+  format.df <- reformat_ppa_df(ppa.df,cred.df)
   PlotID <- paste0(format.df$Locus.ID,": ",format.df$Symbol)
   plot.df <- cbind(PlotID,format.df)
 
@@ -155,8 +157,6 @@ ggsave(plot=grob1,filename=plot.dir%&%"stacked_barplots_full-weighted.png",width
 grob2 <- all_tissues_plot(unweighted.df,number=50)
 ggsave(plot=grob2,filename=plot.dir%&%"stacked_barplots_full-unweighted.png",width=25,height=15)
 
-grob3 <- all_tissues_plot(alt.df,number=50)
-ggsave(plot=grob3,filename=plot.dir%&%"stacked_barplots_alternative.png",width=25,height=15)
 
 ```
 
