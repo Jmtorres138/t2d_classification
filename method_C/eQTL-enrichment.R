@@ -69,6 +69,10 @@ islet.eqtls <- map(1:dim(islet.df)[1],function(i){
 }) %>% as.character(.)
 
 
+isl.spec <- islet.eqtls[!(islet.eqtls %in% c(mus.eqtls,liv.eqtls,adi.eqtls))]
+
+
+
 get_overlap <- function(query.vec,eqtl.vec){
   sum(query.vec %in% eqtl.vec)
 }
