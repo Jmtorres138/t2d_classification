@@ -61,6 +61,31 @@ weighted.df <- fread(work.dir %&% "analysis_files/" %&%
 ```
 
 
+# Rename Locus Id and write files 
+
+```{r}
+
+rename_locid <- function(class.df){
+  Locus.ID <- map(1:dim(class.df)[1],function(i){
+    filter(cred.df,Locus.ID==class.df$Locus.ID[i])$CondID %>% unique(.)
+  }) %>% as.character(.)
+  class.df$Locus.ID <- Locus.ID
+  return(class.df)
+}
+
+df.1 <- fread(work.dir %&% "analysis_files/" %&% 
+                     "classified-loci_unweighted.txt") %>% rename_locid(.)
+write.table(x=df.1,file=work.dir %&% "analysis_files/classified-loci_unweighted_renamed.txt",
+            sep="\t",row.names=F,col.names=T)
+df.2 <- fread(work.dir %&% "analysis_files/" %&% 
+                     "classified-loci_weighted.txt") %>% rename_locid(.)
+write.table(x=df.2,file=work.dir %&% "analysis_files/classified-loci_weighted_renamed.txt",
+            sep="\t",row.names=F,col.names=T)
+
+```
+
+
+
 ```{r}
 
 enrich_test <- function(query.vec,ref.vec,iter=10000){
