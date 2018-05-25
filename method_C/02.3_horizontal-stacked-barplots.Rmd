@@ -18,7 +18,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library("tidyverse")
 library("data.table")
 library("Homo.sapiens")
-library("gridExtra")
+library("grid");library("gridExtra")
 
 #fuse.path <- "/Users/jtorres/"
 fuse.path <- "/home/jason/science/servers/"
@@ -96,7 +96,7 @@ ppa_plot <- function(ppa.df,col.vec=c("olivedrab2","red","gold1","brown","grey")
   rank.by <- stringToQuoser(rankby)
   append.df <- ppa.df
   append.df$PlotID <- map(ppa.df$Locus.ID,function(loc.id){
-    loc.id %&% ": " %&% filter(cred.df,CondID==loc.id)$symbol
+    loc.id %&% ": " %&% (filter(cred.df,CondID==loc.id)$symbol%>%unique(.))
   }) %>% as.character(.)
   
   format.df <- reformat_ppa_df(ppa.df,cred.df)
@@ -105,7 +105,7 @@ ppa_plot <- function(ppa.df,col.vec=c("olivedrab2","red","gold1","brown","grey")
 
   
   #ranklevs <- arrange(append.df,(!!rank.by))$PlotID
-  ranklevs <- arrange(append.df,(islet))$PlotID
+  ranklevs <- arrange(append.df,(!!rank.by))$PlotID
 
   plot.df$PlotID <- factor(plot.df$PlotID,levels=ranklevs)
   
@@ -157,8 +157,6 @@ ggsave(plot=grob1,filename=plot.dir%&%"stacked_barplots_full-weighted.png",width
 grob2 <- all_tissues_plot(unweighted.df,number=50)
 ggsave(plot=grob2,filename=plot.dir%&%"stacked_barplots_full-unweighted.png",width=25,height=15)
 
-grob3 <- all_tissues_plot(alt.df,number=50)
-ggsave(plot=grob3,filename=plot.dir%&%"stacked_barplots_alternative.png",width=25,height=15)
 
 ```
 
