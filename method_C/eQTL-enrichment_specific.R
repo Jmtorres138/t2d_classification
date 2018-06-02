@@ -181,13 +181,13 @@ evaluate_thresholds <- function(input.df,iter){
 cred.dir <- serv.dir2 %&% "projects/t2d_classification/method_C/genetic_credible_sets/"
 cred.df <- fread(cred.dir %&% "gencred.txt")
 
-input1.df <- fread(proj.dir %&% "method_C/analysis_files/classified-loci_unweighted.txt")
-thresh1.df <- evaluate_thresholds(input1.df,iter=1000)
-write.table(x=thresh1.df,file=proj.dir%&%"method_C/analysis_files/eqtl-specific-validation_unweighted.txt",
-            sep="\t",quote=FALSE,row.names=FALSE)
-
-#input2.df <- fread(proj.dir %&% "method_C/analysis_files/classified-loci_weighted.txt")
-#thresh2.df <- evaluate_thresholds(input2.df,iter=1000)
-#write.table(x=thresh2.df,file=proj.dir%&%"method_C/analysis_files/eqtl-specific-validation_weighted.txt",
+#input1.df <- fread(proj.dir %&% "method_C/analysis_files/classified-loci_unweighted.txt")
+#thresh1.df <- evaluate_thresholds(input1.df,iter=1000)
+#write.table(x=thresh1.df,file=proj.dir%&%"method_C/analysis_files/eqtl-specific-validation_unweighted.txt",
 #            sep="\t",quote=FALSE,row.names=FALSE)
+
+input2.df <- fread(proj.dir %&% "method_C/analysis_files/classified-loci_weighted.txt")
+thresh2.df <- evaluate_thresholds(input2.df,iter=1000)
+write.table(x=thresh2.df,file=proj.dir%&%"method_C/analysis_files/eqtl-specific-validation_weighted.txt",
+            sep="\t",quote=FALSE,row.names=FALSE)
 
