@@ -47,7 +47,9 @@ eqtl_enrich_plot <- function(enrich.df,myname){
     scale_fill_gradient2(low=viridis(n=2)[2],high=viridis(n=2)[1],
                          midpoint=-log(0.05,base=10),name=expression(-log10(p))) + 
     xlab("Classified Tissue") + ylab("Enrichment") + 
-    ggtitle(myname) #+ coord_cartesian(ylim=c(0,20)) + 
+    ggtitle(myname) +
+    theme(axis.text.x=element_text(angle=30,vjust=0.6)) #+ coord_cartesian(ylim=c(0,20)) + +
+
   
 }
  
@@ -72,9 +74,9 @@ df1 <- fread(work.dir %&% "analysis_files/eqtl-specific-validation_unweighted.tx
 df2 <- fread(work.dir %&% "analysis_files/eqtl-specific-validation_weighted.txt")
 
 plt1 <- eqtl_enrich_plot(df1,myname="eQTL enrichment for classifed loci (unweighted)")
-ggsave(plot=plt1,filename = plot.dir %&% "enrichment-eqtl-specific_unweighted.png",width=9,height=6)
+ggsave(plot=plt1,filename = plot.dir %&% "enrichment-eqtl-specific_unweighted.png",width=9,height=6.5)
 plt2 <- eqtl_enrich_plot(df2,myname="eQTL enrichment for classifed loci (weighted)")
-ggsave(plot=plt2,filename = plot.dir %&% "enrichment-eqtl-specific_weighted.png",width=9,height=6)
+ggsave(plot=plt2,filename = plot.dir %&% "enrichment-eqtl-specific_weighted.png",width=9,height=6.5)
 
 
 ```
@@ -86,9 +88,9 @@ df3 <- fread(work.dir %&% "analysis_files/downsampled_eqtl-specific-validation_u
 df4 <- fread(work.dir %&% "analysis_files/downsampled_eqtl-specific-validation_weighted.txt")
 
 plt3 <- eqtl_enrich_plot(df3,myname="eQTL enrichment for classifed loci (unweighted, downsampled)")
-ggsave(plot=plt3,filename = plot.dir %&% "downsampled_enrichment-eqtl-specific_unweighted.png",width=9,height=6)
+ggsave(plot=plt3,filename = plot.dir %&% "downsampled_enrichment-eqtl-specific_unweighted.png",width=9,height=6.5)
 plt4 <- eqtl_enrich_plot(df4,myname="eQTL enrichment for classifed loci (weighted, downsampled)")
-ggsave(plot=plt4,filename = plot.dir %&% "downsampled_enrichment-eqtl-specific_weighted.png",width=9,height=6)
+ggsave(plot=plt4,filename = plot.dir %&% "downsampled_enrichment-eqtl-specific_weighted.png",width=9,height=6.5)
 
 
 ```
@@ -124,7 +126,8 @@ atac_enrich_plot <- function(enrich.df,myname){
     scale_fill_gradient2(low=viridis(n=2)[2],high=viridis(n=2)[1],
                          midpoint=-log(0.05,base=10),name=expression(-log10(p))) + 
     xlab("Classified Tissue") + ylab("Enrichment") + 
-    ggtitle(myname)
+    ggtitle(myname) +
+    theme(axis.text.x=element_text(angle=30,vjust=0.6))
 }
 
 ```
@@ -180,9 +183,9 @@ df6 <- read_input("downsample_atac-enrichment_weighted_thresh")
 
 
 plt5 <- atac_enrich_plot(df5,myname="ATAC enrichment for classifed loci (unweighted, downsampled)")
-ggsave(plot=plt5,filename = plot.dir %&% "downsampled_enrichment-atac_unweighted.png",width=9,height=6)
+ggsave(plot=plt5,filename = plot.dir %&% "downsampled_enrichment-atac_unweighted.png",width=9,height=6.5)
 plt6 <- atac_enrich_plot(df6,myname="ATAC enrichment for classifed loci (weighted, downsampled)")
-ggsave(plot=plt6,filename = plot.dir %&% "downsampled_enrichment-atac_weighted.png",width=9,height=6)
+ggsave(plot=plt6,filename = plot.dir %&% "downsampled_enrichment-atac_weighted.png",width=9,height=6.5)
 
 
 ```
@@ -219,7 +222,8 @@ phys_enrich_plot <- function(enrich.df,myname){
     scale_fill_gradient2(low=viridis(n=2)[2],high=viridis(n=2)[1],
                          midpoint=-log(0.05,base=10),name=expression(-log10(p))) + 
     xlab("Classified Tissue") + ylab("Enrichment") + 
-    ggtitle(myname)
+    ggtitle(myname) +
+    theme(axis.text.x=element_text(angle=30,vjust=0.6))
 }
 
 
@@ -235,11 +239,13 @@ mod_thresh <- function(enrich.df){
 
 df7 <- fread(work.dir %&% "analysis_files/phys-enrich_unweighted.txt") %>% mod_thresh(.)
 df8 <- fread(work.dir %&% "analysis_files/phys-enrich_weighted.txt") %>% mod_thresh(.)
+df7$physiology <- gsub("_"," ",df7$physiology)
+df8$physiology <- gsub("_"," ",df8$physiology)
 
 plt7 <- phys_enrich_plot(df7,myname="Physiology enrichment for classifed loci (unweighted)")
-ggsave(plot=plt7,filename = plot.dir %&% "enrichment-phys_unweighted.png",width=12,height=5)
+ggsave(plot=plt7,filename = plot.dir %&% "enrichment-phys_unweighted.png",width=8,height=5)
 plt8 <- phys_enrich_plot(df8,myname="Physiology enrichment for classifed loci (weighted)")
-ggsave(plot=plt8,filename = plot.dir %&% "enrichment-phys_weighted.png",width=12,height=5)
+ggsave(plot=plt8,filename = plot.dir %&% "enrichment-phys_weighted.png",width=8,height=5)
 
 
 ```
@@ -274,16 +280,18 @@ phys_enrich_plot_v2 <- function(enrich.df,myname){
     scale_fill_gradient2(low=viridis(n=2)[2],high=viridis(n=2)[1],
                          midpoint=-log(0.05,base=10),name=expression(-log10(p))) + 
     xlab("Classified Locus") + ylab("Enrichment") + 
-    ggtitle(myname)
+    ggtitle(myname) +
+    theme(axis.text.x=element_text(angle=30,vjust=0.6))
 }
 
 df9 <- fread(work.dir %&% "analysis_files/phys-enrich-V2_unweighted.txt") 
 df10 <- fread(work.dir %&% "analysis_files/phys-enrich-V2_weighted.txt") 
-
+df9$physiology <- gsub("_"," ",df9$physiology)
+df10$physiology <- gsub("_"," ",df10$physiology)
 plt9 <- phys_enrich_plot_v2(df9,myname="Physiology enrichment for classifed loci (unweighted)")
-ggsave(plot=plt9,filename = plot.dir %&% "enrichment-phys-V2_unweighted.png",width=11,height=4)
+ggsave(plot=plt9,filename = plot.dir %&% "enrichment-phys-V2_unweighted.png",width=6.5,height=3.5)
 plt10 <- phys_enrich_plot_v2(df10,myname="Physiology enrichment for classifed loci (weighted)")
-ggsave(plot=plt10,filename = plot.dir %&% "enrichment-phys-V2_weighted.png",width=11,height=4)
+ggsave(plot=plt10,filename = plot.dir %&% "enrichment-phys-V2_weighted.png",width=6.5,height=3.5)
 
 ```
 
