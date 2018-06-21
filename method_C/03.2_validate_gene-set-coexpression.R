@@ -260,13 +260,13 @@ build_complete_df <- function(group.df,iter){
 
 
 
-df1 <- build_complete_df(unweighted.df,iter=10000)
-#df2 <- build_complete_df(weighted.df,iter=10000)
+#df1 <- build_complete_df(unweighted.df,iter=10000)
+df2 <- build_complete_df(weighted.df,iter=10000)
 
-write.table(x=df1,file=work.dir2%&%"analysis_files/coexpress-enrich_unweighted.txt",
-            sep="\t",row.names=F,quote=F)
-#write.table(x=df2,file=work.dir2%&%"analysis_files/coexpress-enrich_weighted.txt",
+#write.table(x=df1,file=work.dir2%&%"analysis_files/coexpress-enrich_unweighted.txt",
 #            sep="\t",row.names=F,quote=F)
+write.table(x=df2,file=work.dir2%&%"analysis_files/coexpress-enrich_weighted.txt",
+            sep="\t",row.names=F,quote=F)
 
 
 
