@@ -146,6 +146,16 @@ all_tissues_plot <- function(ppa.df,number=NULL,col.vec=c("olivedrab2","red","go
 ```
 
 
+Lookup loci with 100 SNP or fewer in credible set 
+
+```{r}
+
+df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-weighted-unscaled_snpcount.txt")
+
+keep.loci <- filter(df,snpcount<=100)$Locus.ID %>% unique(.)
+
+```
+
 
 
 ```{r}
@@ -156,6 +166,12 @@ ggsave(plot=grob1,filename=plot.dir%&%"stacked_barplots_full-weighted.png",width
 
 grob2 <- all_tissues_plot(unweighted.df,number=50)
 ggsave(plot=grob2,filename=plot.dir%&%"stacked_barplots_full-unweighted.png",width=25,height=15)
+
+grob3 <- all_tissues_plot(filter(weighted.df,Locus.ID%in%keep.loci),number=50)
+ggsave(plot=grob3,filename=plot.dir%&%"stacked_barplots_snpcount100-weighted.png",width=25,height=15)
+
+grob4 <- all_tissues_plot(filter(unweighted.df,Locus.ID%in%keep.loci),number=50)
+ggsave(plot=grob4,filename=plot.dir%&%"stacked_barplots_snpcount100-unweighted.png",width=25,height=15)
 
 
 ```
