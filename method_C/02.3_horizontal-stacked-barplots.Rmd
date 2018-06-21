@@ -168,10 +168,10 @@ grob2 <- all_tissues_plot(unweighted.df,number=50)
 ggsave(plot=grob2,filename=plot.dir%&%"stacked_barplots_full-unweighted.png",width=25,height=15)
 
 grob3 <- all_tissues_plot(filter(weighted.df,Locus.ID%in%keep.loci),number=50)
-ggsave(plot=grob3,filename=plot.dir%&%"stacked_barplots_snpcount100-weighted.png",width=25,height=15)
+ggsave(plot=grob3,filename=plot.dir%&%"stacked_barplots_snpcount100-weighted.png",width=27,height=12)
 
 grob4 <- all_tissues_plot(filter(unweighted.df,Locus.ID%in%keep.loci),number=50)
-ggsave(plot=grob4,filename=plot.dir%&%"stacked_barplots_snpcount100-unweighted.png",width=25,height=15)
+ggsave(plot=grob4,filename=plot.dir%&%"stacked_barplots_snpcount100-unweighted.png",width=27,height=12)
 
 
 ```
