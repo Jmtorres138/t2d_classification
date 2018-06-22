@@ -249,15 +249,15 @@ build_ppa_partition_df <- function(mode="full",weights=TRUE,scaled=FALSE){
 
 #Generate and save tables
 
-part.list <- build_ppa_partition_df(mode="full",weights=TRUE,scaled=FALSE)
-write.table(x=part.list[[1]],file=out.dir%&%"annotation-divvy-weighted-unscaled.txt",
-            sep="\t",quote=FALSE,row.names=FALSE)
-write.table(x=part.list[[2]],file=out.dir%&%"annotation-divvy-weighted-unscaled_allSNPs.txt",
-            sep="\t",quote=FALSE,row.names=FALSE)
+#part.list <- build_ppa_partition_df(mode="full",weights=TRUE,scaled=FALSE)
+#write.table(x=part.list[[1]],file=out.dir%&%"annotation-divvy-weighted-unscaled.txt",
+#            sep="\t",quote=FALSE,row.names=FALSE)
+#write.table(x=part.list[[2]],file=out.dir%&%"annotation-divvy-weighted-unscaled_allSNPs.txt",
+#            sep="\t",quote=FALSE,row.names=FALSE)
 
 
-#part.list2 <- build_ppa_partition_df(mode="full",weights=TRUE,scaled=FALSE)
-#write.table(x=part.list2[[1]],file=out.dir%&%"annotation-divvy-unweighted-unscaled.txt",
-#            sep="\t",quote=FALSE,row.names=FALSE)
-#write.table(x=part.list2[[2]],file=out.dir%&%"annotation-divvy-unweighted-unscaled_allSNPs.txt",
-#            sep="\t",quote=FALSE,row.names=FALSE)
+part.list2 <- build_ppa_partition_df(mode="full",weights=TRUE,scaled=FALSE)
+write.table(x=part.list2[[1]],file=out.dir%&%"annotation-divvy-unweighted-unscaled.txt",
+            sep="\t",quote=FALSE,row.names=FALSE)
+write.table(x=part.list2[[2]],file=out.dir%&%"annotation-divvy-unweighted-unscaled_allSNPs.txt",
+            sep="\t",quote=FALSE,row.names=FALSE)
