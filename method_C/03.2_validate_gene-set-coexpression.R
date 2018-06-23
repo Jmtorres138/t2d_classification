@@ -281,16 +281,16 @@ zero.vec <- filter(annot.prof.df,coding==0)$Locus.ID %>% unique(.)
 p10.vec <- filter(annot.prof.df,coding<=0.1)$Locus.ID %>% unique(.)
 
 ##df3 <- build_complete_df(filter(unweighted.df,Locus.ID %in% zero.vec),iter=10000)
-df3 <- build_complete_df(filter(weighted.df,Locus.ID %in% zero.vec),iter=10000)
+#df3 <- build_complete_df(filter(weighted.df,Locus.ID %in% zero.vec),iter=10000)
 ##write.table(x=df3,file=work.dir2%&%"analysis_files/coexpress-enrich_unweighted_noCoding.txt",
 ##            sep="\t",row.names=F,quote=F)
-write.table(x=df3,file=work.dir2%&%"analysis_files/coexpress-enrich_weighted_noCoding.txt",
-            sep="\t",row.names=F,quote=F)
-
-
-#df4 <- build_complete_df(filter(weighted.df,Locus.ID %in% p10.vec),iter=10000)
-#write.table(x=df4,file=work.dir2%&%"analysis_files/coexpress-enrich_weighted_p10Coding.txt",
+#write.table(x=df3,file=work.dir2%&%"analysis_files/coexpress-enrich_weighted_noCoding.txt",
 #            sep="\t",row.names=F,quote=F)
+
+
+df4 <- build_complete_df(filter(weighted.df,Locus.ID %in% p10.vec),iter=10000)
+write.table(x=df4,file=work.dir2%&%"analysis_files/coexpress-enrich_weighted_p10Coding.txt",
+            sep="\t",row.names=F,quote=F)
 
 
 
