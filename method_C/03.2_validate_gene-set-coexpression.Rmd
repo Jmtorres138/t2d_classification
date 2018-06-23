@@ -17,10 +17,10 @@ knitr::opts_chunk$set(echo = TRUE)
 library("tidyverse")
 library("GenomicRanges")
 library("viridis")
-
+library("data.table")
 library("plyr")
 
-serv.dir <- "/Users/jtorres/FUSE5/"
+serv.dir <- "/home/jason/science/servers/FUSE5/"
 proj.dir <- serv.dir %&% "projects/t2d_classification/"
 
 work.dir <- proj.dir %&% "method_A/"
@@ -150,11 +150,31 @@ enrichment <- function(geneset, perms){
 }
 
 build_plot_df <- function(islet.genes,muscle.genes,
-                          liver.genes,adipose.genes){
-  enrich.isl.df <- enrichment(islet.genes, 10000)
-  enrich.mus.df <- enrichment(muscle.genes, 10000)
-  enrich.liv.df <- enrichment(liver.genes, 10000)
-  enrich.adi.df <- enrichment(adipose.genes, 10000)
+                          liver.genes,adipose.genes,iter){
+  if(length(islet.genes)>2){
+    enrich.isl.df <- enrichment(islet.genes, iter)
+  } else{
+    enrich.isl.df <- data.frame(tissue=NA,perm.pvalue=NA,
+                                count=NA,log_pval=NA)
+  }
+  if(length(muscle.genes)>2){
+    enrich.mus.df <- enrichment(muscle.genes, iter)
+  } else{
+    enrich.mus.df <- data.frame(tissue=NA,perm.pvalue=NA,
+                                count=NA,log_pval=NA)
+  }
+  if(length(adipose.genes)>2){
+    enrich.adi.df <- enrichment(adipose.genes, iter)
+  } else{
+    enrich.adi.df <- data.frame(tissue=NA,perm.pvalue=NA,
+                                count=NA,log_pval=NA)
+  }
+  if(length(liver.genes)>2){
+    enrich.liv.df <- enrichment(liver.genes, iter)
+  } else{
+    enrich.liv.df <- data.frame(tissue=NA,perm.pvalue=NA,
+                                count=NA,log_pval=NA)
+  }
   enrich.isl.df$geneset <- "islet"
   enrich.mus.df$geneset <- "muscle"
   enrich.liv.df$geneset <- "liver"
@@ -187,22 +207,110 @@ plot_enrich <- function(plot.df){
 
 Get co-expression enrichments enrichments 
 
-Full 
 
 ```{r}
 
-full.df <- fread(analysis.dir  %&% "classified_full.txt")
-islet.genes <- filter(full.df,assigned=="islet")$symbol %>% unique(.)
-muscle.genes <- filter(full.df,assigned=="muscle")$symbol %>% unique(.)
-liver.genes <- filter(full.df,assigned=="liver")$symbol %>% unique(.)
-adipose.genes <- filter(full.df,assigned=="adipose")$symbol %>% unique(.)
+work.dir2 <- proj.dir %&% "method_C/"
+cred.df <- fread(work.dir2 %&% "genetic_credible_sets/gencred.txt")
 
-plot.df <- build_plot_df(islet.genes,muscle.genes,
-                         liver.genes,adipose.genes)
+append_condid <- function(class.df){
+  Cond.ID <- map(1:dim(class.df)[1],function(i){
+    filter(cred.df,Locus.ID==class.df$Locus.ID[i])$CondID %>% unique(.)
+  }) %>% as.character(.)
+  class.df$Locus.ID <- Cond.ID
+  return(class.df)
+}
 
-plt1 <- plot_enrich(plot.df)
+unweighted.df <- fread(work.dir2 %&% "analysis_files/" %&% 
+                     "classified-loci_unweighted.txt") %>% append_condid(.)
+weighted.df <- fread(work.dir2 %&% "analysis_files/" %&% 
+                     "classified-loci_weighted.txt") %>% append_condid(.)
+
+unweighted.df$assigned_00 <- gsub("other","unclassified",unweighted.df$assigned_00)
+unweighted.df$assigned_20 <- gsub("other","unclassified",unweighted.df$assigned_20)
+unweighted.df$assigned_50 <- gsub("other","unclassified",unweighted.df$assigned_50)
+unweighted.df$assigned_80 <- gsub("other","unclassified",unweighted.df$assigned_80)
+
+weighted.df$assigned_00 <- gsub("other","unclassified",weighted.df$assigned_00)
+weighted.df$assigned_20 <- gsub("other","unclassified",weighted.df$assigned_20)
+weighted.df$assigned_50 <- gsub("other","unclassified",weighted.df$assigned_50)
+weighted.df$assigned_80 <- gsub("other","unclassified",weighted.df$assigned_80)
 
 ```
 
+
+```{r}
+
+build_complete_df <- function(group.df,iter){
+  thresh.vec <- c(0,0.2,0.5,0.8)
+  out.df <- c()
+  for (t in thresh.vec){
+    print(t)
+    var <- ifelse(t==0,"assigned_00",
+                  ifelse(t==0.2,"assigned_20",
+                         ifelse(t==0.5,"assigned_50",
+                                ifelse(t=0.80,"assigned_80"))))
+    sub <- dplyr::select(group.df,one_of(var,"symbol"))
+    names(sub)[1] <- "assigned"
+    islet.genes <- filter(sub,assigned=="islet")$symbol %>% unique(.)
+    muscle.genes <- filter(sub,assigned=="muscle")$symbol %>% unique(.)
+    liver.genes <- filter(sub,assigned=="liver")$symbol %>% unique(.)
+    adipose.genes <- filter(sub,assigned=="adipose")$symbol %>% unique(.) 
+    plot.df <- build_plot_df(islet.genes,muscle.genes,
+                         liver.genes,adipose.genes,iter)
+    plot.df$threshold <- t
+    out.df <- rbind(out.df,plot.df)
+  }
+  return(out.df)
+}
+
+
+#plt1 <- plot_enrich(plot.df)
+```
+
+
+```{r}
+
+df1 <- build_complete_df(unweighted.df,iter=10000)
+df2 <- build_complete_df(weighted.df,iter=10000)
+
+write.table(x=df1,file=work.dir2%&%"analysis_files/coexpress-enrich_unweighted.txt",
+            sep="\t",row.names=F,quote=F)
+write.table(x=df2,file=work.dir2%&%"analysis_files/coexpress-enrich_weighted.txt",
+            sep="\t",row.names=F,quote=F)
+
+
+```
+
+
+Only restrict to loci without coding signals 
+
+```{r}
+
+annot.prof.df <- fread(proj.dir %&% "method_C/analysis_files/annotation-divvy-weighted-unscaled.txt")
+
+annot.prof.df$coding <- annot.prof.df$coding_islet + annot.prof.df$coding_adipose + 
+  annot.prof.df$coding_muscle + annot.prof.df$coding_liver
+
+# 210 loci with coding score = 0; 354 loci with coding <= 0.1; 
+# 315 loci with coding <= 0.01; 363 loci w/ coding <= 0.20 
+
+zero.vec <- filter(annot.prof.df,coding==0)$Locus.ID %>% unique(.)
+p10.vec <- filter(annot.prof.df,coding<=0.1)$Locus.ID %>% unique(.)
+
+##df3 <- build_complete_df(filter(unweighted.df,Locus.ID %in% zero.vec),iter=10000)
+df3 <- build_complete_df(filter(weighted.df,Locus.ID %in% zero.vec),iter=10000)
+##write.table(x=df3,file=work.dir2%&%"analysis_files/coexpress-enrich_unweighted_noCoding.txt",
+##            sep="\t",row.names=F,quote=F)
+write.table(x=df3,file=work.dir2%&%"analysis_files/coexpress-enrich_weighted_noCoding.txt",
+            sep="\t",row.names=F,quote=F)
+
+
+df4 <- build_complete_df(filter(weighted.df,Locus.ID %in% p10.vec),iter=10000)
+write.table(x=df4,file=work.dir2%&%"analysis_files/coexpress-enrich_weighted_p10Coding.txt",
+            sep="\t",row.names=F,quote=F)
+
+
+```
 
 

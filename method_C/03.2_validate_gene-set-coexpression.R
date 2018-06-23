@@ -261,12 +261,42 @@ build_complete_df <- function(group.df,iter){
 
 
 #df1 <- build_complete_df(unweighted.df,iter=10000)
-df2 <- build_complete_df(weighted.df,iter=10000)
+#df2 <- build_complete_df(weighted.df,iter=10000)
 
 #write.table(x=df1,file=work.dir2%&%"analysis_files/coexpress-enrich_unweighted.txt",
 #            sep="\t",row.names=F,quote=F)
-write.table(x=df2,file=work.dir2%&%"analysis_files/coexpress-enrich_weighted.txt",
+#write.table(x=df2,file=work.dir2%&%"analysis_files/coexpress-enrich_weighted.txt",
+#            sep="\t",row.names=F,quote=F)
+
+
+annot.prof.df <- fread(proj.dir %&% "method_C/analysis_files/annotation-divvy-weighted-unscaled.txt")
+
+annot.prof.df$coding <- annot.prof.df$coding_islet + annot.prof.df$coding_adipose + 
+  annot.prof.df$coding_muscle + annot.prof.df$coding_liver
+
+# 210 loci with coding score = 0; 354 loci with coding <= 0.1; 
+# 315 loci with coding <= 0.01; 363 loci w/ coding <= 0.20 
+
+zero.vec <- filter(annot.prof.df,coding==0)$Locus.ID %>% unique(.)
+p10.vec <- filter(annot.prof.df,coding<=0.1)$Locus.ID %>% unique(.)
+
+##df3 <- build_complete_df(filter(unweighted.df,Locus.ID %in% zero.vec),iter=10000)
+df3 <- build_complete_df(filter(weighted.df,Locus.ID %in% zero.vec),iter=10000)
+##write.table(x=df3,file=work.dir2%&%"analysis_files/coexpress-enrich_unweighted_noCoding.txt",
+##            sep="\t",row.names=F,quote=F)
+write.table(x=df3,file=work.dir2%&%"analysis_files/coexpress-enrich_weighted_noCoding.txt",
             sep="\t",row.names=F,quote=F)
+
+
+#df4 <- build_complete_df(filter(weighted.df,Locus.ID %in% p10.vec),iter=10000)
+#write.table(x=df4,file=work.dir2%&%"analysis_files/coexpress-enrich_weighted_p10Coding.txt",
+#            sep="\t",row.names=F,quote=F)
+
+
+
+
+
+
 
 
 
