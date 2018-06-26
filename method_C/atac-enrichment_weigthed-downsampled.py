@@ -12,16 +12,16 @@ import subprocess as sp
 import numpy
 
 work_dir = "/well/mccarthy/users/jason/projects/t2d_classification/method_C/"
-proc_dir = work_dir + "enrichment_files/" + "unweighted/"
+proc_dir = work_dir + "enrichment_files/" + "weighted/"
 if os.path.isdir(proc_dir)==False:
 	os.mkdir(proc_dir)
 out_dir = work_dir + "analysis_files/"
 genome_file = work_dir + "hg19.chrom.sizes"
 
-islet_bed = "/well/mccarthy/users/jason/projects/t2d_classification/method_C/enrichment_files/islet.hg19.bed"#"/well/got2d/jason/reference/islet/atac_peaks/oxford_islet_atac_macs2_n17.bed"
-adi_bed = "/well/mccarthy/users/jason/projects/t2d_classification/method_C/enrichment_files/adipose.hg19.bed"#"/well/got2d/jason/reference/encode/adipose/adipose.hg19.bed"
-liv_bed = "/well/mccarthy/users/jason/projects/t2d_classification/method_C/enrichment_files/liver.hg19.bed"#"/well/got2d/jason/reference/encode/liver/liver.hg19.bed"
-mus_bed = "/well/mccarthy/users/jason/projects/t2d_classification/method_C/enrichment_files/muscle.hg19.bed"#"/well/got2d/jason/reference/encode/muscle/muscle.hg19.bed"
+islet_bed = "/well/mccarthy/users/jason/projects/t2d_classification/method_C/enrichment_files/downsample_islet.hg19.bed"#"/well/got2d/jason/reference/islet/atac_peaks/oxford_islet_atac_macs2_n17.bed"
+adi_bed = "/well/mccarthy/users/jason/projects/t2d_classification/method_C/enrichment_files/downsample_adipose.hg19.bed"#"/well/got2d/jason/reference/encode/adipose/adipose.hg19.bed"
+liv_bed = "/well/mccarthy/users/jason/projects/t2d_classification/method_C/enrichment_files/downsample_liver.hg19.bed"#"/well/got2d/jason/reference/encode/liver/liver.hg19.bed"
+mus_bed = "/well/mccarthy/users/jason/projects/t2d_classification/method_C/enrichment_files/downsample_muscle.hg19.bed"#"/well/got2d/jason/reference/encode/muscle/muscle.hg19.bed"
 
 def get_intersect(snp_bed,annot_bed,temp_name):
 	command = ["/apps/well/bedtools/2.24.0/bedtools", "intersect", "-wa","-a",snp_bed,"-b",annot_bed,"|","uniq",">",proc_dir+"inter.temp."+temp_name+".bed"]
@@ -87,21 +87,26 @@ def run_enrichments(file_list,out_file):
 	fout.close()
 
 def main():
-	print "unweighted: thresh20"
-	run_enrichments(file_list=["unweighted_islet_thresh20.txt",
-		"unweighted_liver_thresh20.txt","unweighted_adipose_thresh20.txt",
-		"unweighted_muscle_thresh20.txt"],
-		out_file=out_dir+"atac-enrichment_unweighted_thresh20.txt")
-	print "unweighted: thresh50"
-	run_enrichments(file_list=["unweighted_islet_thresh20.txt",
-		"unweighted_liver_thresh50.txt","unweighted_adipose_thresh50.txt",
-		"unweighted_muscle_thresh50.txt"],
-		out_file=out_dir+"atac-enrichment_unweighted_thresh50.txt")
-	print "unweighted: thresh80"
-	run_enrichments(file_list=["unweighted_islet_thresh80.txt",
-		"unweighted_liver_thresh80.txt","unweighted_adipose_thresh80.txt",
-		"unweighted_muscle_thresh80.txt"],
-		out_file=out_dir+"atac-enrichment_unweighted_thresh80.txt")
+	print "weighted: thresh00"
+	run_enrichments(file_list=["weighted_islet_thresh00.txt",
+		"weighted_liver_thresh00.txt","weighted_adipose_thresh00.txt",
+		"weighted_muscle_thresh00.txt"],
+		out_file=out_dir+"downsample_atac-enrichment_weighted_thresh00.txt")
+	print "weighted: thresh20"
+	run_enrichments(file_list=["weighted_islet_thresh20.txt",
+		"weighted_liver_thresh20.txt","weighted_adipose_thresh20.txt",
+		"weighted_muscle_thresh20.txt"],
+		out_file=out_dir+"downsample_atac-enrichment_weighted_thresh20.txt")
+	print "weighted: thresh50"
+	run_enrichments(file_list=["weighted_islet_thresh20.txt",
+		"weighted_liver_thresh50.txt","weighted_adipose_thresh50.txt",
+		"weighted_muscle_thresh50.txt"],
+		out_file=out_dir+"downsample_atac-enrichment_weighted_thresh50.txt")
+	print "weighted: thresh80"
+	run_enrichments(file_list=["weighted_islet_thresh80.txt",
+		"weighted_liver_thresh80.txt","weighted_adipose_thresh80.txt",
+		"weighted_muscle_thresh80.txt"],
+		out_file=out_dir+"downsample_atac-enrichment_weighted_thresh80.txt")
 
 
 if (__name__=="__main__"): main()

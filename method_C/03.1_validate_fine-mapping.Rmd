@@ -166,6 +166,7 @@ build_comp_df <- function(group.df,thresh){
   else{
       print("Thresh must be 0.00, 0.20, 0.50, or 0.80")
   }
+  out.df$threshold <- thresh
   return(out.df)
 }
 
@@ -214,12 +215,15 @@ build_full_test_df <- function(group.df){
   test50.df <- build_test_df(comp50.df,group.df,thresh=0.50)  
   comp80.df <- build_comp_df(group.df,thresh=0.80)
   test80.df <- build_test_df(comp80.df,group.df,thresh=0.80)  
+  comp.df <- rbind(comp00.df,comp20.df,comp50.df,comp80.df)
   out.df <- rbind(test00.df,test20.df,test50.df,test80.df)
-  return(out.df)
+  return(list(out.df,comp.df))
 }
 
 make_test_plot <- function(group.df){
-  test.df <- build_full_test_df(group.df)
+  test.list <- build_full_test_df(group.df)
+  test.df <- test.list[[1]]
+  comp.df <- test.list[[2]]
   test.df$Group <- factor(test.df$Group,levels=c("islet",
                                                  "liver",
                                                  "muscle",
@@ -235,21 +239,25 @@ make_test_plot <- function(group.df){
     theme_bw() + geom_hline(yintercept=-log(0.05,base=10),
                             color="firebrick3",linetype=2) + 
     ylab(expression(-log[10](p[value]))) + 
-    ggtitle("Wilcoxon test for difference in improvement of max PPA over null",
-            subtitle="Mean of Islet-only fgwas = " %&% round(mean(comp.df$islet.max.vs.null),5) %&% 
-            "\nMean of multi-tissue fgwas = " %&% round(mean(comp.df$multi.max.vs.null),5))
+    theme(axis.text.x=element_text(size=7)) +
+    ggtitle("Improvement of max PPA over null") + 
+    theme(axis.text.x=element_text(angle=30,vjust=0.6)) + 
+    xlab("Classified Tissue")
+            #subtitle="Mean of Islet-only fgwas = " %&% round(mean(comp.df$islet.max.vs.null),5) %&% 
+            #"\nMean of multi-tissue fgwas = " %&% round(mean(comp.df$multi.max.vs.null),5))
     
   #plt2 <- ggplot(data=test.df,aes(x=Group,y=-log(w.pval.num,base=10))) + 
-  #  geom_point(shape=21,color="black",
-  #             fill=brewer.pal(11,"Spectral")[9],size=2) + 
-  ##  scale_y_continuous(limits=c(0,3),breaks=seq(0,3,0.5)) + 
-  #  theme_bw() + geom_hline(yintercept=-log(0.05,base=10),
-  #                          color="firebrick3",linetype=2) + 
-  #  ylab(expression(-log[10](p[value]))) + 
-  #  ggtitle("Wilcoxon test for difference in change of credible set size vs null",
+   # geom_point(shape=21,color="black",
+    #           fill=brewer.pal(11,"Spectral")[9],size=2) + 
+    ##facet_wrap(~threshold) + 
+    #scale_y_continuous(limits=c(0,3),breaks=seq(0,3,0.5)) + 
+    #theme_bw() + geom_hline(yintercept=-log(0.05,base=10),
+    #                        color="firebrick3",linetype=2) + 
+    #ylab(expression(-log[10](p[value]))) + 
+    #ggtitle("Wilcoxon test for difference in change of credible set size vs null")
    #         subtitle="Median of Islet-only fgwas = " %&% round(median(comp.df$islet.num.vs.null),1) %&% 
    #         "\nMedian of multi-tissue fgwas = " %&% round(median(comp.df$multi.num.vs.null),1))
-  return(list(plt1))
+  return(list(plt1,test.df,comp.df))
 }
 
 
@@ -261,25 +269,10 @@ make_test_plot <- function(group.df){
 
 ```{r}
 
-#comp.df <- build_comp_df(weighted.df)
 
-#grp1 <- filter(comp.df,group=="islet")
-#shapiro.test(grp1$islet.max.vs.null) # p-value = 7.016e-06
-#shapiro.test(grp1$multi.max.vs.null) # p-value = 2.037e-12
-# Data is not likely normally distributed 
-#wilcox.test(grp1$islet.max.vs.null,grp1$multi.max.vs.null) 
-
-#grp2 <- filter(comp.df,group!="islet")
-#shapiro.test(grp2$islet.max.vs.null) # p-value = 3.919e-06
-#shapiro.test(grp2$multi.max.vs.null) # p-value = 9.251e-11
-# Data is not likely normally distributed 
-
-
-
-plt.list <- make_test_plot(weighted.df)
+plt.list1 <- make_test_plot(weighted.df)
   
-ggsave(plot=plt.list[[1]],filename=plot.dir%&%"Wilcox-compare-max_weighted.png",height=3,width=7)
-#ggsave(plot=plt.list[[2]],filename=plot.dir%&%"Wilcox-compare-num_weighted.png",height=3,width=7)
+ggsave(plot=plt.list1[[1]],filename=plot.dir%&%"finemap_wilcox-compare-max_weighted.png",height=3.5,width=4)
 
 ```
 
@@ -288,14 +281,10 @@ ggsave(plot=plt.list[[1]],filename=plot.dir%&%"Wilcox-compare-max_weighted.png",
 
 ```{r}
 
-#comp.df <- build_comp_df(unweighted.df)
-
-#grp1 <- filter(comp.df,group=="islet")
-#wilcox.test(grp1$islet.max.vs.null,grp1$multi.max.vs.null) 
-
-
-plt.list <- make_test_plots(unweighted.df)
+plt.list2 <- make_test_plot(unweighted.df)
   
-ggsave(plot=plt.list[[1]],filename=plot.dir%&%"Wilcox-compare-max_unweighted.png",height=3,width=7)
-#ggsave(plot=plt.list[[2]],filename=plot.dir%&%"Wilcox-compare-num_unweighted.png",height=3,width=7)
+ggsave(plot=plt.list2[[1]],filename=plot.dir%&%"finemap_wilcox-compare-max_unweighted.png",height=3.5,width=4)
+
 ```
+
+

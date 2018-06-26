@@ -244,7 +244,44 @@ complete_pca <- function(ppa.df,centerScale,savename){
 ```
 
 
+# Profile loci 
 
+```{r}
+
+w.df <- weighted.df
+w.df$snpcount <- map(w.df$Locus.ID,function(id){
+  (filter(cred.df,CondID==id) %>% dim(.))[1]
+}) %>% as.integer(.)
+u.df <- unweighted.df
+u.df$snpcount <- map(u.df$Locus.ID,function(id){
+  (filter(cred.df,CondID==id) %>% dim(.))[1]
+}) %>% as.integer(.)
+
+summary(w.df$snpcount)
+(w.df$snpcount <= 10) %>% sum(.) # 101
+(w.df$snpcount <= 20) %>% sum(.) # 139
+(w.df$snpcount <= 40) %>% sum(.) # 185 
+(w.df$snpcount <= 50) %>% sum(.) # 205 
+(w.df$snpcount <= 100) %>% sum(.) # 256 
+
+write.table(w.df,file=analysis.dir %&% "tissue_ppa_divvy-full-weighted-unscaled_snpcount.txt",row.names=F,quote=F,sep="\t")
+write.table(u.df,file=analysis.dir %&% "tissue_ppa_divvy-full-unweighted-unscaled_snpcount.txt",row.names=F,quote=F,sep="\t")
+
+filter(weighted.df, other<=0.1) %>% dim(.)
+filter(weighted.df, other<=0.5) %>% dim(.)
+filter(weighted.df,other<=0.1, Locus.ID%in%(filter(w.df,snpcount<=100))$Locus.ID) %>% dim(.) 
+filter(weighted.df,other<=0.5, Locus.ID%in%(filter(w.df,snpcount<=100))$Locus.ID) %>% dim(.)
+filter(weighted.df,other<=0.1, Locus.ID%in%(filter(w.df,snpcount<=10))$Locus.ID) %>% dim(.) 
+filter(weighted.df,other<=0.5, Locus.ID%in%(filter(w.df,snpcount<=10))$Locus.ID) %>% dim(.)
+
+
+
+```
+
+
+
+
+# No Filtering 
 
 ```{r}
 
@@ -261,24 +298,54 @@ pca.list.un <- make_pca_inputs(unweighted.df,centerScale=FALSE)
 
 plt <- complete_pca(weighted.df,centerScale=FALSE)
 plt.un <- complete_pca(unweighted.df,centerScale=FALSE)
+# Manual save 
+# Save dimensions W=1300,H=600 
+# pca_weigthed_nofilter.png
+# pca_unweigthed_nofilter.png
+
 
 ```
 
 
-## Filtering out loci with high "other" scores
+## Filtering out loci with high "other" scores, and SNP number filters 
 
 
 ```{r}
 
  
-pca.list.weighted.pruned <- make_pca_inputs(filter(weighted.df,other<=0.1),
-                                 centerScale=FALSE)  
-complete_pca(filter(weighted.df,other<=0.1),centerScale=FALSE)
 
+pca.list.weighted.pruned <- make_pca_inputs(filter(weighted.df,
+  other<=0.1),centerScale=FALSE)
+pA <- complete_pca(filter(weighted.df,other<=0.1),centerScale=FALSE)
+pca.list.unweighted.pruned <-  make_pca_inputs(filter(unweighted.df,
+  other<=0.1),centerScale=FALSE) 
+pB <- complete_pca(filter(unweighted.df,other<=0.1),centerScale=FALSE)
+# Manual save 
+# Save dimensions W=1300,H=600 
+# pca_weigthed_other10.png
+# pca_unweigthed_other10.png
 
-pca.list.unweighted.pruned <- make_pca_inputs(filter(unweighted.df,other<=0.1),
-                                 centerScale=FALSE)  
-complete_pca(filter(unweighted.df,other<=0.1),centerScale=FALSE)
+pca.list.weighted.pruned10 <- make_pca_inputs(filter(weighted.df,
+  other<=0.1, Locus.ID%in%(filter(w.df,snpcount<=10))$Locus.ID),centerScale=FALSE)
+p1 <- complete_pca(filter(weighted.df,other<=0.1,Locus.ID%in%(filter(w.df,snpcount<=10))$Locus.ID),centerScale=FALSE)
+pca.list.unweighted.pruned10 <-  make_pca_inputs(filter(unweighted.df,
+  other<=0.1, Locus.ID%in%(filter(w.df,snpcount<=10))$Locus.ID),centerScale=FALSE) 
+p2 <- complete_pca(filter(unweighted.df,other<=0.1,Locus.ID%in%(filter(w.df,snpcount<=10))$Locus.ID),centerScale=FALSE)
+# Manual save 
+# Save dimensions W=1300,H=600 
+# pca_weigthed_other10-snpcount10.png
+# pca_unweigthed_other10-snpcount10.png
+
+pca.list.weighted.pruned100 <- make_pca_inputs(filter(weighted.df,
+  other<=0.1, Locus.ID%in%(filter(w.df,snpcount<=100))$Locus.ID),centerScale=FALSE)
+p3 <- complete_pca(filter(weighted.df,other<=0.1,Locus.ID%in%(filter(w.df,snpcount<=100))$Locus.ID),centerScale=FALSE)
+pca.list.unweighted.pruned100 <-  make_pca_inputs(filter(unweighted.df,
+  other<=0.1, Locus.ID%in%(filter(w.df,snpcount<=100))$Locus.ID),centerScale=FALSE)
+p4 <- complete_pca(filter(unweighted.df,other<=0.1,Locus.ID%in%(filter(w.df,snpcount<=100))$Locus.ID),centerScale=FALSE)
+# Manual save 
+# Save dimensions W=1300,H=600 
+# pca_weigthed_other10-snpcount100.png
+# pca_unweigthed_other10-snpcount100.png
 
 
 ```
@@ -291,13 +358,13 @@ Locus Weighted
 ```{r}
 
 
-pruneA.plt <- pca_plot_annotated(pca.list.weighted.pruned[[1]],
-                   pca.list.weighted.pruned[[2]],"PC1","PC2")
-pruneB.plt <- pca_plot_annotated(pca.list.weighted.pruned[[1]],
-                   pca.list.weighted.pruned[[2]],"PC2","PC3")
-ggsave(plot=pruneA.plt,filename=plot.dir%&%"pca_pruned-full-weighted-pc1-pc2.png",
+pruneA.plt <- pca_plot_annotated(pca.list.weighted.pruned100[[1]],
+                   pca.list.weighted.pruned100[[2]],"PC1","PC2")
+pruneB.plt <- pca_plot_annotated(pca.list.weighted.pruned100[[1]],
+                   pca.list.weighted.pruned100[[2]],"PC2","PC3")
+ggsave(plot=pruneA.plt,filename=plot.dir%&%"pca_pruned100-full-weighted-pc1-pc2.png",
        height=6,width=6)
-ggsave(plot=pruneB.plt,filename=plot.dir%&%"pca_pruned-full-weighted-pc2-pc3.png",
+ggsave(plot=pruneB.plt,filename=plot.dir%&%"pca_pruned100-full-weighted-pc2-pc3.png",
        height=6,width=6)
 
 
@@ -309,14 +376,14 @@ Locus Unweighted
 
 ```{r}
 
-pruneA.plt.un <- pca_plot_annotated(pca.list.unweighted.pruned[[1]],
-                   pca.list.unweighted.pruned[[2]],"PC1","PC2")
-pruneB.plt.un <- pca_plot_annotated(pca.list.unweighted.pruned[[1]],
-                   pca.list.unweighted.pruned[[2]],"PC2","PC3")
+pruneA.plt.un <- pca_plot_annotated(pca.list.unweighted.pruned100[[1]],
+                   pca.list.unweighted.pruned100[[2]],"PC1","PC2")
+pruneB.plt.un <- pca_plot_annotated(pca.list.unweighted.pruned100[[1]],
+                   pca.list.unweighted.pruned100[[2]],"PC2","PC3")
 ggsave(plot=pruneA.plt.un,filename=plot.dir%&%
-         "pca_pruned-full-unweighted-pc1-pc2.png",height=6,width=6)
+         "pca_pruned100-full-unweighted-pc1-pc2.png",height=6,width=6)
 ggsave(plot=pruneB.plt.un,filename=plot.dir%&%
-         "pca_pruned-full-unweighted-pc2-pc3.png",height=6,width=6)
+         "pca_pruned100-full-unweighted-pc2-pc3.png",height=6,width=6)
 
 ```
 

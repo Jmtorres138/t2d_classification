@@ -7,8 +7,10 @@ library("data.table")
 library("Homo.sapiens")
 
 
-serv.dir1 <- "/well/got2d/jason/"
-serv.dir2 <- "/well/mccarthy/users/jason/"
+serv.dir1 <- "/well/got2d/jason/" # 
+#serv.dir1 <- "/home/jason/science/servers/FUSE/"
+serv.dir2 <- "/well/mccarthy/users/jason/" #
+#serv.dir2 <- "/home/jason/science/servers/FUSE5/"
 
 proj.dir <- serv.dir2 %&% "projects/t2d_classification/"
 work.dir <- proj.dir %&% "method_C/"
@@ -74,10 +76,15 @@ mus.spec <- mus.eqtls[!(mus.eqtls %in% c(islet.eqtls,liv.eqtls,adi.eqtls))]
 adi.spec <- adi.eqtls[!(adi.eqtls %in% c(islet.eqtls,liv.eqtls,mus.eqtls))]
 liv.spec <- liv.eqtls[!(liv.eqtls %in% c(islet.eqtls,adi.eqtls,mus.eqtls))]
 
-islet.eqtls <- isl.spec
-mus.eqtls <- mus.spec
-liv.eqtls <- liv.spec
-adi.eqtls <- adi.spec
+# min number, liver, n=37391
+
+min.val <- min(c(length(isl.spec),length(mus.spec),
+                 length(adi.spec),length(liv.spec)))
+
+islet.eqtls <- sample(x=isl.spec,replace=FALSE,size=min.val)
+mus.eqtls <- sample(x=mus.spec,replace=FALSE,size=min.val)
+liv.eqtls <- sample(x=liv.spec,replace=FALSE,size=min.val)
+adi.eqtls <- sample(x=adi.spec,replace=FALSE,size=min.val)
 
 
 get_overlap <- function(query.vec,eqtl.vec){
@@ -184,7 +191,7 @@ cred.df <- fread(cred.dir %&% "gencred.txt")
 #input1.df <- fread(proj.dir %&% "method_C/analysis_files/classified-loci_unweighted.txt")
 #thresh1.df <- evaluate_thresholds(input1.df,iter=1000)
 #write.table(x=thresh1.df,file=proj.dir%&%"method_C/analysis_files/eqtl-specific-validation_unweighted.txt",
-#            sep="\t",quote=FALSE,row.names=FALSE)
+ #           sep="\t",quote=FALSE,row.names=FALSE)
 
 input2.df <- fread(proj.dir %&% "method_C/analysis_files/classified-loci_weighted.txt")
 thresh2.df <- evaluate_thresholds(input2.df,iter=1000)

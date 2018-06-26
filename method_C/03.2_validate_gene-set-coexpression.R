@@ -1,26 +1,16 @@
----
-title: "Untitled"
-author: "Jason Torres"
-date: "3/13/2018"
-output: html_document
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
 # Setup 
 
-```{r}
+
 
 "%&%" <- function(a,b) paste0(a,b)
 library("tidyverse")
 library("GenomicRanges")
 library("viridis")
 library("data.table")
+
 library("plyr")
 
-serv.dir <- "/home/jason/science/servers/FUSE5/"
+serv.dir <- "/gpfs2/well/mccarthy/users/jason/"#/home/jason/science/servers/FUSE5/"
 proj.dir <- serv.dir %&% "projects/t2d_classification/"
 
 work.dir <- proj.dir %&% "method_A/"
@@ -32,121 +22,120 @@ keep.vec <- keep.df$Locus.ID_inCREDS
 
 block.df <- fread(work.dir %&% "multi_results/results_blocks.txt")
 
-```
 
 
-Read data files 
 
-```{r}
+#Read data files 
+
+
 
 block.df <- fread(work.dir %&%"multi_results/results_blocks.txt",sep="\t")
 fcred.df <- fread(work.dir %&%"multi_results/results_func-cred-sets.txt",sep="\t")
 
-```
 
 
-```{r}
+
+
 
 TPM.merged.ranks <- readRDS(proj.dir%&%"input_data/TPM.merged.ranks.rds")
 TPMs.tissues.rank.matrix <- readRDS(proj.dir%&%"input_data/TPMs.tissues.rank.matrix.rds")
 
-```
+
 
 
 # Functions 
 
-testing
-
-```{r}
 
 
 
-```
 
 
 
-```{r}
+
+
+
+
 
 
 enrichment <- function(geneset, perms){
-	#geneset_ens <- TPM.merged.ranks[TPM.merged.ranks$Symbol %in% geneset, "Gene"]
-	#names(geneset_ens) <- geneset
-	
-	sub.df <- filter(TPM.merged.ranks,Symbol%in%geneset)
-	geneset_ens <- sub.df$Gene
+  #geneset_ens <- TPM.merged.ranks[TPM.merged.ranks$Symbol %in% geneset, "Gene"]
+  #names(geneset_ens) <- geneset
+  
+  sub.df <- filter(TPM.merged.ranks,Symbol%in%geneset)
+  geneset_ens <- sub.df$Gene
   names(geneset_ens) <- sub.df$Symbol
   
-	# Calculate average expression to make null and random distributions
-	TPM.merged.ranks_geneset <- TPM.merged.ranks[TPM.merged.ranks$Symbol %in% geneset, "ranks2"]
-	names(TPM.merged.ranks_geneset) <- TPM.merged.ranks[TPM.merged.ranks$Symbol %in% geneset, "Gene"]
-	#h(TPM.merged.ranks_geneset)
-
-	# create null bg genes for creating null gene_sets
-	random.bg.ens <- sapply(TPM.merged.ranks_geneset, function(x){
-		up <- x-150
-		down <- x+150
-		sample_from <- TPM.merged.ranks[up:down, "Gene"]
-		sample_from2 <- setdiff(sample_from, geneset_ens)
-	}, simplify=FALSE)
-	
-	# Create random gene sets using ranks + and - 100 
-	random.geneList.ens <- list()
-
-	for (i in 1:perms){
-		gene_set <- lapply(random.bg.ens, function(x){
-		rand <- sample(x, 1)
-		})
-		random.geneList.ens[[i]] <- unlist(gene_set)
-	}
-
-	geneset.list.test.ens <- list()
-
-	pb <- txtProgressBar(min = 1, max = perms, style = 3)
-	for (i in 1:perms){
-		setTxtProgressBar(pb, i)
-		gene_set <- random.geneList.ens[[i]]
-		gene_set <- gene_set[!is.na(gene_set)] # remove NAs
-		lista <- lapply(TPMs.tissues.rank.matrix, function(tissue){
-		tis <- tissue
-		df2 <- tis[match(gene_set, rownames(tis)), ]
-		df3 <- apply(df2[,-c(1:2)], 1, function(x){sum(x, na.rm=TRUE)})
-	})
-	geneset.list.test.ens[[i]] <- lista
-	}
-	close(pb)
-
-	geneset.list.test.ens <- lapply(geneset.list.test.ens, function(x)ldply(x))
-	geneset.list.test.ens.sum <- lapply(geneset.list.test.ens, function(x) apply(x[,-1], 1, sum) )
-
-	geneset.true <- lapply(TPMs.tissues.rank.matrix, function(tissue){
-	tis <- tissue
-	data <- tis[match(geneset_ens, rownames(tis)), ]
-	data <- apply(data[,-c(1:2)], 1, sum)
-	})
-
-	geneset.true.sum <- lapply(geneset.true, function(x){sum(x, na.rm=T)})
-
-	res.lista = list()
-
-	for (i in 1:54){
-		perm.value = c()
-		for (j in 1:perms){
-			perm = geneset.list.test.ens.sum[[j]][i]
-			perm.value = c(perm.value, perm)
-		}
-		res.lista[[i]] = perm.value
-	}
-
-	names(res.lista) = names(geneset.true)
-	zim <- data.frame(tissue = names(geneset.true), perm.pvalue = -9, count = -9, log_pval = -9)
-	for ( i in 1:length(res.lista)){
-		zim[i,2] <- (sum(res.lista[[i]] <= geneset.true.sum[[i]])+1)/(length(res.lista[[i]])+1)
-		zim[i,3] <- (sum(geneset.true.sum[[i]] >=res.lista[[i]])+1)
-		zim[i,4] <- -log10(zim[i,2])
-	}
-	zim <- zim[order(zim$log_pval, decreasing = TRUE),]
-	#ht(zim)
-	return(zim)
+  # Calculate average expression to make null and random distributions
+  TPM.merged.ranks_geneset <- TPM.merged.ranks[TPM.merged.ranks$Symbol %in% geneset, "ranks2"]
+  names(TPM.merged.ranks_geneset) <- TPM.merged.ranks[TPM.merged.ranks$Symbol %in% geneset, "Gene"]
+  #h(TPM.merged.ranks_geneset)
+  
+  # create null bg genes for creating null gene_sets
+  random.bg.ens <- sapply(TPM.merged.ranks_geneset, function(x){
+    up <- x-150
+    down <- x+150
+    sample_from <- TPM.merged.ranks[up:down, "Gene"]
+    sample_from2 <- setdiff(sample_from, geneset_ens)
+  }, simplify=FALSE)
+  
+  # Create random gene sets using ranks + and - 100 
+  random.geneList.ens <- list()
+  
+  for (i in 1:perms){
+    gene_set <- lapply(random.bg.ens, function(x){
+      rand <- sample(x, 1)
+    })
+    random.geneList.ens[[i]] <- unlist(gene_set)
+  }
+  
+  geneset.list.test.ens <- list()
+  
+  pb <- txtProgressBar(min = 1, max = perms, style = 3)
+  for (i in 1:perms){
+    setTxtProgressBar(pb, i)
+    gene_set <- random.geneList.ens[[i]]
+    gene_set <- gene_set[!is.na(gene_set)] # remove NAs
+    lista <- lapply(TPMs.tissues.rank.matrix, function(tissue){
+      tis <- tissue
+      df2 <- tis[match(gene_set, rownames(tis)), ]
+      df3 <- apply(df2[,-c(1:2)], 1, function(x){sum(x, na.rm=TRUE)})
+    })
+    geneset.list.test.ens[[i]] <- lista
+  }
+  close(pb)
+  
+  geneset.list.test.ens <- lapply(geneset.list.test.ens, function(x)ldply(x))
+  geneset.list.test.ens.sum <- lapply(geneset.list.test.ens, function(x) apply(x[,-1], 1, sum) )
+  
+  geneset.true <- lapply(TPMs.tissues.rank.matrix, function(tissue){
+    tis <- tissue
+    data <- tis[match(geneset_ens, rownames(tis)), ]
+    data <- apply(data[,-c(1:2)], 1, sum)
+  })
+  
+  geneset.true.sum <- lapply(geneset.true, function(x){sum(x, na.rm=T)})
+  
+  res.lista = list()
+  
+  for (i in 1:54){
+    perm.value = c()
+    for (j in 1:perms){
+      perm = geneset.list.test.ens.sum[[j]][i]
+      perm.value = c(perm.value, perm)
+    }
+    res.lista[[i]] = perm.value
+  }
+  
+  names(res.lista) = names(geneset.true)
+  zim <- data.frame(tissue = names(geneset.true), perm.pvalue = -9, count = -9, log_pval = -9)
+  for ( i in 1:length(res.lista)){
+    zim[i,2] <- (sum(res.lista[[i]] <= geneset.true.sum[[i]])+1)/(length(res.lista[[i]])+1)
+    zim[i,3] <- (sum(geneset.true.sum[[i]] >=res.lista[[i]])+1)
+    zim[i,4] <- -log10(zim[i,2])
+  }
+  zim <- zim[order(zim$log_pval, decreasing = TRUE),]
+  #ht(zim)
+  return(zim)
 }
 
 build_plot_df <- function(islet.genes,muscle.genes,
@@ -199,16 +188,16 @@ plot_enrich <- function(plot.df){
 
 
 
-```
 
 
 
 
 
-Get co-expression enrichments enrichments 
+
+#Get co-expression enrichments enrichments 
 
 
-```{r}
+
 
 work.dir2 <- proj.dir %&% "method_C/"
 cred.df <- fread(work.dir2 %&% "genetic_credible_sets/gencred.txt")
@@ -222,9 +211,9 @@ append_condid <- function(class.df){
 }
 
 unweighted.df <- fread(work.dir2 %&% "analysis_files/" %&% 
-                     "classified-loci_unweighted.txt") %>% append_condid(.)
+                         "classified-loci_unweighted.txt") %>% append_condid(.)
 weighted.df <- fread(work.dir2 %&% "analysis_files/" %&% 
-                     "classified-loci_weighted.txt") %>% append_condid(.)
+                       "classified-loci_weighted.txt") %>% append_condid(.)
 
 unweighted.df$assigned_00 <- gsub("other","unclassified",unweighted.df$assigned_00)
 unweighted.df$assigned_20 <- gsub("other","unclassified",unweighted.df$assigned_20)
@@ -236,10 +225,10 @@ weighted.df$assigned_20 <- gsub("other","unclassified",weighted.df$assigned_20)
 weighted.df$assigned_50 <- gsub("other","unclassified",weighted.df$assigned_50)
 weighted.df$assigned_80 <- gsub("other","unclassified",weighted.df$assigned_80)
 
-```
 
 
-```{r}
+
+
 
 build_complete_df <- function(group.df,iter){
   thresh.vec <- c(0,0.2,0.5,0.8)
@@ -257,7 +246,7 @@ build_complete_df <- function(group.df,iter){
     liver.genes <- filter(sub,assigned=="liver")$symbol %>% unique(.)
     adipose.genes <- filter(sub,assigned=="adipose")$symbol %>% unique(.) 
     plot.df <- build_plot_df(islet.genes,muscle.genes,
-                         liver.genes,adipose.genes,iter)
+                             liver.genes,adipose.genes,iter)
     plot.df$threshold <- t
     out.df <- rbind(out.df,plot.df)
   }
@@ -266,26 +255,19 @@ build_complete_df <- function(group.df,iter){
 
 
 #plt1 <- plot_enrich(plot.df)
-```
 
 
-```{r}
-
-df1 <- build_complete_df(unweighted.df,iter=10000)
-df2 <- build_complete_df(weighted.df,iter=10000)
-
-write.table(x=df1,file=work.dir2%&%"analysis_files/coexpress-enrich_unweighted.txt",
-            sep="\t",row.names=F,quote=F)
-write.table(x=df2,file=work.dir2%&%"analysis_files/coexpress-enrich_weighted.txt",
-            sep="\t",row.names=F,quote=F)
 
 
-```
 
+#df1 <- build_complete_df(unweighted.df,iter=10000)
+#df2 <- build_complete_df(weighted.df,iter=10000)
 
-Only restrict to loci without coding signals 
+#write.table(x=df1,file=work.dir2%&%"analysis_files/coexpress-enrich_unweighted.txt",
+#            sep="\t",row.names=F,quote=F)
+#write.table(x=df2,file=work.dir2%&%"analysis_files/coexpress-enrich_weighted.txt",
+#            sep="\t",row.names=F,quote=F)
 
-```{r}
 
 annot.prof.df <- fread(proj.dir %&% "method_C/analysis_files/annotation-divvy-weighted-unscaled.txt")
 
@@ -299,11 +281,11 @@ zero.vec <- filter(annot.prof.df,coding==0)$Locus.ID %>% unique(.)
 p10.vec <- filter(annot.prof.df,coding<=0.1)$Locus.ID %>% unique(.)
 
 ##df3 <- build_complete_df(filter(unweighted.df,Locus.ID %in% zero.vec),iter=10000)
-df3 <- build_complete_df(filter(weighted.df,Locus.ID %in% zero.vec),iter=10000)
+#df3 <- build_complete_df(filter(weighted.df,Locus.ID %in% zero.vec),iter=10000)
 ##write.table(x=df3,file=work.dir2%&%"analysis_files/coexpress-enrich_unweighted_noCoding.txt",
 ##            sep="\t",row.names=F,quote=F)
-write.table(x=df3,file=work.dir2%&%"analysis_files/coexpress-enrich_weighted_noCoding.txt",
-            sep="\t",row.names=F,quote=F)
+#write.table(x=df3,file=work.dir2%&%"analysis_files/coexpress-enrich_weighted_noCoding.txt",
+#            sep="\t",row.names=F,quote=F)
 
 
 df4 <- build_complete_df(filter(weighted.df,Locus.ID %in% p10.vec),iter=10000)
@@ -311,6 +293,11 @@ write.table(x=df4,file=work.dir2%&%"analysis_files/coexpress-enrich_weighted_p10
             sep="\t",row.names=F,quote=F)
 
 
-```
+
+
+
+
+
+
 
 
