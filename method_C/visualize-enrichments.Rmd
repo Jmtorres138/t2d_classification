@@ -70,9 +70,9 @@ unweighted.df <- fread(work.dir %&% "analysis_files/eqtl-specific-validation_unw
 weighted.df <- fread(work.dir %&% "analysis_files/eqtl-specific-validation_weighted.txt")
 
 plt1 <- eqtl_enrich_plot(unweighted.df,myname="eQTL enrichment for classifed loci (unweighted)")
-ggsave(plot=plt1,filename = plot.dir %&% "enrichment-eqtl-specific_unweighted.png",width=7,height=4)
+ggsave(plot=plt1,filename = plot.dir %&% "enrichment-eqtl-specific_unweighted.png",width=12,height=12)
 plt2 <- eqtl_enrich_plot(weighted.df,myname="eQTL enrichment for classifed loci (weighted)")
-ggsave(plot=plt2,filename = plot.dir %&% "enrichment-eqtl-specific_weighted.png",width=7,height=4)
+ggsave(plot=plt2,filename = plot.dir %&% "enrichment-eqtl-specific_weighted.png",width=12,height=12)
 
 ```
 
