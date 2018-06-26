@@ -1,0 +1,171 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+
+serv.dir <- "/home/jason/science/servers/FUSE5/"
+#serv.dir <- "/Users/jtorres/FUSE5/"
+
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "method_C/"
+
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+
+work2.dir <- "/home/jason/science/projects/t2d_classification/method_C/"
+df1 <- fread(work2.dir %&% "analysis_files/classified-loci_unweighted_renamed.txt")
+df2 <- fread(work2.dir %&% "analysis_files/classified-loci_weighted_renamed.txt")
+
+
+coloc.dir <- serv.dir %&% "datasets/diamante_hrc/eCAVIAR/"
+coloc.islet <- fread("cat " %&% coloc.dir %&% "EUR_full_eqtls_coloc.txt.gz" %&% " | zmore")
+coloc.islet$Tissue <- "Islet"
+coloc.gtex <- fread("cat " %&% coloc.dir %&% "EUR_significant_eqtls_coloc.txt.gz" %&% " | zmore")
+
+sub1 <- dplyr::select(coloc.islet,one_of("Locus","SNP_ID","Tissue",
+                                         "Gene","gene_name","gwas_z",
+                                         "eqtl_z","CLPP"))
+sub2 <- dplyr::select(coloc.gtex,one_of("Locus","SNP_ID","Tissue",
+                                         "Gene","gene_name","gwas_z",
+                                         "eqtl_z","CLPP"))
+coloc.df <- rbind(sub1,sub2)
+
+
+write.dir <- "/home/jason/science/projects/t2d_classification/method_C/analysis_files/"
+
+```
+
+
+
+
+```{r}
+
+get_sig_egene_list <- function(loc,tiss,clpp.thresh=0.05){
+  sub <- filter(coloc.df,Locus==loc,Tissue==tiss, CLPP>=clpp.thresh) %>% 
+    group_by(.,gene_name)  %>% arrange(.,desc(CLPP))
+  ##%>% summarise(.,clpp.sum=sum(CLPP)) %>% arrange(.,desc(clpp.sum)) %>% filter(.,clpp.sum>=clpp.thresh)
+  gene <- sub$gene_name[1] #%>% paste0(.,collapse=",") # NOW JUST GET TOP RESULT PER LOCUS
+  clpp <- sub$CLPP[1] # NOW JUST GET TOP RESULT PER LOCUS
+  #clpp.sum <- sub$clpp.sum %>% round(.,digits=3) %>% paste0(.,collapse=",")
+  return(list(gene,clpp))
+}
+
+append_coloc_df <- function(toa.df){
+  pb <- txtProgressBar(min=0,max=dim(toa.df)[1],style=3)
+  out.df <- c()
+  for (i in 1:dim(toa.df)[1]){
+    setTxtProgressBar(pb,i)
+    loc <- toa.df$Locus.ID[i]
+    isl <- get_sig_egene_list(loc,"Islet")
+    mus <- get_sig_egene_list(loc,"Muscle_Skeletal")
+    adi <- get_sig_egene_list(loc,"Adipose_Subcutaneous")
+    liv <- get_sig_egene_list(loc,"Liver")
+    build.df <- data.frame("islet eGene"=isl[[1]],"islet CLPP"=isl[[2]],
+                           "muscle eGene"=mus[[1]],"muscle CLPP"=mus[[2]],
+                           "adipose eGene"=adi[[1]],"adipose CLPP"=adi[[2]],
+                           "liver eGene"=liv[[1]],"liver CLPP"=liv[[2]],
+                           stringsAsFactors = FALSE)
+    out.df <- rbind(out.df,build.df)
+  }
+  return(cbind(toa.df,out.df))
+}
+
+
+ 
+```
+
+
+
+```{r}
+
+unw.df <- append_coloc_df(df1)
+write.table(x=unw.df,file=write.dir%&%"toa-scores_eGenes_unweighted.txt",
+            sep="\t",quote=FALSE,row.names=FALSE)
+w.df <- append_coloc_df(df2)
+write.table(x=w.df,file=write.dir%&%"toa-scores_eGenes_weighted.txt",
+            sep="\t",quote=FALSE,row.names=FALSE)
+
+```
+
+
+```{r}
+
+a.df <- fread(work.dir %&% "analysis_files/annotation-divvy-weighted-unscaled.txt")
+
+```
+
+
+```{r}
+
+get_candidate_df <- function(df,colname="assigned_20"){
+  # df must be appended toa df with colocalisation results 
+  out.df <- c()
+  pb <- txtProgressBar(min=0,max=dim(df)[1],style=3)
+  for (i in 1:dim(df)[1]){
+    setTxtProgressBar(pb,i)
+    sub <- df[i,]
+    loc <- df$Locus.ID[i]
+    coding <- filter(a.df,Locus.ID==loc) %>% dplyr::select(.,contains("coding")) %>%
+      as.numeric(.) %>% sum(.)
+    tiss <- dplyr::select(sub,one_of(colname)) %>% as.character(.)
+    if (tiss!="unclassified"&tiss!="other"){
+      vec <- c(tiss%&%".eGene",tiss%&%".CLPP")
+      eGene <- dplyr::select(sub,one_of(vec[1],vec[2]))[,1] %>% as.character(.)
+      CLPP <- dplyr::select(sub,one_of(vec[1],vec[2]))[,2] %>% as.numeric(.)
+    } else{
+      eGene <- NA
+      CLPP <- NA
+    }
+    build1 <- dplyr::select(sub,one_of("Locus.ID","islet","muscle","adipose","liver","other",colname,"symbol"))
+    build2 <- data.frame(eGene,CLPP,coding,stringsAsFactors = FALSE)
+    build.df <- cbind(build1,build2)
+    out.df <- rbind(out.df,build.df)
+  }
+  out.df <- arrange(out.df,desc(CLPP))
+  return(out.df)
+}
+  
+
+```
+
+
+```{r}
+
+candw.df <- get_candidate_df(w.df) # 64 with eGenes, includes CCND2 and CAMK1D, not in unweighted
+candu.df <- get_candidate_df(unw.df) # 56 with eGenes, includes ST6GAL1 and IRS2 not in weighted
+
+
+```
+
+
+```{r}
+
+filter(candu.df,symbol=="ST6GAL1") # this is an example of an edge case where islet/liver scores are very similar and only differ slightly between weighted and unweighted but enough to alter classification; and tissue for colocalisation
+filter(candw.df,symbol=="ST6GAL1") # 
+
+```
+
+
+```{r}
+
+keep.vec <- (na.omit(candw.df))$Locus.ID
+candw.df$coloc <- candw.df$Locus.ID %in% keep.vec
+
+ggplot(data=candw.df,aes(x=coloc,y=coding)) + geom_boxplot()
+
+candw.df %>% group_by(.,coloc) %>% summarise(mean(coding))
+
+```
+
