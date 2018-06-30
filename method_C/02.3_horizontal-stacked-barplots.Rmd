@@ -157,6 +157,17 @@ keep.loci <- filter(df,snpcount<=100)$Locus.ID %>% unique(.)
 ```
 
 
+Lookup loci with max PPA >= 0.50 
+
+
+```{r}
+
+df <- fread(analysis.dir %&% "maxppa.txt")
+keep.vec <- filter(df,max.ppa >= 0.50)$Locus.ID %>% unique(.)
+
+```
+
+
 
 ```{r}
 
@@ -172,6 +183,13 @@ ggsave(plot=grob3,filename=plot.dir%&%"stacked_barplots_snpcount100-weighted.png
 
 grob4 <- all_tissues_plot(filter(unweighted.df,Locus.ID%in%keep.loci),number=50)
 ggsave(plot=grob4,filename=plot.dir%&%"stacked_barplots_snpcount100-unweighted.png",width=27,height=12)
+
+
+grob5 <- all_tissues_plot(filter(weighted.df,Locus.ID%in%keep.vec),number=30)
+ggsave(plot=grob5,filename=plot.dir%&%"stacked_barplots_maxppa50-weighted.png",width=27,height=12)
+
+grob6 <- all_tissues_plot(filter(unweighted.df,Locus.ID%in%keep.vec),number=30)
+ggsave(plot=grob6,filename=plot.dir%&%"stacked_barplots_maxppa50-unweighted.png",width=27,height=12)
 
 
 ```
