@@ -387,3 +387,109 @@ ggsave(plot=pruneB.plt.un,filename=plot.dir%&%
 
 ```
 
+
+
+# Filtering based on max PPA values 
+
+
+```{r}
+
+str(weighted.df)
+
+ids <- unique(cred.df$CondID)
+max.ppa <- map(1:length(ids),function(i){
+  loc <- ids[i]
+  max.ppa <- (filter(cred.df,CondID==loc) %>% arrange(.,desc(PPA)))$PPA[1]
+}) %>% as.numeric(.)
+snpcount <- map(1:length(ids),function(i){
+  loc <- ids[i]
+  count <- dim(filter(cred.df,CondID==loc))[1]
+}) %>% as.numeric(.)
+symbol <- map(1:length(ids),function(i){
+  loc <- ids[i]
+  count <- filter(cred.df,CondID==loc)$symbol %>% unique(.)
+}) %>% as.character(.)
+
+maxppa.df <- data.frame(ids,symbol,snpcount,max.ppa,stringsAsFactors = FALSE) %>% arrange(.,desc(max.ppa),symbol)
+names(maxppa.df) <- c("Locus.ID","symbol","snp.count","max.ppa")
+
+write.table(x=maxppa.df,file=analysis.dir%&%"maxppa.txt",sep="\t",quote=F,row.names=F)
+
+
+keep.vec <- filter(maxppa.df,max.ppa>=0.50)$Locus.ID %>% unique(.)
+
+```
+
+
+```{r}
+
+pca.list.weighted.pruned <- make_pca_inputs(filter(weighted.df,
+  Locus.ID %in% keep.vec),centerScale=FALSE)
+pA <- complete_pca(filter(weighted.df,
+  Locus.ID %in% keep.vec),centerScale=FALSE)
+pca.list.unweighted.pruned <-  make_pca_inputs(filter(weighted.df,
+  Locus.ID %in% keep.vec),centerScale=FALSE) 
+pB <- complete_pca(filter(weighted.df,
+  Locus.ID %in% keep.vec),centerScale=FALSE)
+# Manual save 
+# Save dimensions W=1300,H=600 
+# pca_weigthed_maxppa50.png
+# pca_unweigthed_maxppa50.png
+
+
+pca.list.weighted.pruned <- make_pca_inputs(filter(weighted.df,
+  Locus.ID %in% keep.vec, other<=0.10),centerScale=FALSE)
+pA <- complete_pca(filter(weighted.df,
+  Locus.ID %in% keep.vec, other<=0.10),centerScale=FALSE)
+pca.list.unweighted.pruned <-  make_pca_inputs(filter(unweighted.df,
+  Locus.ID %in% keep.vec, other<=0.10),centerScale=FALSE) 
+pB <- complete_pca(filter(unweighted.df,
+  Locus.ID %in% keep.vec, other<=0.10),centerScale=FALSE)
+# Manual save 
+# Save dimensions W=1300,H=600 
+# pca_weigthed_maxppa50-other10.png
+# pca_unweigthed_maxppa50-other10.png
+
+
+```
+
+
+
+
+Locus Weighted 
+
+```{r}
+
+
+pruneA.plt <- pca_plot_annotated(pca.list.weighted.pruned[[1]],
+                   pca.list.weighted.pruned[[2]],"PC1","PC2")
+pruneB.plt <- pca_plot_annotated(pca.list.weighted.pruned[[1]],
+                   pca.list.weighted.pruned[[2]],"PC2","PC3")
+ggsave(plot=pruneA.plt,
+       filename=plot.dir%&%"pca_weighted_maxppa50-other10-pc1-pc2.png",
+       height=6,width=6)
+ggsave(plot=pruneB.plt,
+       filename=plot.dir%&%"pca_weighted_maxppa50-other10-pc2-pc3.png",
+       height=6,width=6)
+
+
+
+```
+
+
+Locus Unweighted 
+
+```{r}
+
+pruneA.plt <- pca_plot_annotated(pca.list.unweighted.pruned[[1]],
+                   pca.list.unweighted.pruned[[2]],"PC1","PC2")
+pruneB.plt <- pca_plot_annotated(pca.list.unweighted.pruned[[1]],
+                   pca.list.unweighted.pruned[[2]],"PC2","PC3")
+ggsave(plot=pruneA.plt,
+       filename=plot.dir%&%"pca_unweigthed_maxppa50-other10-pc1-pc2.png",
+       height=6,width=6)
+ggsave(plot=pruneB.plt,
+       filename=plot.dir%&%"pca_unweigthed_maxppa50-other10-pc2-pc3.png",
+       height=6,width=6)
+
+```
