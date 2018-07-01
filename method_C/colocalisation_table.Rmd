@@ -388,6 +388,7 @@ ggsave(plot=grob2b,filename=plot.dir %&%
 
 
 
+
 # Stringent thresholds 
 
 
@@ -494,19 +495,102 @@ make_table_plot_filtered <- function(cand.df){
 
 ```{r}
 
-s1 <- filter(candw.df,snpcount<=10,maxppa>=0.5) %>% arrange(.,desc(maxppa))
-s2 <- filter(candu.df,snpcount<=10,maxppa>=0.5) %>% arrange(.,desc(maxppa))
+s1 <- filter(candw.df,maxppa>=0.5) %>% arrange(.,desc(maxppa))
+s2 <- filter(candu.df,maxppa>=0.5) %>% arrange(.,desc(maxppa))
 
 
 grob3 <- make_table_plot_filtered(s1)
 ggsave(plot=grob3,filename=plot.dir %&%
-         "filtered-table_weighted_all.png",height=20,width=20)
+         "filtered-table_weighted_maxppa50.png",height=20,width=20)
 grob3b <- make_table_plot_filtered(s2)
 ggsave(plot=grob3b,filename=plot.dir %&%
-         "filtered-table_unweighted_all.png",height=20,width=20)
+         "filtered-table_unweighted_maxppa50.png",height=20,width=20)
 
 ```
 
+
+
+# Profile for loci that have closely matching contributions from multiple tissues 
+
+
+```{r}
+
+
+append_matching_info <- function(s.df,limit=0.10){
+  t.vec <- c("islet","muscle","liver","adipose")
+  match.vec <- c()
+  secondary.tissue <- c()
+  secondary.eGene <- c()
+  secondary.CLPP <- c() 
+  pb <- txtProgressBar(min=0,max=dim(s.df)[1],style=3)
+  for (i in 1:dim(s.df)[1]){
+    setTxtProgressBar(pb,i)
+    sub <- s.df[i,]
+    eval <- sub$maxsnpcoloc
+    if (eval==FALSE){
+      s.df$eGene[i] <- NA; s.df$CLPP[i] <- NA
+    }
+    tiss <- sub$assigned_20
+    max <- dplyr::select(sub,one_of(tiss)) %>% as.numeric(.)
+    vec <- t.vec[t.vec != tiss]
+    secsub <- dplyr::select(sub,one_of(vec)) %>% as.vector(.) %>% sort(.,decreasing = TRUE)
+    # named vector 
+    sec <-  secsub[1] %>% as.numeric(.); sec.tiss <- names(secsub)[1]
+    matched <- (max - sec) <= limit
+    match.vec <- append(match.vec,matched)
+    secondary.tissue <- append(secondary.tissue,ifelse(matched==TRUE,sec.tiss,NA))
+    if (matched==TRUE){
+      # lookup max ppa SNP 
+      maxsnp <- (filter(cred.df,CondID==sub$Locus.ID) %>% arrange(.,desc(PPA)))$SNPID[1]
+      lookup <- gsub("chr","",maxsnp) %>% gsub(":","_",.)
+      t <- ifelse(sec.tiss=="adipose","Adipose_Subcutaneous",
+              ifelse(sec.tiss=="muscle","Muscle_Skeletal",
+                     ifelse(sec.tiss=="islet","Islet",
+                            ifelse(sec.tiss=="liver","Liver",NA))))
+      filt.df <- filter(coloc.df,SNP_ID==lookup,Locus==sub$Locus.ID,Tissue==t,CLPP>0) %>% arrange(.,desc(CLPP))
+      # lookup eGENE/CLPP in secondary tissue 
+      if (dim(filt.df)[1]>0){
+        secondary.eGene <- append(secondary.eGene,filt.df$gene_name[1])
+        secondary.CLPP <- append(secondary.CLPP,filt.df$CLPP[1])        
+      } else{
+        secondary.eGene <- append(secondary.eGene,NA)
+        secondary.CLPP <- append(secondary.CLPP,NA)
+      }
+    } else{
+      secondary.eGene <- append(secondary.eGene,NA); append(secondary.CLPP,NA)
+    }
+  }
+  s.df$mixed.locus <- match.vec
+  s.df$secondary.tissue <- secondary.tissue
+  s.df$secondary.eGene <- secondary.eGene
+  s.df$secondary.CLPP <- secondary.eGene
+  s.df <- dplyr::select(s.df,one_of("Locus.ID","symbol","maxppa","snpcount","coding",
+                                    "islet","muscle","adipose","liver","other",
+                                    "assigned_20","eGene","CLPP",
+                                    "mixed.locus",
+                                    "secondary.tissue","secondary.eGene","secondary.CLPP")) %>% 
+    arrange(.,desc(maxppa),desc(coding))
+  s.df$eGene[is.na(s.df$eGene)] <- "";  s.df$CLPP[is.na(s.df$CLPP)] <- ""
+  s.df$secondary.tissue[is.na(s.df$secondary.tissue)] <- ""
+  s.df$secondary.CLPP[is.na(s.df$secondary.CLPP)] <- ""
+  s.df$secondary.eGene[is.na(s.df$secondary.eGene)] <- ""
+  return(s.df)
+}
+
+```
+
+
+```{r}
+
+s1.df <- append_matching_info(s1)
+s2.df <- append_matching_info(s2)
+
+write.table(x=s1.df,file=work.dir%&%"analysis_files/results-maxppa50_weighted.txt",
+            sep="\t",quote=F,row.names=F)
+write.table(x=s1.df,file=work.dir%&%"analysis_files/results-maxppa50_unweighted.txt",
+            sep="\t",quote=F,row.names=F)
+
+```
 
 
 
@@ -548,29 +632,4 @@ write.table(x=bdg.df,write.dir %&% "gencred.bdg",sep="\t",quote=F,
 
 ```
 
-
-# additional checks
- 
- 
-```{r}
-
-
-s <- filter(coloc.df,Locus=="70_4",gene_name=="SETD9",Tissue=="Islet") %>% arrange(.,desc(CLPP))
-id <- "chr5:56238811"
-filter(cred.df,CondID=="70_4",SNPID==id)$PPA # PPA
-
-"chr5:56196604"
-"chr5:56206529"
-
-s2 <- filter(coloc.df,Locus=="70_4",gene_name=="SETD9") %>% arrange(.,desc(CLPP))
-View(s2)
-
-id2 <- "chr5:56205643"
-filter(cred.df,CondID=="70_4",SNPID==id2)$PPA
-
-#chr5:56196604
-
-s3 <- filter(coloc.df,Locus=="70_4",SNP_ID=="5_56196604")%>% arrange(.,desc(CLPP))
-
-``` 
 

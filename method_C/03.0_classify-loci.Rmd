@@ -94,7 +94,8 @@ make_bed_df <- function(prebed,tname){
   return(out.df)
 }
 
-save_classifed_snp_bedfiles <- function(class.df,type.name="unweighted"){
+save_classifed_snp_bedfiles <- function(class.df,cred.df,type.name="unweighted"){
+  cred.df <- filter(cred.df,PPA>=0.01)
   df <- filter(cred.df,Locus.ID %in% (filter(class.df,assigned_20=="islet")$Locus.ID)) %>% make_bed_df(.,"islet")
   write.table(df,file=enrich.dir %&% type.name %&% "/" %&%type.name%&%"_islet_"%&%"thresh20.txt",sep="\t",quote=F,row.names=F,col.names=F)
   df <- filter(cred.df,Locus.ID %in% (filter(class.df,assigned_20=="adipose")$Locus.ID))  %>% make_bed_df(.,"adipose")
@@ -147,11 +148,11 @@ df2 <- build_classify_df(weighted.df)
 
 write.table(x=df1,file=analysis.dir%&%"classified-loci_unweighted.txt",
             sep="\t",quote=F,row.names=FALSE,col.names=TRUE)
-save_classifed_snp_bedfiles(df1,type.name="unweighted")
+save_classifed_snp_bedfiles(df1,cred.df,type.name="unweighted")
 
 write.table(x=df2,file=analysis.dir%&%"classified-loci_weighted.txt",
             sep="\t",quote=F,row.names=FALSE,col.names=TRUE)
-save_classifed_snp_bedfiles(df2,type.name="weighted")
+save_classifed_snp_bedfiles(df2,cred.df,type.name="weighted")
 
 #write.table(x=df3,file=analysis.dir%&%"classified-loci_alternative.txt",
 #            sep="\t",quote=F,row.names=FALSE,col.names=TRUE)
