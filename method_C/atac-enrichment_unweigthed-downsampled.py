@@ -87,11 +87,11 @@ def run_enrichments(file_list,out_file):
 	fout.close()
 
 def main():
-	print "weighted: thresh00"
+	print "unweighted: thresh00"
 	run_enrichments(file_list=["unweighted_islet_thresh00.txt",
-		"weighted_liver_thresh00.txt","weighted_adipose_thresh00.txt",
-		"weighted_muscle_thresh00.txt"],
-		out_file=out_dir+"downsample_atac-enrichment_weighted_thresh00.txt")
+		"unweighted_liver_thresh00.txt","unweighted_adipose_thresh00.txt",
+		"unweighted_muscle_thresh00.txt"],
+		out_file=out_dir+"downsample_atac-enrichment_unweighted_thresh00.txt")
 	print "unweighted: thresh20"
 	run_enrichments(file_list=["unweighted_islet_thresh20.txt",
 		"unweighted_liver_thresh20.txt","unweighted_adipose_thresh20.txt",
