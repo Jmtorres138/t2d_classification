@@ -590,6 +590,9 @@ write.table(x=s1.df,file=work.dir%&%"analysis_files/results-maxppa50_weighted.tx
 write.table(x=s1.df,file=work.dir%&%"analysis_files/results-maxppa50_unweighted.txt",
             sep="\t",quote=F,row.names=F)
 
+# rs78408340; p.S539W; --> Defective expression; 76_2 
+PLIN1
+
 ```
 
 
