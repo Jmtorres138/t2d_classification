@@ -1,0 +1,104 @@
+---
+title: "heterogeneity-profile.Rmd"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+
+
+work.dir <- "/home/jason/science/projects/t2d_classification/method_C/"
+
+df <- fread(work.dir %&% "analysis_files/Tissue-of-action_scores-results-maxppa50_weighted.csv")
+
+
+```
+
+
+build heterogeneity df 
+
+```{r}
+
+build_het_list <- function(df){
+  loc.vec <- map(df$Locus.ID,function(s){
+    strsplit(x=s,split="_")[[1]][1]
+  }) %>% as.character(.) %>% unique(.)
+  l <- list()
+  for (i in 1:length(loc.vec)){
+    loc <- loc.vec[i]
+    vec <- df$Locus.ID[str_detect(df$Locus.ID, "^"%&%loc%&%"_")]
+    l[[i]] <- vec
+  }
+  sub.list <- c()
+  count <- 1 
+  for (i in 1:length(l)){
+    vec <- l[[i]]
+    if (length(vec)>1){
+      sub.list[[count]] <- vec
+      count <- count+1
+    }
+  }
+  return(sub.list)
+}
+
+
+make_plot_df <- function(subdf){
+  out.df <- c()
+  for (i in 1:dim(subdf)[1]){
+    sub <- subdf[i,]
+    tissue <- c("islet","muscle","adipose","liver","other")
+    value <- dplyr::select(sub,one_of(tissue)) %>% as.numeric(.)
+    build.df <- data.frame(Locus.ID = sub$Locus.ID, symbol=sub$symbol, 
+               maxppa=sub$maxppa, snpcount=sub$snpcount,
+               coding=sub$coding,tissue, value)
+    out.df <- rbind(out.df,build.df)
+  }
+  return(out.df)
+}
+
+```
+
+
+
+```{r}
+
+library("RColorBrewer")
+cv <- brewer.pal(5,"Set3")
+mycols <- c(cv[2],cv[1],"brown",cv[4],"grey")
+
+sub.list <- build_het_list(df)
+
+vec <- sub.list[[1]]
+
+make_plot <- function(df,vec){
+  sub.df <- filter(df,Locus.ID %in% vec)
+  plot.df <- sub.df %>% make_plot_df(.)
+
+  plt <- ggplot(data=plot.df,aes(x=Locus.ID,fill=tissue,y=value)) + 
+    geom_bar(stat="identity",color="black",position = "dodge") +
+    scale_fill_manual(values=c(mycols)) + 
+    theme_bw() + xlab(unique(sub.df$symbol)) + ylab("TOA Score") + ylim(c(0,1))  
+  
+  return(plt)
+}
+```
+
+
+
+```{r}
+
+p <- make_plot(df,sub.list[[2]])
+
+```
+
+
