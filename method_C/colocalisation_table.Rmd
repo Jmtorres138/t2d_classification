@@ -25,8 +25,8 @@ work.dir <- proj.dir %&% "method_C/"
 cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
 
 work2.dir <- "/home/jason/science/projects/t2d_classification/method_C/"
-df1 <- fread(work2.dir %&% "analysis_files/classified-loci_unweighted_renamed.txt")
-df2 <- fread(work2.dir %&% "analysis_files/classified-loci_weighted_renamed.txt")
+df1 <- fread(work.dir %&% "analysis_files/classified-loci_unweighted_renamed.txt")
+df2 <- fread(work.dir %&% "analysis_files/classified-loci_weighted_renamed.txt")
 
 
 coloc.dir <- serv.dir %&% "datasets/diamante_hrc/eCAVIAR/"
@@ -438,6 +438,7 @@ candu.df$maxsnpcoloc  <- map(1:dim(candu.df)[1],function(i){
 
 
 make_table_plot_filtered <- function(cand.df){
+  
   full.df <- filter(cand.df) %>% arrange(.,desc(coding),desc(maxppa))
   full.df$eGene[is.na(full.df$eGene)] <- ""
   full.df$CLPP[is.na(full.df$CLPP)] <- ""
@@ -596,6 +597,87 @@ write.table(x=s1.df,file=work.dir%&%"analysis_files/results-maxppa50_unweighted.
 ```
 
 
+
+
+```{r}
+
+make_table_plot_filtered_v2 <- function(cand.df){
+  
+  full.df <- filter(cand.df) %>% arrange(.,desc(maxppa))
+  full.df$eGene[is.na(full.df$eGene)] <- ""
+  full.df$CLPP[is.na(full.df$CLPP)] <- ""
+  plot.df <- dplyr::select(full.df,
+                           one_of("Locus.ID","snpcount","maxppa","coding","islet","liver","adipose",
+                                  "muscle","other","assigned_20",
+                                  "symbol","eGene","CLPP"))
+  names(plot.df) <- c("Signal","Num.SNPs","Max.PPA","coding","islet","liver","adipose","muscle",
+                           "other","assigned","Locus","eGene","CLPP")
+  plot.df$coding <- prettyNum(plot.df$coding,digits=2)
+  plot.df$islet <- prettyNum(plot.df$islet,digits=2)
+  plot.df$liver <- prettyNum(plot.df$liver,digits=2)
+  plot.df$muscle <- prettyNum(plot.df$muscle,digits=2)
+  plot.df$adipose <- prettyNum(plot.df$adipose,digits=2)
+  plot.df$other <- prettyNum(plot.df$other,digits=2)
+  plot.df$CLPP<- prettyNum(plot.df$CLPP,digits=2)
+  mytheme <- gridExtra::ttheme_default(
+    core = list(fg_params=list(cex = 0.7),
+    bg_params=list(fill="ghostwhite",alpha=0.3,
+                   col="black")),
+    colhead = list(fg_params=list(cex = 0.9),
+    bg_params=list(alpha=0.30,col="black")),
+    rowhead = list(fg_params=list(cex = 0))) 
+  
+  tabgrob <- tableGrob(plot.df,
+                      theme=mytheme) 
+  tabgrob <- edit_cell(tabgrob, row=1:dim(plot.df)[1], 
+                       col=11:12, "core-fg", 
+                 gp=gpar(fontface="italic"))  
+  tabgrob <- edit_cell(tabgrob,
+                    row=(1:dim(plot.df)[1])[plot.df$assigned=="adipose"],
+                    col=1:dim(plot.df)[2],
+                   "core-bg", gp=gpar(fill="#FFFFB3"))
+  tabgrob <- edit_cell(tabgrob,
+                    row=(1:dim(plot.df)[1])[plot.df$assigned=="liver"],
+                    col=1:dim(plot.df)[2],
+                   "core-bg", gp=gpar(fill="brown"))
+  tabgrob <- edit_cell(tabgrob,
+                    row=(1:dim(plot.df)[1])[plot.df$assigned=="islet"],
+                    col=1:dim(plot.df)[2],
+                   "core-bg", gp=gpar(fill="#8DD3C7"))
+  tabgrob <- edit_cell(tabgrob,
+                    row=(1:dim(plot.df)[1])[plot.df$assigned=="muscle"],
+                    col=1:dim(plot.df)[2],
+                   "core-bg", gp=gpar(fill="#FB8072"))
+  tabgrob <- edit_cell(tabgrob,
+                row=(1:dim(plot.df)[1])[full.df$maxsnpcoloc==TRUE],
+                col=12:13,"core-fg", gp=gpar(fontface="bold"))
+  
+  return(tabgrob)
+}
+
+
+```
+
+
+```{r}
+
+grobA <- make_table_plot_filtered_v2(arrange(s1,desc(coding))[1:10,])
+ggsave(plot=grobA,filename=plot.dir %&%
+         "filtered-table_weighted_maxppa50_top10coding.png",height=10,width=10)
+grobB <- make_table_plot_filtered_v2(filter(s1,coding==0,coloc==TRUE,maxsnpcoloc==TRUE))
+ggsave(plot=grobB,filename=plot.dir %&%
+         "filtered-table_weighted_maxppa50_top10coloc.png",height=10,width=10)
+```
+
+
+```{r}
+table(w.df$assigned_20)
+(table(w.df$assigned_20) %>% as.vector(.)) / sum(table(w.df$assigned_20) %>% as.vector(.))
+
+table(s1.df$assigned_20)
+(table(s1.df$assigned_20) %>% as.vector(.)) / sum(table(s1.df$assigned_20) %>% as.vector(.))
+
+```
 
 
 
