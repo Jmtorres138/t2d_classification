@@ -18,6 +18,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library("tidyverse")
 library("data.table")
 library("Homo.sapiens")
+library("RColorBrewer")
 
 #serv.dir <- "/Users/jtorres/FUSE5/"
 serv.dir <- "/home/jason/science/servers/FUSE5/"
@@ -124,6 +125,75 @@ pltC <- ggplot(data=plot.df,aes(x=ppa.score.diff)) +
 
 ggsave(plot=pltC,filename=plot.dir%&%"ppa-score-difference.png",
        height = 4,width=4.5)
+
+
+```
+
+# Top gene plot
+
+```{r}
+
+get_biggest_diffs <- function(n=3){
+  out.df <-c()
+  for (t in unique(plot.df$tissue)){
+    sub <- filter(plot.df,tissue==t) %>% arrange(desc(ppa.score.diff))
+    a <- sub[1:n,]
+    b <- arrange(sub,ppa.score.diff)[1:n,]
+    build <- rbind(a,b)
+    out.df <- rbind(out.df,build)
+  }
+  out.df <- filter(out.df, abs(ppa.score.diff)>=0.10)
+  return(out.df)
+}
+
+
+```
+
+
+```{r}
+
+
+symbol <- map(plot.df$Locus.ID,function(loc.id){
+  filter(cred.df,CondID==loc.id)$symbol %>% unique(.)
+}) %>% as.character(.)
+
+plot.df <- cbind(symbol,plot.df)
+plot.df$symbol <- as.character(plot.df$symbol)
+
+library("ggrepel")
+
+plot2.df <- get_biggest_diffs()
+
+firstup <- function(x) {
+   substr(x, 1, 1) <- toupper(substr(x, 1, 1))
+x
+}
+
+
+plot.df$tissue <- plot.df$tissue %>% firstup(.)
+plot2.df$tissue <- plot2.df$tissue %>% firstup(.)
+
+pltA2 <- ggplot(data=filter(plot.df,tissue!="Other"),
+                aes(x=ppa.score.full,y=ppa.score.wfull)) + 
+  geom_point(shape=21,color="grey35",aes(fill=tissue),size=1,alpha=0.4) + 
+  geom_abline(slope=1,intercept=0,linetype=1,alpha=0.8) +
+  facet_wrap(~tissue,ncol=4) + 
+  theme_classic() + 
+  theme(legend.position = "none") + 
+  xlab('TOA score (unweighted)') + 
+  ylab('TOA score (weighted)') + 
+  ggtitle("Comparison of TOA Scores") + 
+  scale_fill_manual(values=c(cv[2],cv[1],"brown",cv[4],"grey")) + 
+
+  geom_point(data=filter(plot2.df,tissue!="Other"),
+                aes(x=ppa.score.full,y=ppa.score.wfull),
+          color="grey40",shape=21,fill="black") + 
+  geom_label_repel(data=filter(plot2.df,tissue!="Other"),
+                  aes(x=ppa.score.full,y=ppa.score.wfull,
+                      label=paste0(Locus.ID," (",symbol,")")),
+                  size=1.5)
+ggsave(plot=pltA2,filename=plot.dir%&%"ppa-score-compare-weightedV2.png",
+       height = 3.5,width=10)
 
 
 ```
