@@ -186,11 +186,21 @@ ggsave(plot=grob4,filename=plot.dir%&%"stacked_barplots_snpcount100-unweighted.p
 
 
 grob5 <- all_tissues_plot(filter(weighted.df,Locus.ID%in%keep.vec),number=30)
-ggsave(plot=grob5,filename=plot.dir%&%"stacked_barplots_maxppa50-weighted.png",width=27,height=12)
+ggsave(plot=grob5,filename=plot.dir%&%"stacked_barplots_maxppa50-weighted.png",width=25,height=8.5)
 
 grob6 <- all_tissues_plot(filter(unweighted.df,Locus.ID%in%keep.vec),number=30)
 ggsave(plot=grob6,filename=plot.dir%&%"stacked_barplots_maxppa50-unweighted.png",width=27,height=12)
 
+
+```
+
+
+# Evaluate data frame 
+
+
+```{r}
+
+d <- filter(weighted.df,Locus.ID%in%keep.vec)
 
 ```
 
