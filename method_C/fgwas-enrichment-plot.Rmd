@@ -1,0 +1,172 @@
+---
+title: "03_enrichment-plots"
+author: "Jason Torres"
+date: "November 2017"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Setup libraries and directories
+
+```{r}
+"%&%" <- function(a,b) paste0(a,b)
+library("data.table")
+library("tidyverse")
+library("gridExtra")
+library("viridis")
+
+serv.dir <- "/Users/jtorres/FUSE/"
+fgwas.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/multi_tissue_joint_analysis/"
+fgwas.out.dir <- fgwas.dir %&% "fgwas_output/"
+best.joint.model.file.prefix <- "best-joint-model"
+plot.dir <- fgwas.dir %&% "plots/"
+
+output.prefix <- "fgwas"
+my.title <- output.prefix
+
+annotation.keyfile <- plot.dir %&% "plot-key.csv"# Optional: Specifiy if you have a csv-delimited txt file with annotation names (as they appear in the fgwas input file) on the left column and plotting names on the right column, column names should be Name and PlotName, otherwise set to NULL
+if (!is.null(annotation.keyfile)){
+  key.df <- fread(annotation.keyfile,sep=",",sep2=" ")
+}
+
+remove.vec <-c()
+
+```
+
+# Processing function
+
+```{r}
+
+annot_process <- function(fname){
+  df <- fread(fname)
+  df$CI_lo <- gsub("<","",df$CI_lo); df$CI_lo <- gsub("fail",NA,df$CI_lo); df$CI_lo <- as.numeric(df$CI_lo)
+  df$CI_hi <- gsub(">","",df$CI_hi); df$CI_hi <- gsub("fail",NA,df$CI_hi); df$CI_hi <- as.numeric(df$CI_hi)
+  return(df)
+}
+
+```
+
+# Build data frames for plotting  
+
+```{r}
+
+
+update_names <- function(par.df, key.df){
+  par.df$parameter <- gsub("_ln","",par.df$parameter)
+  for (i in 1:dim(par.df)[1]){
+    annot <- par.df$parameter[i]
+    if (grepl("distance_tss",annot)==TRUE){
+      annot <- "distance_tss"
+    }
+    plotname <- key.df$PlotName[key.df$Name==annot]
+    #plotname <- key.df$PlotName[grepl(annot,key.df$Name)]
+    par.df$parameter[i] <- plotname
+    print(c(annot,plotname))
+  }
+  return(par.df)
+}
+
+build_param_df <- function(name.vec=NULL){
+  files <- list.files(fgwas.out.dir)
+  param.files <- files[grepl(".params",files,fixed=TRUE)]
+  param.files <- param.files[!grepl("+",param.files,fixed=TRUE)]
+  param.files <- param.files[!grepl("drop",param.files,fixed=TRUE)]  
+  param.files <- param.files[!grepl("best-joint-model",param.files,fixed=TRUE)]  
+  param.files <- param.files[!grepl("fgwas_run_loci-partition",param.files,fixed=TRUE)]  
+  out.df <- c()
+  for (f in param.files){
+    stack.df <- annot_process(fgwas.out.dir%&%f)
+    out.df <- rbind(out.df,stack.df)
+  }
+  out.df <- filter(out.df,parameter!="pi_region")
+  out.df <- arrange(out.df,desc(estimate))
+  enriched <- filter(out.df, CI_lo>0,estimate>0,CI_hi>0)
+  depleted <- filter(out.df, CI_lo<0,estimate<0,CI_hi<0)
+  print("There are " %&% dim(out.df)[1] %&% " annotations")
+  print("There are " %&% dim(enriched)[1] %&% " annotations that are marginally ENRICHED")
+  print("There are " %&% dim(depleted)[1] %&% " annotations that are marginally DEPLETED")
+  out.df <- rbind(enriched,depleted)
+  index <- as.logical(map(out.df$parameter, function(x){!(gsub("_ln","",x) %in% remove.vec)}))
+  out.df <- out.df[index,]
+
+  if (!is.null(annotation.keyfile)){
+    out.df <- update_names(out.df,key.df)
+  }
+  return(out.df)
+}
+
+build_param_best_df <- function(pre){
+
+  param.df <- annot_process(pre %&% ".params")
+  param.df <- arrange(param.df,desc(estimate))
+  param.df <- filter(param.df,parameter!="pi")
+  param.df <- filter(param.df,parameter!="pi_region")
+
+  #if (!is.null(name.vec)){
+  #  param.df$parameter<-name.vec
+  #}
+  if (!is.null(annotation.keyfile)){
+    param.df <- update_names(param.df,key.df)
+  }
+  return(param.df)
+}
+
+
+```
+
+
+# Annotation plot
+
+```{r}
+
+
+an_plot <- function(mydf,mytitl="",mylow=-10,myhigh=10,interval=1){
+  mydf <- within(mydf,parameter<-factor(mydf$parameter,levels=rev(mydf$parameter)))
+  mydf <- filter(mydf,parameter!="pi_region")
+  plt <- ggplot(data=mydf,aes(x=parameter,y=estimate)) +
+      geom_hline(yintercept=0,linetype=2) +
+    ylab("Log2FE") + xlab("Annotation") +
+    geom_errorbar(aes(ymin=CI_lo,ymax=CI_hi),width=0.1) +
+    geom_point(shape=21,size=2,col="black",aes(fill=(estimate>0)))  +
+    scale_fill_manual(values=colorRampPalette(viridis_pal()(10))(2)) + 
+    #scale_fill_manual(values=c("steelblue1","firebrick1")) +
+    theme_bw()  +  theme(legend.position = "none",
+                         panel.grid.minor=element_blank(),
+                         panel.grid.major=element_blank()) +
+    scale_y_continuous(breaks=seq(mylow,myhigh,by=interval)) +
+    coord_flip(ylim=c(mylow,myhigh)) +
+    ggtitle(mytitl)
+  return(plt)
+}
+
+
+```
+
+# Generate plot 1 : Individual annotations that individually meet marginal significance (confidence intervals not overlapping zero)
+
+```{r}
+
+param.sing.df <- build_param_df()
+plt1 <- an_plot(param.sing.df,mytitl=my.title%&%": Seperate Analysis",mylow=-5,myhigh=5,interval=1)
+plt1
+write.table(x=param.sing.df,file=plot.dir %&% output.prefix %&% ".fgwas_enrich.seperate.txt",
+            sep="\t",quote=F,col.names=TRUE,row.names=FALSE)
+ggsave(filename=plot.dir %&% output.prefix %&% ".fgwas_enrich.seperate.png",plot=plt1,width=6,height=6)
+
+```
+
+# Generate plot 2 : Joint analysis of annotations in the 'Best' model
+
+```{r}
+
+param.df <- build_param_best_df(pre=fgwas.out.dir %&% best.joint.model.file.prefix)
+plt2 <- an_plot(param.df,mytitl=my.title%&%": Joint Analysis",mylow=-5,myhigh=5,interval=1)
+plt2
+write.table(x=param.df,file=plot.dir %&% output.prefix %&% ".fgwas_enrich.joint.txt",
+            sep="\t",quote=F,col.names=TRUE,row.names=FALSE)
+ggsave(filename=plot.dir %&% output.prefix %&% ".fgwas_enrich.joint.png",plot=plt2,width=6,height=6)
+
+```
