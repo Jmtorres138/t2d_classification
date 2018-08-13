@@ -277,6 +277,31 @@ ggsave(plot=plt.list1[[1]],filename=plot.dir%&%"finemap_wilcox-compare-max_weigh
 ```
 
 
+```{r}
+
+library("viridis")
+  plt1 <- ggplot(data=plt.list1[[2]],aes(x=Group,y=-log(w.pval.max,base=10))) + 
+    geom_point(shape=21,color="black",
+               fill=magma(10)[3],size=2) + 
+    facet_wrap(~threshold,ncol=4) + 
+    scale_y_continuous(limits=c(0,3),breaks=seq(0,3,0.5)) + 
+    theme_bw() + geom_hline(yintercept=-log(0.05,base=10),
+                            color=magma(10)[7],linetype=2) + 
+    ylab(expression(-log[10](p[value]))) + 
+    theme(axis.text.x=element_text(size=7)) +
+    ggtitle("Improvement of max PPA over null") + 
+    theme(axis.text.x=element_text(angle=30,vjust=0.6),
+          panel.grid.major.x=element_blank(),
+          strip.background = element_rect(fill=viridis(10)[9])) + 
+    xlab("Classified Tissue")
+
+
+ggsave(plot=plt1,filename=plot.dir%&%"finemap_wilcox-compare-max_weightedV2.png",height=3,width=8)  
+ggsave(plot=plt1,filename=plot.dir%&%"finemap_wilcox-compare-max_weightedV2.pdf",height=3,width=8)    
+```
+
+
+
 # Unweighted
 
 ```{r}

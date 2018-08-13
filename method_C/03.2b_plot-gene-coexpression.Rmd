@@ -99,8 +99,8 @@ ggsave(plot=plt4,filename = plot.dir %&% "coexpress-enrich_weighted-p10Coding.pn
 
 plt3b <- plot_enrich(filter(w.df2,threshold==0.20))
 
-ggsave(plot=plt3b,filename = plot.dir %&% "coexpress-enrich_weighted-noCoding20.png",width=6.5,height=6.5)
-ggsave(plot=plt3b,filename = plot.dir %&% "coexpress-enrich_weighted-noCoding20.pdf",width=6.5,height=6.5)
+ggsave(plot=plt3b,filename = plot.dir %&% "coexpress-enrich_weighted-noCoding20.png",width=6.5,height=9)
+ggsave(plot=plt3b,filename = plot.dir %&% "coexpress-enrich_weighted-noCoding20.pdf",width=6.5,height=9)
 
 ```
 
