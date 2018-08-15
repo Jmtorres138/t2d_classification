@@ -80,14 +80,17 @@ sub.list <- build_het_list(df)
 
 vec <- sub.list[[1]]
 
-make_plot <- function(df,vec){
+make_plot <- function(df,vec,leg=FALSE){
   sub.df <- filter(df,Locus.ID %in% vec)
   plot.df <- sub.df %>% make_plot_df(.)
 
   plt <- ggplot(data=plot.df,aes(x=Locus.ID,fill=tissue,y=value)) + 
     geom_bar(stat="identity",color="black",position = "dodge") +
     scale_fill_manual(values=c(mycols)) + 
-    theme_bw() + xlab(unique(sub.df$symbol)) + ylab("TOA Score") + ylim(c(0,1))  
+    theme_bw() + ggtitle(unique(sub.df$symbol)) + ylab("TOA Score") + ylim(c(0,1))  + xlab("Signal")
+  if (leg==FALSE){
+    plt <- plt + theme(legend.position = "none")
+  }
   
   return(plt)
 }
@@ -100,5 +103,26 @@ make_plot <- function(df,vec){
 p <- make_plot(df,sub.list[[2]])
 
 ```
+
+
+
+```{r}
+
+library("grid");library("gridExtra")
+p1 <- make_plot(df,sub.list[[1]])
+p2 <- make_plot(df,sub.list[[2]])
+p3 <- make_plot(df,sub.list[[3]])
+p4 <- make_plot(df,sub.list[[4]])
+p5 <- make_plot(df,sub.list[[5]])
+p6 <- make_plot(df,sub.list[[6]])
+p7 <- make_plot(df,sub.list[[7]])
+p8 <- make_plot(df,sub.list[[8]])
+p9 <- make_plot(df,sub.list[[9]])
+
+grid.arrange(p1,p2,p3,p4,p5,p6,p7,p8,p9,nrow=3,ncol=3)
+
+```
+
+
 
 

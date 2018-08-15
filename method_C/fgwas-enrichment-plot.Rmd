@@ -1,0 +1,236 @@
+---
+title: "03_enrichment-plots"
+author: "Jason Torres"
+date: ""
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+
+got2d.dir <- "/home/jason/science/servers/FUSE/"
+serv.dir <- "/home/jason/science/servers/FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "method_A/"
+out.dir <- work.dir %&% "analysis_files/"
+res.dir <- work.dir %&% "multi_results/"
+input.dir <- proj.dir %&% "analysis_files/"
+
+fgwas.dir <- got2d.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/" %&%
+  "cross_tissue/"
+
+#fgwas.out.dir <- fgwas.dir %&% "fgwas_output/"
+
+annotation.keyfile <- NULL # fgwas.dir %&% "plots/plot-key.csv"
+if (!is.null(annotation.keyfile)){
+  key.df <- fread(annotation.keyfile,sep=",",sep2=" ")
+}
+
+```
+
+```{r}
+
+annot_process <- function(fname){
+  df <- fread(fname)
+  df$CI_lo <- gsub("<","",df$CI_lo); df$CI_lo <- gsub("fail",NA,df$CI_lo); df$CI_lo <- as.numeric(df$CI_lo)
+  df$CI_hi <- gsub(">","",df$CI_hi); df$CI_hi <- gsub("fail",NA,df$CI_hi); df$CI_hi <- as.numeric(df$CI_hi)
+  return(df)
+}
+
+build_param_df <- function(fgwas.out.dir,tissue,name.vec=NULL){
+  files <- list.files(fgwas.out.dir)
+  param.files <- files[grepl(".params",files,fixed=TRUE)]
+  param.files <- param.files[!grepl("+",param.files,fixed=TRUE)]
+  param.files <- param.files[!grepl("drop",param.files,fixed=TRUE)]  
+  param.files <- param.files[!grepl("best-joint-model",param.files,fixed=TRUE)]  
+  param.files <- param.files[!grepl("SINGLE_fgwas_run_loci-partition.params",
+                                    param.files,fixed=TRUE)]  
+
+  out.df <- c()
+  for (f in param.files){
+    stack.df <- annot_process(fgwas.out.dir%&%f)
+    out.df <- rbind(out.df,stack.df)
+  }
+  out.df <- filter(out.df,parameter!="pi_region")
+  out.df <- arrange(out.df,desc(estimate))
+  enriched <- filter(out.df, CI_lo>0,estimate>0,CI_hi>0)
+  depleted <- filter(out.df, CI_lo<0,estimate<0,CI_hi<0)
+  print("There are " %&% dim(out.df)[1] %&% " annotations")
+  print("There are " %&% dim(enriched)[1] %&% " annotations that are marginally ENRICHED")
+  print("There are " %&% dim(depleted)[1] %&% " annotations that are marginally DEPLETED")
+  #out.df <- rbind(enriched,depleted)
+  if (!is.null(annotation.keyfile)){
+    out.df <- update_names(out.df,key.df)
+  }
+  out.df$tissue <- tissue 
+  return(out.df)
+}
+
+```
+
+
+```{r}
+strong.enhancers <- c("9_Active_enhancer_1","10_Active_enhancer_2")
+weak.enhancers <- c("11_Weak_enhancer")
+repressed.regions <- c("16_Repressed_polycomb", "17_Weak_repressed_polycomb")
+promoters <- c("1_Active_TSS","2_Weak_TSS","3_Flanking_TSS")
+gene.transcription <- c("5_Strong_transcription","6_Weak_transcription")
+bivalent.tss <- c("14_Bivalent_poised_TSS")
+genic.enhancer <- c("8_Genic_enhancer")
+low.signal <- c("18_Quiescent_low_signal")
+coding <- c("coding")
+
+annot.names <- c("strong.enhancers","weak.enhancers","repressed.regions","promoters",
+               "gene.transcription","bivalent.tss","genic.enhancer","low.signal",
+               "coding")
+annot.list <- list(strong.enhancers,weak.enhancers,repressed.regions,promoters,
+               gene.transcription,bivalent.tss,genic.enhancer,low.signal,coding)
+
+```
+
+
+```{r}
+
+liv.df <- build_param_df(fgwas.dir%&%"fgwas_output_liver/","liver")
+adi.df <- build_param_df(fgwas.dir%&%"fgwas_output_adipose/","adipose")
+mus.df <- build_param_df(fgwas.dir%&%"fgwas_output_muscle/","muscle")
+isl.df <- build_param_df(fgwas.dir%&%"fgwas_output_islet/","islet")
+all.df <- rbind(isl.df,adi.df,mus.df,liv.df)
+all.df$parameter <- gsub("_ln","",all.df$parameter)
+
+get_weight <- function(all.df,annot.group){
+  sub <-filter(all.df,parameter%in%annot.group)
+  med <- sub$estimate %>% median(.)
+  weight <- med
+  return(weight)
+}
+
+get_weight_full <- function(all.df,annot.group){
+  sub <-filter(all.df,parameter%in%annot.group)
+  w.df <- sub %>% group_by(.,tissue) %>% summarise(.,avg=mean(estimate))
+  #med <- sub$estimate %>% median(.)
+  weight.vec <- w.df$avg
+  names(weight.vec) <- w.df$tissue
+  return(weight.vec)
+}
+
+
+build_weight_full_df <- function(all.df,annot.names,annot.list){
+  out.df <- c()
+  for (i in 1:length(annot.names)){
+    annot <- annot.names[i]
+    annot.group <- annot.list[[i]]
+    weight.vec <- get_weight_full(all.df,annot.group)
+    build.df <- data.frame("annotation"=annot,"tissue"=names(weight.vec),"weight"=unname(weight.vec),stringsAsFactors = FALSE)
+    out.df <- rbind(out.df,build.df)
+  }
+  return(out.df)
+}
+
+
+```
+
+
+```{r}
+
+firstup <- function(x) {
+   substr(x, 1, 1) <- toupper(substr(x, 1, 1))
+x
+}
+
+exclude.vec <- c("low.signal","repressed.regions","bivalent.tss")
+
+wf.df <- build_weight_full_df(all.df,annot.names,annot.list)
+filt.df <- filter(wf.df,!(annotation%in%exclude.vec))
+filt.df$tissue <- filt.df$tissue %>% firstup(.)
+
+plt <- ggplot(data=filt.df,aes(x=annotation,y=2^weight)) + 
+  geom_bar(stat="identity",color="black",fill=viridis(10)[5]) + facet_wrap(~tissue) + 
+  theme_bw() + theme(axis.text.x = element_text(angle=30,vjust=0.6),
+                    panel.grid.minor.y = element_blank(),
+                    panel.grid.major.x = element_blank()) + 
+  xlab("Annotation") + ylab("Fold Enrichment") + coord_cartesian(ylim=c(0,7)) + 
+  scale_y_continuous(breaks=1:7)
+
+ggsave(plt,filename = plot.dir2 %&%"fgwas-enrich.png",width=8,height=6)
+ggsave(plt,filename = plot.dir2 %&%"fgwas-enrich.pdf",width=8,height=6)
+
+write.table(x=filt.df,file=plot.dir2 %&%"fgwas-enrich.txt",sep="\t",quote=F,row.names = F)
+
+```
+
+
+```{r}
+
+an_plot <- function(mydf,mytitl="",mylow=-10,myhigh=10,interval=1){
+  mydf <- filter(mydf,CI_lo>0)
+  mydf <- within(mydf,parameter<-factor(mydf$parameter,levels=rev(mydf$parameter)))
+  mydf <- filter(mydf,parameter!="pi_region")
+  plt <- ggplot(data=mydf,aes(x=parameter,y=estimate)) +
+      geom_hline(yintercept=0,linetype=2) +
+    ylab("Log2 Fold Enrichement") + xlab("Annotation") +
+    geom_errorbar(aes(ymin=CI_lo,ymax=CI_hi),width=0.1) +
+    geom_point(shape=21,size=2,col="black",aes(fill=(estimate>0)))  +
+    scale_fill_manual(values=colorRampPalette(viridis_pal()(10))(2)) + 
+    #scale_fill_manual(values=c("steelblue1","firebrick1")) +
+    theme_bw()  +  theme(legend.position = "none",
+                         panel.grid.minor=element_blank(),
+                         panel.grid.major=element_blank()) +
+    scale_y_continuous(breaks=seq(mylow,myhigh,by=interval)) +
+    coord_flip(ylim=c(mylow,myhigh)) +
+    ggtitle(mytitl)
+  return(plt)
+}
+
+
+```
+
+```{r}
+
+ex.vec <- c("utr_5","distance_tss_0_5000","18_Quiescent_low_signal",
+            "exon","14_Bivalent_poised_TSS","intron","17_Weak_repressed_polycomb",
+            "utr_3","transcript","16_Repressed_polycomb")
+
+plot.df <- filter(all.df,!(parameter %in% ex.vec))
+
+plt1 <- an_plot(filter(plot.df,tissue=="islet"),
+                mytitl = "Islet",mylow = 0,myhigh = 4)
+plt2 <- an_plot(filter(plot.df,tissue=="adipose"),
+                mytitl = "Adipose",mylow = 0,myhigh = 4)
+plt3 <- an_plot(filter(plot.df,tissue=="muscle"),
+                mytitl = "Muscle",mylow = 0,myhigh = 4)
+plt4 <- an_plot(filter(plot.df,tissue=="liver"),
+                mytitl = "Liver",mylow = 0,myhigh = 4)
+
+pltB <- grid.arrange(plt1,plt2,plt3,plt4,nrow=2)
+
+ggsave(pltB,filename = plot.dir2 %&%"fgwas-enrich-all.png",width=8,height=6)
+ggsave(pltB,filename = plot.dir2 %&%"fgwas-enrich-all.pdf",width=8,height=6)
+
+write.table(x=plot.df,file=plot.dir2 %&%"fgwas-enrich-all.txt",sep="\t",
+            quote=F,row.names = F)
+
+plot.df$fe <- 2^plot.df$estimate 
+```
+
+
+
