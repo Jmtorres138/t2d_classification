@@ -68,6 +68,10 @@ library("RColorBrewer")
 library("ggrepel")
 library("grid")
 
+firstup <- function(x) {
+   substr(x, 1, 1) <- toupper(substr(x, 1, 1))
+x
+}
 
 make_pca_inputs <- function(ppa.df,centerScale=FALSE){
   if(centerScale==FALSE){
@@ -175,7 +179,13 @@ pca_plot <- function(data.df,pca.out,pcX,pcY){
     theme_classic()  
 }
 
-pca_plot_annotated <- function(data.df,pca.out,pcX,pcY){
+pca_plot_annotated <- function(pca.list,pcX,pcY,maxppa.df){
+  data.df <- pca.list[[1]]
+  pca.out <- pca.list[[2]]
+  pve.df <- pca.list[[3]]
+  pcXpve <- (filter(pve.df,grepl(gsub("PC","",pcX),pve.df$PC))$pve %>% round(.,2)) * 100 
+  pcYpve <- (filter(pve.df,grepl(gsub("PC","",pcY),pve.df$PC))$pve %>% round(.,2)) * 100
+  
   pca.df <- as.data.frame(pca.out$x) 
   pca.df$Locus.ID <- data.df$Locus.ID
   pca.df <- inner_join(data.df,pca.df,by="Locus.ID")
@@ -184,32 +194,37 @@ pca_plot_annotated <- function(data.df,pca.out,pcX,pcY){
   }) %>% as.character(.)
 
   islet.df <- filter(pca.df,assigned=="islet") %>% 
-    arrange(.,desc(islet)) %>% head(10)
+    arrange(.,desc(islet)) %>% head(5)
   adipose.df <- filter(pca.df,assigned=="adipose") %>% 
-    arrange(.,desc(adipose)) %>% head(10)
+    arrange(.,desc(adipose)) %>% head(5)
   liver.df <- filter(pca.df,assigned=="liver") %>% 
-    arrange(.,desc(liver)) %>% head(10)
+    arrange(.,desc(liver)) %>% head(5)
   muscle.df <- filter(pca.df,assigned=="muscle") %>% 
-    arrange(.,desc(muscle)) %>% head(10)
+    arrange(.,desc(muscle)) %>% head(5)
   other.df <- filter(pca.df,assigned=="other") %>% 
-    arrange(.,desc(other)) %>% head(10)
+    arrange(.,desc(other)) %>% head(5)
   
+  pca.df$assigned <- pca.df$assigned %>% firstup(.)
   ggplot(data=pca.df,aes_string(x=pcX,y=pcY)) + 
     geom_point(shape=21,alpha=0.8,
                size=2,color="black",
                aes(fill=assigned)) + 
-    scale_fill_manual(values=c("gold1","olivedrab2","brown","red","grey","black")) + 
+    scale_fill_manual(values=c("gold1","olivedrab2","#f7905d","#f97a7a","grey","black"),
+                      name="Assigned Tissue") + 
     theme_classic() + 
     geom_label_repel(data=other.df,aes_string(x=pcX,y=pcY,label="refseq"),
-                     size=1.5,fill="grey",alpha=0.8) + 
+                     size=2,fill="grey",alpha=0.8) + 
     geom_label_repel(data=islet.df,aes_string(x=pcX,y=pcY,label="refseq"),
-                     size=1.5,fill="olivedrab2",alpha=0.8) +   
+                     size=2,fill="olivedrab2",alpha=0.8) +   
     geom_label_repel(data=adipose.df,aes_string(x=pcX,y=pcY,label="refseq"),
-                     size=1.5,fill="gold1",alpha=0.8) + 
+                     size=2,fill="gold1",alpha=0.8) + 
     geom_label_repel(data=liver.df,aes_string(x=pcX,y=pcY,label="refseq"),
-                     size=1.5,fill="brown",alpha=0.8) +
+                     size=2,fill="#f7905d",alpha=0.8) +
     geom_label_repel(data=muscle.df,aes_string(x=pcX,y=pcY,label="refseq"),
-                     size=1.5,fill="red",alpha=0.8)
+                     size=2,fill="#f97a7a",alpha=0.8) + 
+    xlab(pcX %&% " (" %&% pcXpve %&% "%)") + 
+    ylab(pcY %&% " (" %&% pcYpve %&% "%)")
+    
 }
 
 
@@ -236,8 +251,6 @@ u.df <- filter(unweighted.df,Locus.ID %in% maxppaU.df$Locus.ID)
 pca.list <- make_pca_inputs(w.df,centerScale=FALSE) 
 pca.list.un <- make_pca_inputs(u.df,centerScale=FALSE) 
 
-pca.list.filt <- make_pca_inputs(filter(w.df,other<=0.10),centerScale=FALSE) 
-pca.list.un.filt <- make_pca_inputs(filter(u.df,other<=0.10),centerScale=FALSE)
 
 ```
 
@@ -261,48 +274,91 @@ plt.un <- complete_pca(u.df,centerScale=FALSE)
 
 ```{r}
 
-plt.filt <- complete_pca(filter(w.df,other<=0.10),centerScale=FALSE)
-plt.un.filt <- complete_pca(filter(u.df,other<=0.10),centerScale=FALSE)
+#plt.filt <- complete_pca(filter(w.df,other<=0.10),centerScale=FALSE)
+#plt.un.filt <- complete_pca(filter(u.df,other<=0.10),centerScale=FALSE)
 
 ```
 
-
-
-
-Locus Weighted 
-
-```{r}
-
-
-pruneA.plt <- pca_plot_annotated(pca.list[[1]],
-                   pca.list[[2]],"PC1","PC2")
-
-
-pruneB.plt <- pca_plot_annotated(pca.list[[1]],       pca.list[[2]],"PC2","PC3")
-
-ggsave(plot=pruneA.plt,filename=plot.dir%&%"maxppa50-full-weighted-pc1-pc2.png",
-       height=6,width=6)
-ggsave(plot=pruneB.plt,filename=plot.dir%&%"pca_maxppa50-full-weighted-pc2-pc3.png",
-       height=6,width=6)
-
-
-
-```
 
 
 filtering out other; 
 
 ```{r}
 
-pruneA.plt <- pca_plot_annotated(pca.list.filt[[1]],
-                   pca.list.filt[[2]],"PC1","PC2")
-pruneB.plt <- pca_plot_annotated(pca.list.filt[[1]],       pca.list.filt[[2]],"PC2","PC3")
+pca.list.filt <- make_pca_inputs(filter(w.df,other<0.10),centerScale=FALSE) 
+pruneA.plt <- pca_plot_annotated(pca.list.filt,"PC1","PC2",maxppaW.df)
+pruneB.plt <- pca_plot_annotated(pca.list.filt,"PC2","PC3",maxppaU.df)
 
 ggsave(plot=pruneA.plt,filename=plot.dir%&%"pca_maxppa50-filterd-weighted-pc1-pc2.png",
-       height=6,width=6)
+       height=5.5,width=7)
 ggsave(plot=pruneB.plt,filename=plot.dir%&%"pca_maxppa50-filtered-weighted-pc2-pc3.png",
-       height=6,width=6)
+       height=5.5,width=7)
+ggsave(plot=pruneA.plt,filename=plot.dir%&%"pca_maxppa50-filterd-weighted-pc1-pc2.pdf",
+       height=5.5,width=7)
+ggsave(plot=pruneB.plt,filename=plot.dir%&%"pca_maxppa50-filtered-weighted-pc2-pc3.pdf",
+       height=5.5,width=7)
+```
 
+
+
+# Profile 
+
+```{r}
+
+
+maxppa.df <- maxppaW.df
+table(maxppa.df$assigned_20)
+(101-15)
+86/101
+
+eval.df <- c()
+sub <- filter(maxppa.df,assigned_20 != "other")
+for (i in 1:dim(sub)[1]){
+  row <- sub[i,]
+  t <- row$assigned_20
+  if (t == "islet"){
+    build.df <- dplyr::select(row,one_of("Locus.ID","symbol","assigned_20","islet"))
+  } else if (t == "adipose"){
+    build.df <- dplyr::select(row,one_of("Locus.ID","symbol","assigned_20","adipose"))
+  } else if (t == "muscle"){
+    build.df <- dplyr::select(row,one_of("Locus.ID","symbol","assigned_20","muscle"))
+  } else {
+    build.df <- dplyr::select(row,one_of("Locus.ID","symbol","assigned_20","liver"))
+  }
+  names(build.df) <- c("Locus.ID","symbol","assigned_20","toa")
+  eval.df <- rbind(eval.df,build.df)
+}
+
+filter(eval.df,toa>0.5) %>% dim(.)
+table(filter(eval.df,toa>0.5)$assigned_20)
+df1 <- filter(eval.df,toa>0.5) %>% arrange(.,desc(toa)) #%>% head(.,20)
+df2 <- filter(eval.df,toa<=0.5) %>% arrange(.,desc(toa)) #%>% head(.,20)
+
+df <- eval.df
+  df <- arrange(df,desc(toa))
+  df$assigned_20 <- df$assigned_20 %>% firstup(.)
+  df$Locus <- map(1:dim(df)[1],function(i){
+    id <- df$symbol[i] %&% " (" %&% strsplit(df$Locus.ID[i],"_")[[1]][2] %&% ")"
+  }) %>% as.character(.)
+  df$Locus <- factor(df$Locus,levels=df$Locus)
+  plt <- ggplot(data=df,aes(x=Locus,y=toa)) + 
+    geom_bar(stat="identity",aes(fill=assigned_20),color="black") + 
+    scale_fill_manual(values=c("gold1","olivedrab2","#f7905d","firebrick1"),
+                      name="Assigned Tissue") + 
+    scale_y_continuous(breaks=seq(0,1,0.1),expand=c(0,0)) + 
+    coord_cartesian(ylim=c(0,1)) + 
+    theme_classic() + 
+    theme(axis.text.x = element_text(angle=90,size=7.5)) + 
+    ylab("TOA Score") + 
+    #geom_hline(yintercept = 0.5,linetype=2,size=1) + 
+    #geom_hline(yintercept = 0.2,linetype=3,size=1) + 
+    geom_vline(xintercept = 42.5,linetype=2,size=1.5)
+    
+ggsave(plot=plt,filename=plot.dir%&%"bars.png",
+       height=5.5,width=14)  
+ggsave(plot=plt,filename=plot.dir%&%"bars.pdf",
+       height=5.5,width=14)  
 
 ```
+
 
