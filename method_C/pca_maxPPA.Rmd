@@ -333,6 +333,11 @@ filter(eval.df,toa>0.5) %>% dim(.)
 table(filter(eval.df,toa>0.5)$assigned_20)
 df1 <- filter(eval.df,toa>0.5) %>% arrange(.,desc(toa)) #%>% head(.,20)
 df2 <- filter(eval.df,toa<=0.5) %>% arrange(.,desc(toa)) #%>% head(.,20)
+table(filter(eval.df,toa>0.8)$assigned_20) # 17 
+filter(eval.df,toa>0.8,assigned_20=="islet") 
+filter(eval.df,toa>0.8,assigned_20=="liver") 
+filter(eval.df,toa>0.8,assigned_20=="adipose") 
+filter(eval.df,toa>0.8,assigned_20=="muscle") 
 
 df <- eval.df
   df <- arrange(df,desc(toa))
@@ -347,12 +352,13 @@ df <- eval.df
                       name="Assigned Tissue") + 
     scale_y_continuous(breaks=seq(0,1,0.1),expand=c(0,0)) + 
     coord_cartesian(ylim=c(0,1)) + 
-    theme_classic() + 
-    theme(axis.text.x = element_text(angle=90,size=7.5)) + 
-    ylab("TOA Score") + 
+    theme_bw() + 
+    theme(axis.text.x = element_text(angle=90,size=7.5),
+          panel.grid.major.x=element_blank()) + 
+    ylab("TOA Score") #+ 
     #geom_hline(yintercept = 0.5,linetype=2,size=1) + 
     #geom_hline(yintercept = 0.2,linetype=3,size=1) + 
-    geom_vline(xintercept = 42.5,linetype=2,size=1.5)
+    #geom_vline(xintercept = 42.5,linetype=2,size=1.5)
     
 ggsave(plot=plt,filename=plot.dir%&%"bars.png",
        height=5.5,width=14)  
