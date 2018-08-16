@@ -204,8 +204,8 @@ profile_het <- function(slist){
 ```{r}
 
 prof1 <- profile_het(sub.list.all)
-prof2 <- profile_het(sub.list.all)
-prof3 <- profile_het(sub.list.all)
+prof2 <- profile_het(sub.list)
+prof3 <- profile_het(sub.list.expand)
 
 ```
 
