@@ -258,8 +258,8 @@ pca.list.un <- make_pca_inputs(u.df,centerScale=FALSE)
 ```{r}
 
 
-plt <- complete_pca(w.df,centerScale=FALSE)
-plt.un <- complete_pca(u.df,centerScale=FALSE)
+#plt <- complete_pca(w.df,centerScale=FALSE)
+#plt.un <- complete_pca(u.df,centerScale=FALSE)
 # Manual save 
 # Save dimensions W=1300,H=600 
 # pca_weigthed_nofilter.png
@@ -270,14 +270,6 @@ plt.un <- complete_pca(u.df,centerScale=FALSE)
 
 
 ## Filtering out loci with high "other" scores
-
-
-```{r}
-
-#plt.filt <- complete_pca(filter(w.df,other<=0.10),centerScale=FALSE)
-#plt.un.filt <- complete_pca(filter(u.df,other<=0.10),centerScale=FALSE)
-
-```
 
 
 
@@ -299,6 +291,162 @@ ggsave(plot=pruneB.plt,filename=plot.dir%&%"pca_maxppa50-filtered-weighted-pc2-p
        height=5.5,width=7)
 ```
 
+
+
+# Physiology comparison plots 
+
+```{r}
+
+phys71.df <- fread(proj.dir %&% "analysis_files/physiology-hard.txt")
+phys94.df <- fread(proj.dir %&% "analysis_files/physiology-fuzzy.txt")
+names(phys94.df)[2] <- "Physiology" 
+
+```
+
+
+
+```{r}
+
+pca_plot_phys71 <- function(pca.list,pcX,pcY,maxppa.df){
+  data.df <- pca.list[[1]]
+  pca.out <- pca.list[[2]]
+  pve.df <- pca.list[[3]]
+  pcXpve <- (filter(pve.df,grepl(gsub("PC","",pcX),pve.df$PC))$pve %>% round(.,2)) * 100 
+  pcYpve <- (filter(pve.df,grepl(gsub("PC","",pcY),pve.df$PC))$pve %>% round(.,2)) * 100
+  
+  pca.df <- as.data.frame(pca.out$x) 
+  pca.df$Locus.ID <- data.df$Locus.ID
+  pca.df <- inner_join(data.df,pca.df,by="Locus.ID")
+  pca.df$assigned <- map(pca.df$Locus.ID,function(id){
+    filter(maxppa.df,Locus.ID==id)$assigned_20
+  }) %>% as.character(.)
+
+  pca.df$physiology <- map(pca.df$Locus.ID,function(id){
+    phys <- filter(phys71.df,Locus.ID==id)$Physiology %>% gsub("_","-",.)
+    ifelse(length(phys)>0,phys,"Unclassified")
+  }) %>% as.character(.)  
+
+  pca.df$assigned <- pca.df$assigned %>% firstup(.)
+  
+    
+  df1 <- filter(pca.df,physiology=="Insulin-Action") 
+  df2 <- filter(pca.df,physiology=="Insulin-Secretion") 
+  df3 <- filter(pca.df,physiology=="BMI-Dys") 
+
+  ggplot(data=pca.df,aes_string(x=pcX,y=pcY)) + 
+    geom_point(shape=21,alpha=0.8,
+               size=2,color="black",
+               aes(fill=physiology)) + 
+    scale_fill_manual(values=c(viridis(20)[9],viridis(20)[19],
+                               viridis(20)[12],"ghostwhite"),
+                      name="Assigned Tissue") + 
+    theme_classic() + 
+    geom_label_repel(data=df1,aes_string(x=pcX,y=pcY,label="refseq"),
+                     size=2,fill=viridis(20)[19],alpha=0.8) + 
+    geom_label_repel(data=df2,aes_string(x=pcX,y=pcY,label="refseq"),
+                     size=2,fill=viridis(20)[12],alpha=0.8) +   
+    geom_label_repel(data=df3,aes_string(x=pcX,y=pcY,label="refseq"),
+                     size=2,fill=viridis(20)[9],alpha=0.8) + 
+
+    xlab(pcX %&% " (" %&% pcXpve %&% "%)") + 
+    ylab(pcY %&% " (" %&% pcYpve %&% "%)")
+    
+}
+
+```
+
+
+```{r}
+
+pca.list.filt <- make_pca_inputs(filter(w.df,other<0.10),centerScale=FALSE) 
+pruneA.plt <- pca_plot_phys71(pca.list.filt,"PC1","PC2",maxppaW.df)
+pruneB.plt <- pca_plot_phys71(pca.list.filt,"PC2","PC3",maxppaU.df)
+
+ggsave(plot=pruneA.plt,filename=plot.dir%&%"pca_phys71maxppa50-filtered-weighted-pc1-pc2.png",
+       height=5.5,width=7)
+ggsave(plot=pruneB.plt,filename=plot.dir%&%"pca_phys71maxppa50-filtered-weighted-pc2-pc3.png",
+       height=5.5,width=7)
+
+```
+
+
+
+```{r}
+
+pca_plot_phys94 <- function(pca.list,pcX,pcY,maxppa.df){
+  data.df <- pca.list[[1]]
+  pca.out <- pca.list[[2]]
+  pve.df <- pca.list[[3]]
+  pcXpve <- (filter(pve.df,grepl(gsub("PC","",pcX),pve.df$PC))$pve %>% round(.,2)) * 100 
+  pcYpve <- (filter(pve.df,grepl(gsub("PC","",pcY),pve.df$PC))$pve %>% round(.,2)) * 100
+  
+  pca.df <- as.data.frame(pca.out$x) 
+  pca.df$Locus.ID <- data.df$Locus.ID
+  pca.df <- inner_join(data.df,pca.df,by="Locus.ID")
+  pca.df$assigned <- map(pca.df$Locus.ID,function(id){
+    filter(maxppa.df,Locus.ID==id)$assigned_20
+  }) %>% as.character(.)
+
+  pca.df$physiology <- map(pca.df$Locus.ID,function(id){
+    phys <- filter(phys94.df,Locus.ID==id)$Physiology %>% gsub("_","-",.)
+    ifelse(length(phys)>0,phys,"Unclassified")
+  }) %>% as.character(.)  
+
+  pca.df$assigned <- pca.df$assigned %>% firstup(.)
+  
+  df1 <- filter(pca.df,physiology=="Adiposity") 
+  df2 <- filter(pca.df,physiology=="IA") 
+  df3 <- filter(pca.df,physiology=="Dyslipidemia") 
+  df4 <- filter(pca.df,physiology=="IA-IS-combination") 
+  df5 <- filter(pca.df,physiology=="IS-1") 
+  df6 <- filter(pca.df,physiology=="IS-2") 
+  
+  ggplot(data=pca.df,aes_string(x=pcX,y=pcY)) + 
+    geom_point(shape=21,alpha=0.8,
+               size=2,color="black",
+               aes(fill=physiology)) + 
+    #scale_fill_manual(values=c(viridis(100)[15],viridis(100)[30],
+    #                           viridis(100)[45],viridis(100)[60],
+    #                           viridis(100)[85],viridis(100)[95],
+    #                           "ghostwhite"),
+    scale_fill_manual(values=c(viridis(100)[15],viridis(100)[30],
+                               viridis(100)[45],viridis(100)[60],
+                               viridis(100)[85],viridis(100)[95],
+                               "ghostwhite"),
+                      name="Assigned Tissue") + 
+    theme_classic() + 
+    geom_label_repel(data=df1,aes_string(x=pcX,y=pcY,label="refseq"),
+                     size=2,fill=viridis(100)[15],alpha=0.8) + 
+    geom_label_repel(data=df2,aes_string(x=pcX,y=pcY,label="refseq"),
+                     size=2,fill=viridis(100)[45],alpha=0.8) +   
+    geom_label_repel(data=df3,aes_string(x=pcX,y=pcY,label="refseq"),
+                     size=2,fill=viridis(100)[30],alpha=0.8) + 
+    geom_label_repel(data=df4,aes_string(x=pcX,y=pcY,label="refseq"),
+                     size=2,fill=viridis(100)[60],alpha=0.8) + 
+    geom_label_repel(data=df5,aes_string(x=pcX,y=pcY,label="refseq"),
+                     size=2,fill=viridis(100)[85],alpha=0.8) +   
+    geom_label_repel(data=df6,aes_string(x=pcX,y=pcY,label="refseq"),
+                     size=2,fill=viridis(100)[95],alpha=0.8) + 
+    xlab(pcX %&% " (" %&% pcXpve %&% "%)") + 
+    ylab(pcY %&% " (" %&% pcYpve %&% "%)")
+    
+}
+
+
+```
+
+```{r}
+
+pca.list.filt <- make_pca_inputs(filter(w.df,other<0.10),centerScale=FALSE) 
+pruneA.plt <- pca_plot_phys94(pca.list.filt,"PC1","PC2",maxppaW.df)
+pruneB.plt <- pca_plot_phys94(pca.list.filt,"PC2","PC3",maxppaU.df)
+
+ggsave(plot=pruneA.plt,filename=plot.dir%&%"pca_phys94maxppa50-filtered-weighted-pc1-pc2.png",
+       height=5.5,width=7)
+ggsave(plot=pruneB.plt,filename=plot.dir%&%"pca_phys94maxppa50-filtered-weighted-pc2-pc3.png",
+       height=5.5,width=7)
+
+```
 
 
 # Profile 
