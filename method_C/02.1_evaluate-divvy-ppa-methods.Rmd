@@ -133,7 +133,7 @@ ggsave(plot=pltC,filename=plot.dir%&%"ppa-score-difference.png",
 
 ```{r}
 
-get_biggest_diffs <- function(n=3){
+get_biggest_diffs <- function(n=3,dif=0.10){
   out.df <-c()
   for (t in unique(plot.df$tissue)){
     sub <- filter(plot.df,tissue==t) %>% arrange(desc(ppa.score.diff))
@@ -142,7 +142,7 @@ get_biggest_diffs <- function(n=3){
     build <- rbind(a,b)
     out.df <- rbind(out.df,build)
   }
-  out.df <- filter(out.df, abs(ppa.score.diff)>=0.10)
+  out.df <- filter(out.df, abs(ppa.score.diff)>=dif)
   return(out.df)
 }
 
@@ -162,7 +162,10 @@ plot.df$symbol <- as.character(plot.df$symbol)
 
 library("ggrepel")
 
-plot2.df <- get_biggest_diffs()
+plot2.df <- get_biggest_diffs(n=5,dif=0.05)
+#plot2b.df <- get_biggest_diffs(dif=0.05)
+#plot2c.df <- get_biggest_diffs(dif=0.01)
+#plot2d.df <- get_biggest_diffs(dif=0.00)
 
 firstup <- function(x) {
    substr(x, 1, 1) <- toupper(substr(x, 1, 1))
@@ -172,6 +175,8 @@ x
 
 plot.df$tissue <- plot.df$tissue %>% firstup(.)
 plot2.df$tissue <- plot2.df$tissue %>% firstup(.)
+plot2b.df$tissue <- plot2b.df$tissue %>% firstup(.)
+plot2c.df$tissue <- plot2c.df$tissue %>% firstup(.)
 
 pltA2 <- ggplot(data=filter(plot.df,tissue!="Other"),
                 aes(x=ppa.score.full,y=ppa.score.wfull)) + 
@@ -195,6 +200,8 @@ pltA2 <- ggplot(data=filter(plot.df,tissue!="Other"),
 ggsave(plot=pltA2,filename=plot.dir%&%"ppa-score-compare-weightedV2.png",
        height = 3.5,width=10)
 
+
+write.table(plot2d.df,file=plot.dir %&%"diffs.txt",sep="\t",quote=F,row.names=F)
 
 ```
 
