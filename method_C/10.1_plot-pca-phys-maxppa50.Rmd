@@ -509,9 +509,9 @@ df <- eval.df
     #geom_vline(xintercept = 42.5,linetype=2,size=1.5)
     
 ggsave(plot=plt,filename=plot.dir%&%"bars.png",
-       height=5.5,width=14)  
+       height=5.5,width=20)  
 ggsave(plot=plt,filename=plot.dir%&%"bars.pdf",
-       height=5.5,width=14)  
+       height=5.5,width=20)  
 
 ```
 

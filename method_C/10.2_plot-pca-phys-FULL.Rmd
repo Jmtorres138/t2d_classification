@@ -284,10 +284,11 @@ complete_pca <- function(ppa.df,centerScale,savename){
 filtering out other; 
 
 ```{r}
+w.df <- weighted.df
 
 pca.list.filt <- make_pca_inputs(filter(w.df,other<0.10),centerScale=FALSE) 
-pruneA.plt <- pca_plot_annotated(pca.list.filt,"PC1","PC2",maxppaW.df)
-pruneB.plt <- pca_plot_annotated(pca.list.filt,"PC2","PC3",maxppaU.df)
+pruneA.plt <- pca_plot_annotated(pca.list.filt,"PC1","PC2",maxppa.df)
+pruneB.plt <- pca_plot_annotated(pca.list.filt,"PC2","PC3",maxppa.df)
 
 ggsave(plot=pruneA.plt,filename=plot.dir%&%"pca_maxppa50-filterd-weighted-pc1-pc2.png",
        height=5.5,width=7)
@@ -370,8 +371,8 @@ pca_plot_phys71 <- function(pca.list,pcX,pcY,class.df){
 ```{r}
 
 pca.list.filt <- make_pca_inputs(filter(w.df,other<0.10),centerScale=FALSE) 
-pruneA.plt <- pca_plot_phys71(pca.list.filt,"PC1","PC2",maxppaW.df)
-pruneB.plt <- pca_plot_phys71(pca.list.filt,"PC2","PC3",maxppaU.df)
+pruneA.plt <- pca_plot_phys71(pca.list.filt,"PC1","PC2",maxppa.df)
+pruneB.plt <- pca_plot_phys71(pca.list.filt,"PC2","PC3",maxppa.df)
 
 ggsave(plot=pruneA.plt,filename=plot.dir%&%"pca_phys71maxppa50-filtered-weighted-pc1-pc2.png",
        height=5.5,width=7)
