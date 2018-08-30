@@ -439,15 +439,17 @@ candu.df$maxsnpcoloc  <- map(1:dim(candu.df)[1],function(i){
 
 make_table_plot_filtered <- function(cand.df){
   
-  full.df <- filter(cand.df) %>% arrange(.,desc(coding),desc(maxppa))
+  full.df <- filter(cand.df) #%>% arrange(.,desc(coding),desc(maxppa))
   full.df$eGene[is.na(full.df$eGene)] <- ""
   full.df$CLPP[is.na(full.df$CLPP)] <- ""
   plot.df <- dplyr::select(full.df,
-                           one_of("Locus.ID","snpcount","maxppa","coding","islet","liver","adipose",
-                                  "muscle","other","assigned_20",
-                                  "symbol","eGene","CLPP"))
-  names(plot.df) <- c("Signal","Num.SNPs","Max.PPA","coding","islet","liver","adipose","muscle",
+                           one_of("Number","Locus.ID","snpcount","maxppa","coding",
+                                  "islet","liver","adipose","muscle","other",
+                                  "assigned_20","symbol","eGene","CLPP"))
+  names(plot.df) <- c("Number","Signal","Num.SNPs","Max.PPA","coding",
+                      "islet","liver","adipose","muscle",
                            "other","assigned","Locus","eGene","CLPP")
+  plot.df$Max.PPA<- prettyNum(plot.df$Max.PPA,digits=2)
   plot.df$coding <- prettyNum(plot.df$coding,digits=2)
   plot.df$islet <- prettyNum(plot.df$islet,digits=2)
   plot.df$liver <- prettyNum(plot.df$liver,digits=2)
@@ -466,7 +468,7 @@ make_table_plot_filtered <- function(cand.df){
   tabgrob <- tableGrob(plot.df,
                       theme=mytheme) 
   tabgrob <- edit_cell(tabgrob, row=1:dim(plot.df)[1], 
-                       col=11:12, "core-fg", 
+                       col=12:13, "core-fg", 
                  gp=gpar(fontface="italic"))  
   tabgrob <- edit_cell(tabgrob,
                     row=(1:dim(plot.df)[1])[plot.df$assigned=="adipose"],
@@ -486,7 +488,7 @@ make_table_plot_filtered <- function(cand.df){
                    "core-bg", gp=gpar(fill="#FB8072"))
   tabgrob <- edit_cell(tabgrob,
                 row=(1:dim(plot.df)[1])[full.df$maxsnpcoloc==TRUE],
-                col=12:13,"core-fg", gp=gpar(fontface="bold"))
+                col=13:14,"core-fg", gp=gpar(fontface="bold"))
   
   return(tabgrob)
 }
@@ -508,6 +510,30 @@ ggsave(plot=grob3b,filename=plot.dir %&%
          "filtered-table_unweighted_maxppa50.png",height=20,width=20)
 
 ```
+
+Chunk the table 
+
+```{r}
+Number <- 1:101
+s1 <- filter(candw.df,maxppa>=0.5) %>% arrange(.,desc(maxppa))
+s1 <- cbind(Number,s1)
+
+grobA <- make_table_plot_filtered(s1[1:33,])
+ggsave(plot=grobA,filename=plot.dir %&%
+         "filtered-table_weighted_maxppa50-A.png",height=20,width=20)
+grobB <- make_table_plot_filtered(s1[34:66,])
+ggsave(plot=grobB,filename=plot.dir %&%
+         "filtered-table_weighted_maxppa50-B.png",height=20,width=20)
+grobC <- make_table_plot_filtered(s1[67:101,])
+ggsave(plot=grobC,filename=plot.dir %&%
+         "filtered-table_weighted_maxppa50-C.png",height=20,width=20)
+
+
+
+
+```
+
+
 
 
 
@@ -714,6 +740,14 @@ bdg.df <- dplyr::select(bdg.df,one_of("CHR","POS0","POS","PPA"))
 
 write.table(x=bdg.df,write.dir %&% "gencred.bdg",sep="\t",quote=F,
             row.names=F,col.names=F)
+
+```
+
+
+```{r}
+
+write.table(candw.df,file = work.dir %&% "analysis_files/profile-coloc.txt",
+            sep="\t",quote=F,row.names=F)
 
 ```
 
