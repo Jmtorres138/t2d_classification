@@ -1,0 +1,37 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+
+serv.dir <- "/home/jason/science/servers/FUSE5/"
+#serv.dir <- "/Users/jtorres/FUSE5/"
+
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "method_C/"
+
+df <- fread(work.dir %&% "analysis_files/profile-coloc.txt")
+
+```
+
+
+```{r}
+
+top101.df <- filter(df,maxppa>=0.5)
+filter(top101.df,maxsnpcoloc==TRUE) %>% dplyr::select(.,one_of("Locus.ID","assigned_20",
+                                                               "symbol","eGene","CLPP","maxppa",
+                                                               "snpcount"))
+
+```
+
