@@ -48,6 +48,29 @@ write.dir <- "/home/jason/science/projects/t2d_classification/method_C/analysis_
 ```
 
 
+```{r}
+
+sig.coloc <- filter(coloc.df,CLPP>0.5) %>% arrange(.,Locus,SNP_ID,gene_name,Tissue)
+dim(sig.coloc) # 380 colocalized eQTLs 
+sig.coloc$check <- map(1:dim(sig.coloc)[1],function(i){
+  row.df <- sig.coloc[i,]
+  check <- row.df$Locus%&%","%&%row.df$SNP_ID%&%","%&%row.df$gene_name
+}) %>% as.character(.)
+
+tiss.count <- map(unique(sig.coloc$check),function(u){
+  (filter(sig.coloc,check==u) %>% dim(.))[1]
+}) %>% as.integer(.)
+
+df <- data.frame(id=unique(sig.coloc$check),tiss.count,stringsAsFactors = FALSE)
+summary(df$tiss.count) # 155, unique snp-eQTL pairs
+#of the 380 eQTL colocalizations, 272 involved the same SNP-eGene pair in multiple tissues, whereas only 108 where unique to a specific tissue (72%)
+
+
+
+
+```
+
+
 
 
 ```{r}
