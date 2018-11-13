@@ -167,6 +167,12 @@ build_full_file <- function(gencred.df){
 
 gencred.df <- build_gen_cred_file()
 gencred.df <- build_full_file(gencred.df)
+lead.rsid <- map(gencred.df$CondID, function(id){
+  filter(genid.df,CondID==id)$IndexSNP
+}) %>% as.character(.)
+gencred.df$lead.rsid <- lead.rsid
+
+
 
 write.table(x=gencred.df,file=work.dir%&%"genetic_credible_sets/gencred.txt",sep="\t",quote=FALSE,row.names=F)
 
