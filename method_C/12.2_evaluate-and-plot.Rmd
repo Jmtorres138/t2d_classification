@@ -28,6 +28,30 @@ isl.df <- fread(file.dir %&%  "islet-profile-IsletMaxPPA50.txt")
 ```
 
 
+# adding in lead rsID info 
+
+```{r}
+
+gencred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+
+append_rslead <- function(df){
+  pb <- txtProgressBar(min=0,max=dim(df)[1],style=3)
+  lead.rsid <- map(1:dim(df)[1],function(i){
+      setTxtProgressBar(pb,i)
+      id <- df$Locus.ID[i]
+      filter(gencred.df,CondID==id)$lead.rsid %>% unique(.)
+    }) %>% as.character(.)
+  df$lead.rsid <- lead.rsid
+  return(df)
+}
+
+full.df <- append_rslead(full.df)
+isl.df <- append_rslead(isl.df)
+
+```
+
+
+
 ```{r}
 
 (isl.df$coding > 0.1) %>% sum(.)
@@ -47,7 +71,7 @@ plt.df1 <- filter(isl.df,islet>0.1,coding < 0.10) # 16
 sum(plt.df1$islet>.50) # 15 
 # filter(plt.df1,islet>0.5)
 
-plt.df1$Signal <- plt.df1$symbol %&% " (" %&% plt.df1$Locus.ID %&% ")" %>%
+plt.df1$Signal <- plt.df1$symbol %&% " (" %&% plt.df1$lead.rsid %&% ")" %>%
   as.factor(.)
 plt.df1$Signal <- factor(plt.df1$Signal,levels=arrange(plt.df1,desc(islet))$Signal)
 
