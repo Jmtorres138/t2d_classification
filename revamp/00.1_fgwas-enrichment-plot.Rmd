@@ -30,15 +30,14 @@ library("data.table")
 got2d.dir <- "/home/jason/science/servers/FUSE/"
 serv.dir <- "/home/jason/science/servers/FUSE5/"
 proj.dir <- serv.dir %&% "projects/t2d_classification/"
-work.dir <- proj.dir %&% "method_A/"
-out.dir <- work.dir %&% "analysis_files/"
-res.dir <- work.dir %&% "multi_results/"
+work.dir <- proj.dir %&% "revamp/"
 input.dir <- proj.dir %&% "analysis_files/"
 
 fgwas.dir <- got2d.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/" %&%
   "cross_tissue/"
 
-#fgwas.out.dir <- fgwas.dir %&% "fgwas_output/"
+plot.dir <- work.dir %&% "plots/"
+write.dir <- work.dir %&% "analysis_files/"
 
 annotation.keyfile <- NULL # fgwas.dir %&% "plots/plot-key.csv"
 if (!is.null(annotation.keyfile)){
@@ -92,18 +91,23 @@ build_param_df <- function(fgwas.out.dir,tissue,name.vec=NULL){
 strong.enhancers <- c("9_Active_enhancer_1","10_Active_enhancer_2")
 weak.enhancers <- c("11_Weak_enhancer")
 repressed.regions <- c("16_Repressed_polycomb", "17_Weak_repressed_polycomb")
-promoters <- c("1_Active_TSS","2_Weak_TSS","3_Flanking_TSS")
-gene.transcription <- c("5_Strong_transcription","6_Weak_transcription")
+strong.promoter <- c("1_Active_TSS")
+weak.promoter <- c("2_Weak_TSS")
+flank.promoter <- c("3_Flanking_TSS")
+#promoters <- c("1_Active_TSS","2_Weak_TSS","3_Flanking_TSS")
+strong.gene.transcription <- c("5_Strong_transcription")
+weak.gene.transcription <- c("6_Weak_transcription")
 bivalent.tss <- c("14_Bivalent_poised_TSS")
 genic.enhancer <- c("8_Genic_enhancer")
 low.signal <- c("18_Quiescent_low_signal")
 coding <- c("coding")
 
-annot.names <- c("strong.enhancers","weak.enhancers","repressed.regions","promoters",
-               "gene.transcription","bivalent.tss","genic.enhancer","low.signal",
-               "coding")
-annot.list <- list(strong.enhancers,weak.enhancers,repressed.regions,promoters,
-               gene.transcription,bivalent.tss,genic.enhancer,low.signal,coding)
+annot.names <- c("strong.enhancers","weak.enhancers","repressed.regions","strong.promoter",
+                 "weak.promoter", "flank.promoter","strong.gene.transcription",
+                 "weak.gene.transcription","bivalent.tss","genic.enhancer","low.signal","coding")
+annot.list <- list(strong.enhancers,weak.enhancers,repressed.regions,strong.promoter,
+               weak.promoter, flank.promoter, strong.gene.transcription,
+               weak.gene.transcription, bivalent.tss,genic.enhancer,low.signal,coding)
 
 ```
 
@@ -171,10 +175,10 @@ plt <- ggplot(data=filt.df,aes(x=annotation,y=2^weight)) +
   xlab("Annotation") + ylab("Fold Enrichment") + coord_cartesian(ylim=c(0,7)) + 
   scale_y_continuous(breaks=1:7)
 
-ggsave(plt,filename = plot.dir2 %&%"fgwas-enrich.png",width=8,height=6)
-ggsave(plt,filename = plot.dir2 %&%"fgwas-enrich.pdf",width=8,height=6)
+ggsave(plt,filename = plot.dir %&%"fgwas-enrich.png",width=8,height=6)
+ggsave(plt,filename = plot.dir %&%"fgwas-enrich.pdf",width=8,height=6)
 
-write.table(x=filt.df,file=plot.dir2 %&%"fgwas-enrich.txt",sep="\t",quote=F,row.names = F)
+write.table(x=filt.df,file=plot.dir %&%"weight-enrich-all.txt",sep="\t",quote=F,row.names = F)
 
 ```
 
@@ -223,13 +227,15 @@ plt4 <- an_plot(filter(plot.df,tissue=="liver"),
 
 pltB <- grid.arrange(plt1,plt2,plt3,plt4,nrow=2)
 
-ggsave(pltB,filename = plot.dir2 %&%"fgwas-enrich-all.png",width=8,height=6)
-ggsave(pltB,filename = plot.dir2 %&%"fgwas-enrich-all.pdf",width=8,height=6)
-
-write.table(x=plot.df,file=plot.dir2 %&%"fgwas-enrich-all.txt",sep="\t",
-            quote=F,row.names = F)
+ggsave(pltB,filename = plot.dir %&%"fgwas-enrich-all.png",width=8,height=6)
+ggsave(pltB,filename = plot.dir %&%"fgwas-enrich-all.pdf",width=8,height=6)
 
 plot.df$fe <- 2^plot.df$estimate 
+
+write.table(x=plot.df,file=plot.dir %&%"fgwas-enrich-all.txt",sep="\t",
+            quote=F,row.names = F)
+
+#plot.df$fe <- 2^plot.df$estimate 
 ```
 
 
