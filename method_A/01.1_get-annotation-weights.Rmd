@@ -16,8 +16,8 @@ knitr::opts_chunk$set(echo = TRUE)
 library("tidyverse")
 library("data.table")
 
-got2d.dir <- "/Users/jtorres/FUSE/" #"/home/jason/science/servers/FUSE/"
-serv.dir <- "/Users/jtorres/FUSE5/" #"/home/jason/science/servers/FUSE5/"
+got2d.dir <- "/home/jason/science/servers/FUSE/" #"/home/jason/science/servers/FUSE/"
+serv.dir <- "/home/jason/science/servers/FUSE5/" #"/home/jason/science/servers/FUSE5/"
 proj.dir <- serv.dir %&% "projects/t2d_classification/"
 work.dir <- proj.dir %&% "method_A/"
 out.dir <- work.dir %&% "analysis_files/"

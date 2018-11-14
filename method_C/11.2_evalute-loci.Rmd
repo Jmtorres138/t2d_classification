@@ -8,6 +8,8 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
+# Setup 
+
 ```{r}
 
 "%&%" <- function(a,b) paste0(a,b)
@@ -16,22 +18,197 @@ library("tidyverse")
 library("data.table")
 
 serv.dir <- "/home/jason/science/servers/FUSE5/"
-#serv.dir <- "/Users/jtorres/FUSE5/"
 
 proj.dir <- serv.dir %&% "projects/t2d_classification/"
 work.dir <- proj.dir %&% "method_C/"
 
-df <- fread(work.dir %&% "analysis_files/profile-coloc.txt")
+tab.df <- fread(work.dir %&% "analysis_files/profile-coloc.txt")
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+
+```
+
+
+# Greatest fine-mapped with eQTL colocalization 
+
+```{r}
+
+top101.df <- filter(tab.df,maxppa>=0.5)
+filter(top101.df,maxsnpcoloc==TRUE) %>% dplyr::select(.,one_of("Locus.ID","assigned_20",
+                                                               "symbol","eGene","CLPP","maxppa",
+                                                               "snpcount"))
+```
+
+
+# More carefully evaluate results to address Mark/Anhubha concerns 
+
+
+```{r}
+
+coloc.df <- fread(work.dir %&% "analysis_files/colocalize.txt")
+
+```
+
+
+Append genetic PPA information 
+
+```{r}
+
+coloc.df$SNP_ID <- map(coloc.df$SNP_ID,function(s){"chr"%&%gsub("_",":",s)}) %>% as.character(.)
+pb <- txtProgressBar(min=0,max=dim(coloc.df)[1],style=3)
+#coloc.df$PPA
+PPA <- map(1:dim(coloc.df)[1],function(i){
+#PPA <- map(1:20,function(i){
+
+  setTxtProgressBar(pb,i)
+  sub <- coloc.df[i,]
+  loc <- sub$Locus; snp <- sub$SNP_ID
+  val <- filter(cred.df,CondID==loc,SNPID==snp)$PPA
+  val <- ifelse(length(val)==0,NA,val)
+}) # %>% as.numeric(.)
+
+coloc.df$PPA <- unlist(PPA)
+
+```
+
+
+# Add SNP annotations from fgwas input files 
+
+
+```{r}
+
+fgwas.dir <- "/home/jason/science/servers/FUSE/projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/"
+
+fgwas.isl <- fread("cat " %&% fgwas.dir %&% "fgwas_input_islet/ukbb_diamante-euro.fgwas.gz" %&% " | zmore")
+sub <- dplyr::select(fgwas.isl,one_of("SNPID","coding"),contains("_"),-one_of("utr_3","utr_5","distance_tss"))
+names(sub)[3:length(names(sub))] <- "islet_" %&% names(sub)[3:length(names(sub))] 
+names(sub)[1] <- "SNP_ID"
+full.df <- left_join(coloc.df,sub,by="SNP_ID")
+rm(fgwas.isl)
+
+fgwas.adi <- fread("cat " %&% fgwas.dir %&% "fgwas_input_adipose/ukbb_diamante-euro.fgwas.gz" %&% " | zmore")
+sub <- dplyr::select(fgwas.adi,one_of("SNPID"),contains("_"),-one_of("utr_3","utr_5","distance_tss"))
+names(sub)[2:length(names(sub))] <- "adipose_" %&% names(sub)[2:length(names(sub))] 
+names(sub)[1] <- "SNP_ID"
+full.df <- left_join(full.df,sub,by="SNP_ID")
+rm(fgwas.adi)
+
+fgwas.liv <- fread("cat " %&% fgwas.dir %&% "fgwas_input_liver/ukbb_diamante-euro.fgwas.gz" %&% " | zmore")
+sub <- dplyr::select(fgwas.liv,one_of("SNPID"),contains("_"),-one_of("utr_3","utr_5","distance_tss"))
+names(sub)[2:length(names(sub))] <- "liver_" %&% names(sub)[2:length(names(sub))] 
+names(sub)[1] <- "SNP_ID"
+full.df <- left_join(full.df,sub,by="SNP_ID")
+rm(fgwas.liv)
+
+fgwas.mus <- fread("cat " %&% fgwas.dir %&% "fgwas_input_muscle/ukbb_diamante-euro.fgwas.gz" %&% " | zmore")
+sub <- dplyr::select(fgwas.mus,one_of("SNPID"),contains("_"),-one_of("utr_3","utr_5","distance_tss"))
+names(sub)[2:length(names(sub))] <- "muscle_" %&% names(sub)[2:length(names(sub))] 
+names(sub)[1] <- "SNP_ID"
+full.df <- left_join(full.df,sub,by="SNP_ID")
+rm(fgwas.mus)
+
 
 ```
 
 
 ```{r}
 
-top101.df <- filter(df,maxppa>=0.5)
-filter(top101.df,maxsnpcoloc==TRUE) %>% dplyr::select(.,one_of("Locus.ID","assigned_20",
-                                                               "symbol","eGene","CLPP","maxppa",
-                                                               "snpcount"))
+class.df <- fread(work.dir %&% "analysis_files/classified-loci_weighted_renamed.txt")
+pb <- txtProgressBar(min=0,max=dim(full.df)[1],style=3)
+full.df$assigned_20 <- map(1:dim(full.df)[1],function(i){
+  setTxtProgressBar(pb,i)
+  loc <- full.df$Locus[i]
+  filter(class.df,Locus.ID==loc)$assigned_20
+}) %>% as.character(.)
+
+
+write.table(x=full.df,file=work.dir%&%"analysis_files/colocalization_appended.txt",sep="\t",quote=F,row.names=F)
+
 
 ```
+
+
+
+# Check "what the hell is going on" with CCND2 
+
+
+
+```{r}
+
+filter(class.df,symbol=="CCND2")# "146_1"
+vec <- filter(full.df,Locus=="146_1",Tissue=="Adipose_Subcutaneous") %>% as.character(.)
+filter(full.df,Locus=="146_1",Tissue=="Adipose_Subcutaneous")[,vec!="0"]
+#  Locus        SNP_ID               Tissue              Gene gene_name  gwas_z   eqtl_z     CLPP PPA islet_1_Active_TSS adipose_3_Flanking_TSS
+# 146_1 chr12:4384844 Adipose_Subcutaneous ENSG00000118971.3     CCND2 17.6325 5.176068 0.997129   1                  1                      1
+#  liver_16_Repressed_polycomb muscle_14_Bivalent_poised_TSS assigned_20
+#                          1                             1     adipose
+#   146_1 0.49633852 0.000000000 0.50366148 0.000000 0.0000000     adipose     adipose     adipose unclassified  CCND2
+
+#-bash-4.1$ more fgwas_output_islet/1_Active_TSS.params 
+#parameter CI_lo estimate CI_hi
+#pi_region 0.351244 0.382863 0.415403
+#1_Active_TSS_ln 2.37658 2.7873 3.14543
+#-bash-4.1$ more fgwas_output_adipose/3_Flanking_TSS.params 
+#parameter CI_lo estimate CI_hi
+#pi_region 0.350698 0.382288 0.41482
+#3_Flanking_TSS_ln 2.14745 2.63399 3.04532
+
+#promoters
+#adipose
+#2.2591100
+
+#promoters
+#islet
+#2.2379800
+
+#> get_weight_full(all.df,c("2_Weak_TSS","3_Flanking_TSS"))
+# adipose    islet    liver   muscle 
+#2.052005 1.963320 1.464314 2.326080 
+#> get_weight_full(all.df,c("2_Weak_TSS"))
+# adipose    islet    liver   muscle 
+#1.470020 2.019900 0.344999 1.907440 
+#> get_weight_full(all.df,c("3_Flanking_TSS"))
+#adipose   islet   liver  muscle 
+#2.63399 1.90674 2.58363 2.74472 
+
+```
+
+
+It seems that although strong and weak promoters are more enriched in islet than adipose. It seems the enrichment of 3_Flanking_TSS is much more pronounced in adipose, therefore, when I combine all three in a "promoters" category - the signal slightly leans to adipose; this would account for the slight skew towards adipose for CCND2 
+
+
+
+Okay, now investigating TCF7L2 primary signal (rs7903146 at chr10:114758349)
+
+```{r}
+
+filter(class.df,symbol=="TCF7L2") # (130_1)
+vec <- filter(full.df,Locus=="130_1",SNP_ID=="chr10:114758349")[1,] %>% as.character(.)
+filter(full.df,Locus=="130_1",SNP_ID=="chr10:114758349",Tissue=="Islet")[1,vec!="0"]
+filter(full.df,Locus=="130_1",SNP_ID=="chr10:114754071",Tissue=="Islet")[1,vec!="0"]
+filter(full.df,Locus=="130_1",SNP_ID=="chr10:114754784",Tissue=="Islet")[1,vec!="0"]
+
+ #Locus          SNP_ID Tissue              Gene gene_name   gwas_z   eqtl_z     PPA islet_10_Active_enhancer_2
+#1 130_1 chr10:114758349  Islet ENSG00000023041.7    ZDHHC6 42.53416 1.514804 0.59196                          1
+#  adipose_10_Active_enhancer_2 liver_6_Weak_transcription muscle_6_Weak_transcription assigned_20
+#1                            1                          1                           1     adipose
+
+#  Locus          SNP_ID Tissue              Gene gene_name    gwas_z   eqtl_z     PPA islet_10_Active_enhancer_2
+#1 130_1 chr10:114754071  Islet ENSG00000023041.7    ZDHHC6 -42.54743 1.336031 0.36299                          0
+#  adipose_10_Active_enhancer_2 liver_6_Weak_transcription muscle_6_Weak_transcription assigned_20
+#1                            1                          0                           1     adipose
+
+
+vec2 <- filter(full.df,Locus=="130_1",SNP_ID=="chr10:114754071")[1,] %>% as.character(.)
+filter(full.df,Locus=="130_1",SNP_ID=="chr10:114754071",Tissue=="Islet")[1,vec2!="0"]
+
+
+filter(class.df,Locus.ID=="130_1")
+
+filter(cred.df,CondID=="130_1") %>% arrange(.,desc(PPA))
+
+```
+
+
+Although it's true that the top SNP (PPA = 0.59) maps to islet enhancer (10_Active) but also for adipose (10_Active); the tie breaker is due to the variant with the next highest PPA (0.36) that maps to an adipose enhancer (10_Active) but doesn't map to an islet regulatory enhancer but does map to islet weak transcription 
+
 
