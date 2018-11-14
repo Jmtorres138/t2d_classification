@@ -1,6 +1,8 @@
 import re
-fin = open("specific-bed-files.txt",'r')
-fout = open("specific_processed.txt",'w')
+# Need to run this first to create file
+# ls -d -1 $PWD/*.* | grep specific > specific-bed-files.txt
+fin = open("/well/mccarthy/users/jason/projects/t2d_classification/revamp/analysis_files/specific-bed-files.txt",'r')
+fout = open("/well/mccarthy/users/jason/projects/t2d_classification/revamp/analysis_files/specific_processed.txt",'w')
 count = 0
 
 for entry in fin:
@@ -14,6 +16,6 @@ for entry in fin:
 		else:
 			count += 1
 	fi.close()
-print count 
+print count
 fin.close()
 fout.close()

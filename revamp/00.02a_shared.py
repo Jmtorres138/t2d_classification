@@ -1,6 +1,10 @@
 import re
-fin = open("shared-bed-files.txt",'r')
-fout = open("shared_processed.txt",'w')
+
+# Need to run this first to create file
+# ls -d -1 $PWD/*.* | grep shared | grep -v shared_ > shared-bed-files.txt
+
+fin = open("/well/mccarthy/users/jason/projects/t2d_classification/revamp/analysis_files/shared-bed-files.txt",'r')
+fout = open("/well/mccarthy/users/jason/projects/t2d_classification/revamp/analysis_files/shared_processed.txt",'w')
 count = 0
 
 for entry in fin:
