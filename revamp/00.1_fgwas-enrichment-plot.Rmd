@@ -178,7 +178,7 @@ plt <- ggplot(data=filt.df,aes(x=annotation,y=2^weight)) +
 ggsave(plt,filename = plot.dir %&%"fgwas-enrich.png",width=8,height=6)
 ggsave(plt,filename = plot.dir %&%"fgwas-enrich.pdf",width=8,height=6)
 
-write.table(x=filt.df,file=plot.dir %&%"weight-enrich-all.txt",sep="\t",quote=F,row.names = F)
+write.table(x=filt.df,file=write.dir %&%"weight-enrich-all.txt",sep="\t",quote=F,row.names = F)
 
 ```
 
@@ -232,7 +232,7 @@ ggsave(pltB,filename = plot.dir %&%"fgwas-enrich-all.pdf",width=8,height=6)
 
 plot.df$fe <- 2^plot.df$estimate 
 
-write.table(x=plot.df,file=plot.dir %&%"fgwas-enrich-all.txt",sep="\t",
+write.table(x=plot.df,file=write.dir %&%"fgwas-enrich-all.txt",sep="\t",
             quote=F,row.names = F)
 
 #plot.df$fe <- 2^plot.df$estimate 
