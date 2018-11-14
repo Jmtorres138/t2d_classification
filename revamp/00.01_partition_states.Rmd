@@ -17,10 +17,13 @@ library("tidyverse")
 library("data.table")
 library("GenomicRanges")
 
-serv.dir <- "/Users/jtorres/FUSE/"
+serv0.dir <- "/home/jason/science/servers/FUSE/"
+serv.dir <- "/home/jason/science/servers/FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "revamp/"
 
-bed.dir <- serv.dir %&% "reference/chromatin_segmentation/varshney_2016/chromatin_states/" 
-work.dir <- bed.dir %&% "partitioned/"
+bed.dir <- serv0.dir %&% "reference/chromatin_segmentation/varshney_2016/chromatin_states/" 
+write.dir <- work.dir %&% "analysis_files/partitioned/"
 
 
 ```
@@ -71,17 +74,17 @@ partition_split <- function(query.vec = strong.enhancers, key.term = "strong_enh
   islet.shared <- reduce(shared.gr[shared.gr %over% gr1])
   irpt.shared <- reduce(shared.gr[!(shared.gr %over% islet.shared)])
   annot.name <- "islet_specific_" %&% key.term
-  out.df1 <- gr_to_df(isl.spec); out.df1$name <- annot.name ; write.table(out.df1,file=work.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)
+  out.df1 <- gr_to_df(isl.spec); out.df1$name <- annot.name ; write.table(out.df1,file=write.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)
   annot.name <- "adipose_specific_" %&% key.term
-  out.df2 <- gr_to_df(adi.spec); out.df2$name <- annot.name; write.table(out.df2,file=work.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)
+  out.df2 <- gr_to_df(adi.spec); out.df2$name <- annot.name; write.table(out.df2,file=write.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)
   annot.name <- "muscle_specific_" %&% key.term 
-  out.df3 <- gr_to_df(mus.spec); out.df3$name <- annot.name; write.table(out.df3,file=work.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)
+  out.df3 <- gr_to_df(mus.spec); out.df3$name <- annot.name; write.table(out.df3,file=write.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)
   annot.name <- "liver_specific_" %&% key.term 
-  out.df4 <- gr_to_df(liv.spec); out.df4$name <- annot.name; write.table(out.df4,file=work.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)
+  out.df4 <- gr_to_df(liv.spec); out.df4$name <- annot.name; write.table(out.df4,file=write.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)
   annot.name <- "islet_shared_" %&% key.term
-  out.df5 <- gr_to_df(islet.shared); out.df5$name <- annot.name; write.table(out.df5,file=work.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)
+  out.df5 <- gr_to_df(islet.shared); out.df5$name <- annot.name; write.table(out.df5,file=write.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)
   annot.name <- "irpt_shared_" %&% key.term
-  out.df6 <- gr_to_df(irpt.shared); out.df6$name <- annot.name; write.table(out.df6,file=work.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)
+  out.df6 <- gr_to_df(irpt.shared); out.df6$name <- annot.name; write.table(out.df6,file=write.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)
   out.df <- bind_rows(out.df1,out.df2,out.df3,out.df4,out.df5,out.df6)
   return(out.df)
 }
@@ -112,7 +115,7 @@ bed.df <- bind_rows(df1,df2,df3,df4,df5,df6,df7)
 
 bed.df$num <- as.integer(gsub("chr","",bed.df$chr)) 
 bed.df <- bed.df %>% arrange(chr,start) %>% select(one_of("chr","start","end","name"))
-write.table(bed.df,file=work.dir%&%"complete_isl-adi-mus-liv.partitioned.bed",quote=F,sep="\t",row.names=F,col.names=F)
+write.table(bed.df,file=write.dir%&%"complete_isl-adi-mus-liv.partitioned.bed",quote=F,sep="\t",row.names=F,col.names=F)
 
 
 ```
