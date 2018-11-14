@@ -13,7 +13,7 @@ proj.dir <- serv.dir %&% "projects/t2d_classification/"
 work.dir <- proj.dir %&% "revamp/"
 out.dir <- proj.dir %&% "revamp/analysis_files/"
 res.dir <- work.dir %&% "genetic_credible_sets/" 
-input.dir <- proj.dir %&% "analysis_files/"
+#input.dir <- proj.dir %&% "analysis_files/"
 
 sym.ids <- unique(keys(Homo.sapiens, keytype = "SYMBOL"))
 sym.df <- select(Homo.sapiens,key=sym.ids,keytype="SYMBOL",
@@ -25,21 +25,18 @@ ess.df <- fread(ess.dir %&% "expression_specificity_scores.txt")
 weight.all.df <- fread(out.dir %&%  "weight-enrich-all.txt")
 
 
-
-
-
 cred.df <- fread(res.dir %&% "gencred.txt")
-bed1.df <- fread(input.dir %&% "all_shared.bed")
-bed2.df <- fread(input.dir %&% "shared_processed.txt")
+bed1.df <- fread(out.dir %&% "all_shared.bed")
+bed2.df <- fread(out.dir %&% "shared_processed.txt")
 shared.df <- rbind(bed1.df,bed2.df); rm(bed1.df); rm(bed2.df)
-specific.df <- fread(input.dir %&% "specific_processed.txt")
+specific.df <- fread(out.dir %&% "specific_processed.txt")
 states.df <- rbind(shared.df,specific.df)
 
 
 # Divvy function
 
 locid_to_symbol <- function(loc.id){
-  return(filter(cred.df,Locus.ID==loc.id)$symbol %>% as.character(.) %>% unique(.))
+  return(filter(cred.df,CondID==loc.id)$symbol %>% as.character(.) %>% unique(.))
 }
 
 
@@ -115,42 +112,65 @@ divvy_ppa_snp <- function(loc.id,snp.id,mode="full",weights=TRUE){
   annot.df <- filter(states.df,V1==chrom,V2<=pos,V3>=pos)
   strongenh.vec <- handle_annotation(annot.df,"strong_enhancer",ppa)
   weakenh.vec <- handle_annotation(annot.df,"weak_enhancer",ppa)
-  genetrans.vec <- handle_annotation(annot.df,"gene_transcription",ppa)
-  prom.vec <- handle_annotation(annot.df,"promoter",ppa)
   genenh.vec <- handle_annotation(annot.df,"genic_enhancer",ppa)
+  strongprom.vec <- handle_annotation(annot.df,"strong_promoter",ppa)
+  weakprom.vec <- handle_annotation(annot.df,"weak_promoter",ppa)
+  flankprom.vec <- handle_annotation(annot.df,"flank_promoter",ppa)
+  stronggenetrans.vec <- handle_annotation(annot.df,"strong_gene_transcription",ppa)
+  weakgenetrans.vec <- handle_annotation(annot.df,"weak_gene_transcription",ppa)
+  
   if (weights==TRUE){
     c.df <- filter(weight.all.df,annotation=="coding")
-    c.scores <- c(2^(filter(c.df,tissue=="islet")$weight), 2^(filter(c.df,tissue=="muscle")$weight),
-                  2^(filter(c.df,tissue=="adipose")$weight),2^(filter(c.df,tissue=="liver")$weight))
+    c.scores <- c(2^(filter(c.df,tissue=="Islet")$weight), 2^(filter(c.df,tissue=="Muscle")$weight),
+                  2^(filter(c.df,tissue=="Adipose")$weight),2^(filter(c.df,tissue=="Liver")$weight))
     coding.vec <- coding.vec  * c.scores
 
     se.df <- filter(weight.all.df,annotation=="strong.enhancers")
-    se.scores <- c(2^(filter(se.df,tissue=="islet")$weight), 2^(filter(se.df,tissue=="muscle")$weight),
-                   2^(filter(se.df,tissue=="adipose")$weight),2^(filter(se.df,tissue=="liver")$weight))
+    se.scores <- c(2^(filter(se.df,tissue=="Islet")$weight), 2^(filter(se.df,tissue=="Muscle")$weight),
+                   2^(filter(se.df,tissue=="Adipose")$weight),2^(filter(se.df,tissue=="Liver")$weight))
     strongenh.vec <- strongenh.vec * se.scores
 
     we.df <- filter(weight.all.df,annotation=="weak.enhancers")
-    we.scores <- c(2^(filter(we.df,tissue=="islet")$weight), 2^(filter(we.df,tissue=="muscle")$weight),
-                   2^(filter(we.df,tissue=="adipose")$weight),2^(filter(we.df,tissue=="liver")$weight))
+    we.scores <- c(2^(filter(we.df,tissue=="Islet")$weight), 2^(filter(we.df,tissue=="Muscle")$weight),
+                   2^(filter(we.df,tissue=="Adipose")$weight),2^(filter(we.df,tissue=="Liver")$weight))
     weakenh.vec <- weakenh.vec * we.scores
 
-    gt.df <- filter(weight.all.df,annotation=="gene.transcription")
-    gt.scores <- c(2^(filter(gt.df,tissue=="islet")$weight), 2^(filter(gt.df,tissue=="muscle")$weight),
-                   2^(filter(gt.df,tissue=="adipose")$weight),2^(filter(gt.df,tissue=="liver")$weight))
-    genetrans.vec <- genetrans.vec * gt.scores
+    sgt.df <- filter(weight.all.df,annotation=="strong.gene.transcription")
+    sgt.scores <- c(2^(filter(sgt.df,tissue=="Islet")$weight), 2^(filter(sgt.df,tissue=="Muscle")$weight),
+                   2^(filter(sgt.df,tissue=="Adipose")$weight),2^(filter(sgt.df,tissue=="Liver")$weight))
+    stronggenetrans.vec <- stronggenetrans.vec * sgt.scores
+    
+    wgt.df <- filter(weight.all.df,annotation=="weak.gene.transcription")
+    wgt.scores <- c(2^(filter(wgt.df,tissue=="Islet")$weight), 2^(filter(wgt.df,tissue=="Muscle")$weight),
+                   2^(filter(wgt.df,tissue=="Adipose")$weight),2^(filter(wgt.df,tissue=="Liver")$weight))
+    weakgenetrans.vec <- weakgenetrans.vec * wgt.scores
 
-    pr.df <- filter(weight.all.df,annotation=="promoters")
-    pr.scores <- c(2^(filter(pr.df,tissue=="islet")$weight), 2^(filter(pr.df,tissue=="muscle")$weight),
-                   2^(filter(pr.df,tissue=="adipose")$weight), 2^(filter(pr.df,tissue=="liver")$weight))
-    prom.vec <- prom.vec * pr.scores
+    
+    spr.df <- filter(weight.all.df,annotation=="strong.promoter")
+    spr.scores <- c(2^(filter(spr.df,tissue=="Islet")$weight), 2^(filter(spr.df,tissue=="Muscle")$weight),
+                   2^(filter(spr.df,tissue=="Adipose")$weight), 2^(filter(spr.df,tissue=="Liver")$weight))
+    strongprom.vec <- strongprom.vec * spr.scores
 
+    wpr.df <- filter(weight.all.df,annotation=="weak.promoter")
+    wpr.scores <- c(2^(filter(wpr.df,tissue=="Islet")$weight), 2^(filter(wpr.df,tissue=="Muscle")$weight),
+                    2^(filter(wpr.df,tissue=="Adipose")$weight), 2^(filter(wpr.df,tissue=="Liver")$weight))
+    weakprom.vec <- weakprom.vec * wpr.scores
+  
+  
+    fpr.df <- filter(weight.all.df,annotation=="flank.promoter")
+    fpr.scores <- c(2^(filter(fpr.df,tissue=="Islet")$weight), 2^(filter(fpr.df,tissue=="Muscle")$weight),
+                    2^(filter(fpr.df,tissue=="Adipose")$weight), 2^(filter(fpr.df,tissue=="Liver")$weight))
+    flankprom.vec <- flankprom.vec * fpr.scores  
+    
+    
     ge.df <- filter(weight.all.df,annotation=="genic.enhancer")
-    ge.scores <- c(2^(filter(ge.df,tissue=="islet")$weight),2^(filter(ge.df,tissue=="muscle")$weight),
-                   2^(filter(ge.df,tissue=="adipose")$weight),2^(filter(ge.df,tissue=="liver")$weight))
+    ge.scores <- c(2^(filter(ge.df,tissue=="Islet")$weight),2^(filter(ge.df,tissue=="Muscle")$weight),
+                   2^(filter(ge.df,tissue=="Adipose")$weight),2^(filter(ge.df,tissue=="Liver")$weight))
     genenh.vec <- genenh.vec * ge.scores
   }
   if (mode=="full"){
-    score.vec <- coding.vec + strongenh.vec + weakenh.vec + genenh.vec + prom.vec + genetrans.vec
+    score.vec <- coding.vec + strongenh.vec + weakenh.vec + genenh.vec + 
+      strongprom.vec + weakprom.vec + flankprom.vec + stronggenetrans.vec + weakgenetrans.vec
   } else if(mode=="coding+strongenhancers"){
     score.vec <- coding.vec + strongenh.vec
   } else{
