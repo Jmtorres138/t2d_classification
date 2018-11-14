@@ -1,0 +1,134 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup 
+
+```{r}
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+library("Homo.sapiens")
+library("GenomicRanges")
+
+
+#serv.dir1 <- "/well/got2d/jason/" # 
+serv.dir1 <- "/home/jason/science/servers/FUSE/"
+#serv.dir2 <- "/well/mccarthy/users/jason/" #
+serv.dir2 <- "/home/jason/science/servers/FUSE5/"
+
+proj.dir <- serv.dir2 %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "method_C/"
+
+convert_to_gr <- function(df){
+  gr <- GRanges(seqnames=df$V1,IRanges(start=df$V2,end=df$V3))
+  return(gr)
+}
+
+isl.atac <- fread(work.dir %&% "enrichment_files/islet.hg19.bed") %>% convert_to_gr(.)
+adi.atac <- fread(work.dir %&% "enrichment_files/adipose.hg19.bed") %>% convert_to_gr(.)
+mus.atac <- fread(work.dir %&% "enrichment_files/muscle.hg19.bed") %>% convert_to_gr(.)
+liv.atac <- fread(work.dir %&% "enrichment_files/liver.hg19.bed") %>% convert_to_gr(.)
+
+states.df <- fread(serv.dir1 %&% "reference/chromatin_segmentation/varshney_2016/bed_files/complete_varshney_chromHMM_states.bed")
+#states.v2.df <- fread(serv.dir1 %&% "reference/chromatin_segmentation/varshney_2016/chromatin_states/partitioned_updated/" %&% 
+#  "complete_isl-adi-mus-liv.partitioned_updated.bed")
+
+
+```
+
+
+
+```{r}
+
+
+build_result_df <- function(){
+  atac.vec <- c("Liver","Islet","Muscle","Adipose")
+  tiss.vec <- c("Liver","Islets","SkeletalMuscle","Adipose")
+  annot.vec <- ((states.df$V4 %>% unique(.) %>% strsplit(.,split="varshney_[[:alnum:]|-]+_")) %>%
+    unlist(.) %>% unique(.) )
+  annot.vec <- annot.vec[2:length(annot.vec)]
+  annot.vec <- sort.int(annot.vec)
+  annot.vec <- c(annot.vec[7:13],annot.vec[1:6])
+  
+  out.df <- c()
+  for (atac in atac.vec){
+    if (atac=="Liver"){
+      gr <- liv.atac
+    } else if (atac=="Islet"){
+      gr <- isl.atac
+    } else if (atac=="Muscle"){
+      gr <- mus.atac
+    } else {
+      gr <- adi.atac
+    }
+    for (tiss in tiss.vec){
+      print(atac %&% " : " %&% tiss)
+      tiss.df <- filter(states.df,grepl(tiss,V4)) 
+      for (annot in annot.vec){
+        sub.gr <- filter(tiss.df,grepl(annot,V4)) %>% convert_to_gr()
+        pr <- ((gr %over% sub.gr) %>% sum(.)) / length(gr)
+        build.df <- data.frame("ATAC"=atac,"ChromStateTiss"=tiss,"State"=annot,
+                               "prop"=pr,stringsAsFactors = FALSE)
+        out.df <- rbind(out.df,build.df)
+      }
+    }
+  }
+  return(out.df)  
+}
+
+
+
+```
+
+
+```{r}
+
+res.df <- build_result_df()
+
+res.df$State <- as.factor(res.df$State)
+levels(res.df$State) <- annot.vec
+
+```
+
+
+# Plot function 
+
+```{r}
+
+plt1 <- ggplot(data=res.df,aes(x=State,y=prop)) + 
+  geom_point(shape=21,size=2,aes(fill=State)) + 
+  facet_wrap(~ATAC+ChromStateTiss) + 
+  scale_fill_manual(values = c("firebrick1","firebrick2","firebrick3","green1","green2","green3",
+                               "yellow1","yellow2","yellow3","black","grey70","grey80",
+                               "ghostwhite")) + 
+  theme(axis.text.x=element_text(angle=90)) + 
+  ylab("Proportion") + xlab("Chromatin State") 
+
+ggsave(plot=plt1,filename=work.dir %&% "plots/" %&% "ATAC-Varsney-overlaps_full.png",
+       width=15,height=10)
+
+
+ressub.df <- filter(res.df,grepl("TSS",State)|grepl("enhancer",State))
+plt2 <- ggplot(data=ressub.df,aes(x=State,y=prop)) + 
+  geom_point(shape=21,size=2,aes(fill=State)) + 
+  facet_wrap(~ATAC+ChromStateTiss) + 
+  scale_fill_manual(values = c("firebrick1","firebrick2","firebrick3","green3",
+                               "yellow1","yellow2","yellow3","black","grey")) + 
+  theme(axis.text.x=element_text(angle=90)) + 
+  ylab("Proportion") + xlab("Chromatin State")
+
+ggsave(plot=plt2,filename=work.dir %&% "plots/" %&% "ATAC-Varsney-overlaps_tss-enhan.png",
+       width=15,height=10)
+
+
+
+```
+
+

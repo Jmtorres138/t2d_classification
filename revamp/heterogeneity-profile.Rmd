@@ -1,0 +1,213 @@
+---
+title: "heterogeneity-profile.Rmd"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+
+fuse.path <- "/home/jason/science/servers/"
+serv.dir <- fuse.path %&% "FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "method_C/"
+local.dir <- "/home/jason/science/projects/t2d_classification/method_C/"
+
+df <- fread(local.dir %&% "analysis_files/Tissue-of-action_scores-results-maxppa50_weighted.csv")
+df.full <- fread(work.dir %&% "analysis_files/classified-loci_weighted_renamed.txt")
+gencred <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+firstup <- function(x) {
+   substr(x, 1, 1) <- toupper(substr(x, 1, 1))
+x
+}
+
+```
+
+
+build heterogeneity df 
+
+```{r}
+
+build_het_list <- function(df){
+  loc.vec <- map(df$Locus.ID,function(s){
+    strsplit(x=s,split="_")[[1]][1]
+  }) %>% as.character(.) %>% unique(.)
+  l <- list()
+  for (i in 1:length(loc.vec)){
+    loc <- loc.vec[i]
+    vec <- df$Locus.ID[str_detect(df$Locus.ID, "^"%&%loc%&%"_")]
+    l[[i]] <- vec
+  }
+  sub.list <- c()
+  count <- 1 
+  for (i in 1:length(l)){
+    vec <- l[[i]]
+    if (length(vec)>1){
+      sub.list[[count]] <- vec
+      count <- count+1
+    }
+  }
+  return(sub.list)
+}
+
+
+make_plot_df <- function(subdf){
+  out.df <- c()
+  for (i in 1:dim(subdf)[1]){
+    sub <- subdf[i,]
+    tissue <- c("islet","muscle","adipose","liver","other")
+    value <- dplyr::select(sub,one_of(tissue)) %>% as.numeric(.)
+    build.df <- data.frame(Locus.ID = sub$Locus.ID, symbol=sub$symbol, 
+               maxppa=sub$maxppa, #snpcount=sub$snpcount,
+               #coding=sub$coding,
+               tissue, value)
+    out.df <- rbind(out.df,build.df)
+  }
+  return(out.df)
+}
+
+```
+
+
+
+```{r}
+
+library("RColorBrewer")
+cv <- brewer.pal(5,"Set3")
+mycols <- c("gold1","olivedrab2","brown","#f97a7a","grey")
+
+sub.list <- build_het_list(df)
+#c("gold1","olivedrab2","#f7905d","#f97a7a","grey","black")
+vec <- sub.list[[1]]
+
+make_plot <- function(df,vec,leg=FALSE){
+  sub.df <- filter(df,Locus.ID %in% vec)
+  plot.df <- sub.df %>% make_plot_df(.)
+  plot.df$Signal <- map(plot.df$Locus.ID,function(id){
+  strsplit(as.character(id),"_")[[1]][2]  
+  }) %>% as.integer(.) %>% as.factor(.)
+  plot.df$tissue <- plot.df$tissue %>% as.character(.) %>% firstup(.)
+  plot.df <- arrange(plot.df,Signal)
+  plt <- ggplot(data=plot.df,aes(x=Signal,fill=tissue,y=value)) + 
+    geom_bar(stat="identity",color="black",position = "dodge",
+             alpha = ifelse(plot.df$maxppa > 0.5,1,0.8),
+             linetype = ifelse(plot.df$maxppa > 0.5,1,2)) +
+    scale_fill_manual(values=c(mycols),"Tissue") + 
+    theme_bw() + ggtitle(unique(sub.df$symbol)) + ylab("TOA Score")   + xlab("Signal") + 
+    scale_y_continuous(breaks=seq(0,1,0.2),limits = c(0,1),expand = c(0,0)) + 
+    theme(panel.grid.minor.y=element_blank(),
+          panel.grid.major.x=element_blank())
+  if (leg==FALSE){
+    plt <- plt + theme(legend.position = "none")
+  } 
+  
+  return(plt)
+}
+```
+
+
+
+```{r}
+
+p <- make_plot(df,sub.list[[2]])
+
+```
+
+
+
+```{r}
+
+library("grid");library("gridExtra")
+p1 <- make_plot(df,sub.list[[1]])
+p2 <- make_plot(df,sub.list[[2]])
+p3 <- make_plot(df,sub.list[[3]])
+p4 <- make_plot(df,sub.list[[4]])
+p5 <- make_plot(df,sub.list[[5]])
+p6 <- make_plot(df,sub.list[[6]])
+p7 <- make_plot(df,sub.list[[7]])
+p8 <- make_plot(df,sub.list[[8]])
+p9 <- make_plot(df,sub.list[[9]])
+
+grid.arrange(p1,p2,p3,p4,p5,p6,p7,p8,p9,nrow=3,ncol=3)
+
+```
+
+
+# Profile 
+
+```{r}
+
+df.full$loc <- map(df.full$Locus.ID,function(id){
+  strsplit(id,"_")[[1]][1]
+}) %>% as.integer(.)
+keep.loc <- sub.list %>% unlist(.) %>% map(.,function(id){
+  strsplit(id,"_")[[1]][1]
+}) %>% as.integer(.) %>% unique(.) 
+df.full$maxppa <- map(df.full$Locus.ID,function(id){
+  (filter(gencred,CondID==id) %>% arrange(.,desc(PPA)))$PPA[1]
+}) %>% as.numeric(.)
+
+sub.list.expand <- build_het_list(filter(df.full,loc %in% keep.loc))
+sub.list.all <- build_het_list(df.full)
+
+
+p1 <- make_plot(df.full,sub.list.expand[[1]])
+p2 <- make_plot(df.full,sub.list.expand[[2]])
+p3 <- make_plot(df.full,sub.list.expand[[3]])
+p4 <- make_plot(df.full,sub.list.expand[[4]])
+p5 <- make_plot(df.full,sub.list.expand[[5]])
+p6 <- make_plot(df.full,sub.list.expand[[6]])
+p7 <- make_plot(df.full,sub.list.expand[[7]])
+p8 <- make_plot(df.full,sub.list.expand[[8]])
+p9 <- make_plot(df.full,sub.list.expand[[9]])
+
+p <- grid.arrange(p1,p2,p3,p4,p5,p6,p7,p8,p9,nrow=3,ncol=3)
+
+# save name 
+# het-expand.png/pdf 
+
+```
+
+
+```{r}
+
+
+profile_het <- function(slist){
+  n <- length(slist)
+  het.vec <- c()
+  for (v in slist){
+    sub <- filter(df.full,Locus.ID%in%v)
+    eval <- all(sub$assigned_20[1] == sub$assigned_20) 
+    if (eval==FALSE){
+      het.vec <- append(het.vec, unique(sub$symbol))
+    }
+  }
+  print(n)
+  print(length(het.vec))
+  print(length(het.vec)/n)
+  return(het.vec)
+}
+
+
+```
+
+
+```{r}
+
+prof1 <- profile_het(sub.list.all)
+prof2 <- profile_het(sub.list)
+prof3 <- profile_het(sub.list.expand)
+
+```
+
+
+

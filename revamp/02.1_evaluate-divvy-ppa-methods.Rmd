@@ -1,0 +1,304 @@
+---
+title: "evaluate-divvy-ppa-dfs"
+author: "Jason Torres"
+date: "3/5/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+library("Homo.sapiens")
+library("RColorBrewer")
+
+#serv.dir <- "/Users/jtorres/FUSE5/"
+serv.dir <- "/home/jason/science/servers/FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+methA.dir <- proj.dir %&% "method_A/"
+work.dir <- proj.dir %&% "method_C/"
+analysis.dir <- work.dir %&% "analysis_files/"
+plot.dir <- work.dir %&% "plots/"
+
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+
+```
+
+
+```{r}
+
+map_condids <- function(df){
+  Cond.ID <- map(1:dim(df)[1],function(i){
+    filter(cred.df,Locus.ID==df$Locus.ID[i])$CondID %>% unique(.)
+  }) %>% as.character(.)
+  df$Locus.ID <- Cond.ID
+  return(df)
+}
+
+
+
+full.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-unweighted-unscaled.txt") %>% map_condids(.)
+wfull.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-weighted-unscaled.txt") %>% map_condids(.)
+
+```
+
+
+# Compare full versus reduced versions of the divvy ppa data frame
+
+```{r}
+
+create_plot_df <- function(){
+  df <- rbind(mutate(full.df,method="full"),
+              mutate(wfull.df,method="weighted.full"))#,
+              #mutate(alt.df,method="alternative"))
+  loc.ids <- df$Locus.ID %>% unique(.)
+  out.df <- c()
+  pb <- txtProgressBar(min=0,max=length(loc.ids),style=3)
+  for (i in 1:length(loc.ids)){
+    loc.id <- loc.ids[i]
+    setTxtProgressBar(pb,i)
+    sub.df <- filter(df,Locus.ID==loc.id)
+    ppa.score.full <- sub.df[1,2:6] %>% as.numeric(.)
+    ppa.score.wfull <- sub.df[2,2:6] %>% as.numeric(.)
+    #ppa.score.alt <- sub.df[3,2:6] %>% as.numeric(.)
+
+    tissue <- names(sub.df)[2:6]
+    build.df <- data.frame(Locus.ID=loc.id,tissue,
+                           ppa.score.full,
+                           ppa.score.wfull)#,
+                           #ppa.score.alt)
+    out.df <- rbind(out.df,build.df)
+  }
+  out.df$Locus.ID <- out.df$Locus.ID %>% as.character(.)
+  out.df$tissue <- out.df$tissue %>% as.character(.)
+  return(out.df)
+}
+
+```
+
+
+Make PPA comparison plot 
+
+
+```{r}
+
+plot.df <- create_plot_df()
+cv <- brewer.pal(5,"Set3")
+
+pltA <- ggplot(data=plot.df,aes(x=ppa.score.full,y=ppa.score.wfull)) + 
+  geom_point(shape=21,color="black",aes(fill=tissue),size=1) + 
+  geom_abline(slope=1,intercept=0,linetype=1,alpha=0.8) +
+  facet_wrap(~tissue,nrow=3) + 
+  theme_classic() + 
+  #scale_fill_viridis(discrete=TRUE) + 
+  #scale_fill_brewer(palette="Set3") + 
+  scale_fill_manual(values=c(cv[2],cv[1],"brown",cv[4],"grey")) + 
+  theme(legend.position = "none") + 
+  xlab('TOA score (unweighted)') + 
+  ylab('TOA score (weighted)') + 
+  ggtitle("Comparison of TOA Scores")
+ggsave(plot=pltA,filename=plot.dir%&%"ppa-score-compare-weighted.png",
+       height = 4,width=4.5)
+
+
+plot.df <- mutate(plot.df,ppa.score.diff=(ppa.score.wfull-ppa.score.full))
+
+pltC <- ggplot(data=plot.df,aes(x=ppa.score.diff)) +
+  geom_histogram(color="black",aes(fill=tissue)) + 
+  facet_wrap(~tissue,nrow=3) +
+  theme_classic() + 
+  #scale_fill_brewer(palette = "Set3") + 
+  scale_fill_manual(values=c(cv[2],cv[1],"brown",cv[4],"grey")) + 
+  theme(legend.position = "none") + 
+  xlab("TOA score difference (weighted-unweighted)") + 
+  ylab("Count") + 
+  geom_vline(xintercept = 0,linetype=2) +  
+  ggtitle("Difference in TOA Scores")
+
+ggsave(plot=pltC,filename=plot.dir%&%"ppa-score-difference.png",
+       height = 4,width=4.5)
+
+
+```
+
+# Top gene plot
+
+```{r}
+
+get_biggest_diffs <- function(n=3,dif=0.10){
+  out.df <-c()
+  for (t in unique(plot.df$tissue)){
+    sub <- filter(plot.df,tissue==t) %>% arrange(desc(ppa.score.diff))
+    a <- sub[1:n,]
+    b <- arrange(sub,ppa.score.diff)[1:n,]
+    build <- rbind(a,b)
+    out.df <- rbind(out.df,build)
+  }
+  out.df <- filter(out.df, abs(ppa.score.diff)>=dif)
+  return(out.df)
+}
+
+
+```
+
+
+```{r}
+
+
+symbol <- map(plot.df$Locus.ID,function(loc.id){
+  filter(cred.df,CondID==loc.id)$symbol %>% unique(.)
+}) %>% as.character(.)
+
+plot.df <- cbind(symbol,plot.df)
+plot.df$symbol <- as.character(plot.df$symbol)
+
+library("ggrepel")
+
+plot2.df <- get_biggest_diffs(n=5,dif=0.05)
+#plot2b.df <- get_biggest_diffs(dif=0.05)
+#plot2c.df <- get_biggest_diffs(dif=0.01)
+#plot2d.df <- get_biggest_diffs(dif=0.00)
+
+firstup <- function(x) {
+   substr(x, 1, 1) <- toupper(substr(x, 1, 1))
+x
+}
+
+
+plot.df$tissue <- plot.df$tissue %>% firstup(.)
+plot2.df$tissue <- plot2.df$tissue %>% firstup(.)
+plot2b.df$tissue <- plot2b.df$tissue %>% firstup(.)
+plot2c.df$tissue <- plot2c.df$tissue %>% firstup(.)
+
+pltA2 <- ggplot(data=filter(plot.df,tissue!="Other"),
+                aes(x=ppa.score.full,y=ppa.score.wfull)) + 
+  geom_point(shape=21,color="grey35",aes(fill=tissue),size=1,alpha=0.4) + 
+  geom_abline(slope=1,intercept=0,linetype=1,alpha=0.8) +
+  facet_wrap(~tissue,ncol=4) + 
+  theme_classic() + 
+  theme(legend.position = "none") + 
+  xlab('TOA score (unweighted)') + 
+  ylab('TOA score (weighted)') + 
+  ggtitle("Comparison of TOA Scores") + 
+  scale_fill_manual(values=c(cv[2],cv[1],"brown",cv[4],"grey")) + 
+
+  geom_point(data=filter(plot2.df,tissue!="Other"),
+                aes(x=ppa.score.full,y=ppa.score.wfull),
+          color="grey40",shape=21,fill="black") + 
+  geom_label_repel(data=filter(plot2.df,tissue!="Other"),
+                  aes(x=ppa.score.full,y=ppa.score.wfull,
+                      label=paste0(Locus.ID," (",symbol,")")),
+                  size=1.5)
+ggsave(plot=pltA2,filename=plot.dir%&%"ppa-score-compare-weightedV2.png",
+       height = 3.5,width=10)
+
+
+write.table(plot2d.df,file=plot.dir %&%"diffs.txt",sep="\t",quote=F,row.names=F)
+
+```
+
+
+## Quantify differences 
+
+
+```{r}
+
+plot.df %>% group_by(.,tissue) %>% summarise(.,mean(ppa.score.diff))
+#  tissue  `mean(ppa.score.diff)`
+#  <chr>                    <dbl>
+#1 adipose              -1.24e- 2
+#2 islet                 4.28e- 2
+#3 liver                -1.91e- 2
+#4 muscle               -1.13e- 2
+#5 other                 2.35e-18
+plot.df %>% group_by(.,tissue) %>% summarise(.,median(ppa.score.diff))
+plot.df %>% group_by(.,tissue) %>% summarise(.,IQR(ppa.score.diff))
+
+
+
+symbol <- map(plot.df$Locus.ID,function(loc.id){
+  filter(cred.df,CondID==loc.id)$symbol %>% unique(.)
+}) %>% as.character(.)
+
+plot.df <- cbind(symbol,plot.df)
+plot.df$symbol <- as.character(plot.df$symbol)
+
+
+sum(filter(plot.df,tissue=="islet")$ppa.score.diff > 0.01) # 227
+sum(filter(plot.df,tissue=="liver")$ppa.score.diff > 0.01) # 17
+sum(filter(plot.df,tissue=="adipose")$ppa.score.diff > 0.01) # 39
+sum(filter(plot.df,tissue=="muscle")$ppa.score.diff > 0.01) # 31
+sum(filter(plot.df,tissue=="other")$ppa.score.diff > 0.01) # 0
+
+
+arrange(plot.df,desc(ppa.score.diff)) %>% filter(tissue=="islet") %>% head(3) %>% View(.)
+arrange(plot.df,desc(ppa.score.diff)) %>% filter(tissue=="liver") %>% head(36) %>% View(.)
+arrange(plot.df,desc(ppa.score.diff)) %>% filter(tissue=="adipose") %>% head(3) %>% View(.)
+arrange(plot.df,desc(ppa.score.diff)) %>% filter(tissue=="muscle") %>% head(3) %>% View(.)
+arrange(plot.df,desc(ppa.score.diff)) %>% filter(tissue=="other") %>% head(3) %>% View(.)
+
+
+(filter(full.df,other<0.50) %>% dim(.))[1] # 306 loci with other scores < 0.50
+(filter(wfull.df,other<0.50) %>% dim(.))[1] # 306 loci with other scores < 0.50
+
+(filter(full.df,other<0.10) %>% dim(.))[1] # 259 loci with other scores < 0.10
+(filter(wfull.df,other<0.10) %>% dim(.))[1] # 259 loci with other scores < 0.10
+
+```
+
+
+# Stratify by number of SNPs in functional credible set 
+
+
+```{r}
+
+
+look_up_number <- function(loc.id){
+  return((filter(cred.df,CondID==loc.id) %>% dim(.))[1])
+}
+
+pb <- txtProgressBar(min=0,max=dim(plot.df)[1],style=3)
+plot.df$number <- map(1:length(plot.df$Locus.ID),function(i){
+  setTxtProgressBar(pb,i)
+  loc.id <- plot.df$Locus.ID[i]
+  return(look_up_number(loc.id))
+}) %>% as.integer(.)
+
+
+
+
+
+
+
+
+#ggplot(data=plot.df,aes(y=ppa.score.diff,x=number)) + 
+#  geom_point(shape=21,color="black",aes(fill=tissue)) + 
+#  facet_wrap(~tissue,nrow=3) + 
+#  theme_classic() + 
+#  scale_fill_brewer(palette = "Set3")
+
+#cor.test(filter(plot.df,tissue=="islet")$number,
+#         filter(plot.df,tissue=="islet")$ppa.score.diff)
+#cor.test(filter(plot.df,tissue=="adipose")$number,
+#         filter(plot.df,tissue=="adipose")$ppa.score.diff)
+#cor.test(filter(plot.df,tissue=="muscle")$number,
+#         filter(plot.df,tissue=="muscle")$ppa.score.diff)
+#cor.test(filter(plot.df,tissue=="liver")$number,
+#         filter(plot.df,tissue=="liver")$ppa.score.diff)
+#cor.test(filter(plot.df,tissue=="other")$number,
+#         filter(plot.df,tissue=="other")$ppa.score.diff)
+```
+
+
+
+
+
+

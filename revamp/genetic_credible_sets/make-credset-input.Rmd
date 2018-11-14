@@ -1,0 +1,183 @@
+---
+title: "evaluate-divvy-ppa-dfs"
+author: "Jason Torres"
+date: "3/5/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+library("Homo.sapiens")
+
+#serv.dir <- "/Users/jtorres/FUSE5/"
+got2d.dir <- "/home/jason/science/servers/FUSE/"
+serv.dir <- "/home/jason/science/servers/FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+methA.dir <- proj.dir %&% "method_A/"
+work.dir <- proj.dir %&% "method_C/"
+analysis.dir <- work.dir %&% "analysis_files/"
+plot.dir <- work.dir %&% "plots/"
+
+block.df <- fread(methA.dir%&%"null_results/null_results_blocks.txt",sep="\t")
+fcred.df <- fread(methA.dir %&% "null_results/null_results_func-cred-sets.txt")
+
+gcred.dir <- serv.dir %&% "datasets/diamante_hrc/credible_sets/"
+cds.bed <- fread(got2d.dir %&% "reference/genomic/cds.bed")
+cds.gr <- GRanges(seqnames = cds.bed$V1,IRanges(cds.bed$V2,cds.bed$V3))
+
+
+
+
+
+
+```
+
+
+
+
+```{r}
+
+build_gen_cred_file <- function(){
+  f.vec <- list.files(gcred.dir)
+  f.vec <- f.vec[grepl("credible_set_Eur",f.vec)]
+  pb <- txtProgressBar(min=0,max=length(f.vec),style=3)
+  out.df <- c()
+  for (i in 1:length(f.vec)){
+    setTxtProgressBar(pb,i)
+    f <- f.vec[i]
+    l <- strsplit(x=f,split="credible_set_Eur_")[[1]][2] %>% strsplit(.,"_")
+    gene <- l[[1]][1] %>% gsub(".","-",.,fixed=TRUE)
+    sub <- fread(gcred.dir %&% f)
+    names(sub)[2:4] <- c("CHR","POS","PPA")
+    sub$CHR <- "chr" %&% sub$CHR
+    #pos <- sub$IndexSNP %>% gsub("_","",.) %>% as.integer(.)
+    sub$IndexSNP <- "chr" %&% sub$IndexSNP %>% gsub("_",":",.)
+    sub$SNPID <- sub$CHR %&% ":" %&% sub$POS
+    sub$symbol <- gene
+    sub.gr <- GRanges(seqnames=sub$CHR,IRanges(sub$POS,sub$POS))
+    sub$coding <- sub.gr %over% cds.gr %>% as.integer(.)
+    sub <- dplyr::select(sub,one_of("IndexSNP","symbol","SNPID","CHR","POS","PPA","coding"))
+    out.df <- rbind(out.df,sub)
+  }
+  
+  out.df$chrom <- out.df$CHR %>% gsub("chr","",.) %>% as.integer(.)
+  out.df <- arrange(out.df,chrom,POS)
+  isnps <- out.df$IndexSNP %>% unique(.)
+  inum <- 1:length(isnps)
+  Locus.ID <- map(1:dim(out.df)[1],function(i){
+    var <- out.df$IndexSNP[i]
+    id <- inum[match(var,isnps)]
+  }) %>% as.character(.)
+  out.df$Locus.ID <- Locus.ID
+  pb <- txtProgressBar(min=0,max=dim(out.df)[1],style=3)
+  out.df<- dplyr::select(out.df,one_of("Locus.ID","CondID","IndexSNP",
+                              "symbol","SNPID","CHR","POS","PPA","coding"))
+  return(out.df)
+}
+
+```
+
+
+```{r}
+
+gencred.df <- build_gen_cred_file()
+
+
+```
+
+
+
+```{r}
+
+build_full_file <- function(gencred.df){
+  
+
+  genid.df <- fread(proj.dir%&%"analysis_files/lead_hrc_for_Jason.txt",
+                    header=FALSE)
+  names(genid.df) <- c("CondID","IndexSNP")
+  
+  coord.df <- fread(proj.dir %&% "analysis_files/lead_hrc_coord.txt")
+  coord.df$SNPID <- coord.df$Chromosome %&% ":" %&% coord.df$Position
+  
+  SNPID <- unique(gencred.df$IndexSNP)
+  pb <- txtProgressBar(min=0,max=length(SNPID),style=3)
+  out.df <- c()
+  for (i in 1:length(SNPID)){
+    setTxtProgressBar(pb,i)
+    s <- SNPID[i]
+    r <- filter(coord.df,SNPID==s)$dbSNP
+    if (length(r)==0){
+      r <- NA
+      c <- NA
+    } else{
+      c <- filter(genid.df,IndexSNP==r)$CondID
+    }
+    build.df <- data.frame(s,r,c,stringsAsFactors = FALSE)
+    names(build.df) <- c("SNP","RSID","CondID")
+    out.df <- rbind(out.df,build.df)
+  }
+  
+  filter(genid.df,!(IndexSNP%in%out.df$RSID))
+  
+  out.df[out.df$SNP=="chr3:152086533",]$RSID <-"rs13065698"
+  out.df[out.df$SNP=="chr3:152086533",]$CondID <- 
+    filter(genid.df,IndexSNP=="rs13065698")$CondID
+  
+  out.df[out.df$SNP=="chr4:83578271",]$RSID <-"rs12642790"
+  out.df[out.df$SNP=="chr4:83578271",]$CondID <- 
+    filter(genid.df,IndexSNP=="rs12642790")$CondID
+  
+  out.df[out.df$SNP=="chr11:2151761",]$RSID <-"rs555759341"
+  out.df[out.df$SNP=="chr11:2151761",]$CondID <- 
+    filter(genid.df,IndexSNP=="rs555759341")$CondID
+  
+  out.df[out.df$SNP=="chr15:53747228",]$RSID <-"rs528350911"
+  out.df[out.df$SNP=="chr15:53747228",]$CondID <- 
+    filter(genid.df,IndexSNP=="rs528350911")$CondID
+  
+  out.df[out.df$SNP=="chr20:45317678",]$RSID <-"rs560716466"
+  out.df[out.df$SNP=="chr20:45317678",]$CondID <- 
+    filter(genid.df,IndexSNP=="rs560716466")$CondID
+
+  pb <- txtProgressBar(min=0,max=dim(gencred.df)[1],style=3)
+  CondID <- map(1:dim(gencred.df)[1],function(i){
+    setTxtProgressBar(pb,i)
+    id <- gencred.df$IndexSNP[i]
+    condid <- filter(out.df,SNP==id)$CondID
+  }) %>% as.character(.)
+  gencred.df$CondID <- CondID 
+  return(gencred.df)
+}
+
+```
+
+
+
+```{r}
+
+gencred.df <- build_gen_cred_file()
+gencred.df <- build_full_file(gencred.df)
+lead.rsid <- map(gencred.df$CondID, function(id){
+  filter(genid.df,CondID==id)$IndexSNP
+}) %>% as.character(.)
+gencred.df$lead.rsid <- lead.rsid
+
+
+
+write.table(x=gencred.df,file=work.dir%&%"genetic_credible_sets/gencred.txt",sep="\t",quote=FALSE,row.names=F)
+
+```
+
+
+
+

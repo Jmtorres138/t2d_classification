@@ -1,0 +1,56 @@
+---
+title: "atac_downsample.Rmd"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup
+
+
+```{r}
+
+set.seed(1)
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+library("Homo.sapiens")
+library("GenomicRanges")
+
+
+#serv.dir1 <- "/well/got2d/jason/" # 
+serv.dir1 <- "/home/jason/science/servers/FUSE/"
+#serv.dir2 <- "/well/mccarthy/users/jason/" #
+serv.dir2 <- "/home/jason/science/servers/FUSE5/"
+
+proj.dir <- serv.dir2 %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "method_C/"
+
+isl.atac <- fread(work.dir %&% "enrichment_files/islet.hg19.bed") 
+adi.atac <- fread(work.dir %&% "enrichment_files/adipose.hg19.bed") 
+mus.atac <- fread(work.dir %&% "enrichment_files/muscle.hg19.bed")
+liv.atac <- fread(work.dir %&% "enrichment_files/liver.hg19.bed") 
+
+min.val <- min(dim(isl.atac)[1],dim(adi.atac)[1],dim(mus.atac)[1],dim(liv.atac)[1])
+
+isl.ds <- isl.atac[sample(1:dim(isl.atac)[1],size=min.val,replace=FALSE),]
+adi.ds <- adi.atac[sample(1:dim(adi.atac)[1],size=min.val,replace=FALSE),]
+mus.ds <- mus.atac[sample(1:dim(mus.atac)[1],size=min.val,replace=FALSE),]
+liv.ds <- liv.atac[sample(1:dim(liv.atac)[1],size=min.val,replace=FALSE),]
+
+
+write.table(x=isl.ds,file=work.dir %&% "enrichment_files/downsample_islet.hg19.bed",
+            sep="\t",row.names=F,quote=F,col.names=F)
+write.table(x=adi.ds,file=work.dir %&% "enrichment_files/downsample_adipose.hg19.bed",
+            sep="\t",row.names=F,quote=F,col.names=F)
+write.table(x=mus.ds,file=work.dir %&% "enrichment_files/downsample_muscle.hg19.bed",
+            sep="\t",row.names=F,quote=F,col.names=F)
+write.table(x=liv.ds,file=work.dir %&% "enrichment_files/downsample_liver.hg19.bed",
+            sep="\t",row.names=F,quote=F,col.names=F)
+
+```
+

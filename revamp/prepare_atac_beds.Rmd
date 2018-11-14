@@ -1,0 +1,69 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup 
+
+```{r}
+
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+library("Homo.sapiens")
+library("GenomicRanges")
+
+
+serv.dir1 <- "/home/jason/science/servers/FUSE/"
+serv.dir2 <- "/home/jason/science/servers/FUSE5/"
+
+out.dir <- serv.dir2 %&% "projects/t2d_classification/method_C/enrichment_files/" 
+
+islet_bed =  serv.dir1 %&% "reference/islet/atac_peaks/oxford_islet_atac_macs2_n17.bed"
+adi_bed = serv.dir1 %&% "reference/encode/adipose/adipose.hg19.bed"
+liv_bed = serv.dir1 %&% "reference/encode/liver/liver.hg19.bed"
+mus_bed = serv.dir1 %&% "reference/encode/muscle/muscle.hg19.bed"
+
+make_gr <- function(df){
+  gr <- GRanges(seqnames=df$V1,IRanges(df$V2,df$V3))
+  return(gr)
+}
+
+isl.gr <- fread(islet_bed) %>% make_gr(.)
+adi.gr <- fread(adi_bed) %>% make_gr(.)
+liv.gr <- fread(liv_bed) %>% make_gr(.)
+mus.gr <- fread(mus_bed) %>% make_gr(.)
+
+isl.spec <- isl.gr[!(isl.gr %over% c(adi.gr,liv.gr,mus.gr))]
+mus.spec <- mus.gr[!(mus.gr %over% c(adi.gr,liv.gr,isl.gr))]
+adi.spec <- adi.gr[!(adi.gr %over% c(isl.gr,liv.gr,mus.gr))]
+liv.spec <- liv.gr[!(liv.gr %over% c(adi.gr,isl.gr,mus.gr))]
+
+gr_to_beddf <- function(gr){
+  df <- as.data.frame(gr) %>% dplyr::select(.,one_of("seqnames","start","end"))
+  df$name <- "ATAC"
+  return(df)
+}
+
+isl.df <- gr_to_beddf(isl.spec)
+adi.df <- gr_to_beddf(adi.spec)
+mus.df <- gr_to_beddf(mus.spec)
+liv.df <- gr_to_beddf(liv.spec)
+
+write.table(x=isl.df,file = out.dir %&% "islet.hg19.bed",
+            sep="\t",quote=F,row.names=F,col.names=F)
+write.table(x=adi.df,file = out.dir %&% "adipose.hg19.bed",
+            sep="\t",quote=F,row.names=F,col.names=F)
+write.table(x=liv.df,file = out.dir %&% "liver.hg19.bed",
+            sep="\t",quote=F,row.names=F,col.names=F)
+write.table(x=mus.df,file = out.dir %&% "muscle.hg19.bed",
+            sep="\t",quote=F,row.names=F,col.names=F)
+
+```
+

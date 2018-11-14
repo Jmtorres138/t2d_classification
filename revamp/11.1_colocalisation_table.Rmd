@@ -1,0 +1,777 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+
+serv.dir <- "/home/jason/science/servers/FUSE5/"
+#serv.dir <- "/Users/jtorres/FUSE5/"
+
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "method_C/"
+
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+
+work2.dir <- "/home/jason/science/projects/t2d_classification/method_C/"
+df1 <- fread(work.dir %&% "analysis_files/classified-loci_unweighted_renamed.txt")
+df2 <- fread(work.dir %&% "analysis_files/classified-loci_weighted_renamed.txt")
+
+
+coloc.dir <- serv.dir %&% "datasets/diamante_hrc/eCAVIAR/"
+coloc.islet <- fread("cat " %&% coloc.dir %&% "EUR_full_eqtls_coloc.txt.gz" %&% " | zmore")
+coloc.islet$Tissue <- "Islet"
+coloc.gtex <- fread("cat " %&% coloc.dir %&% "EUR_significant_eqtls_coloc.txt.gz" %&% " | zmore")
+
+sub1 <- dplyr::select(coloc.islet,one_of("Locus","SNP_ID","Tissue",
+                                         "Gene","gene_name","gwas_z",
+                                         "eqtl_z","CLPP"))
+sub2 <- dplyr::select(coloc.gtex,one_of("Locus","SNP_ID","Tissue",
+                                         "Gene","gene_name","gwas_z",
+                                         "eqtl_z","CLPP"))
+coloc.df <- rbind(sub1,sub2)
+
+
+write.dir <- "/home/jason/science/projects/t2d_classification/method_C/analysis_files/"
+
+```
+
+
+```{r}
+
+sig.coloc <- filter(coloc.df,CLPP>0.5) %>% arrange(.,Locus,SNP_ID,gene_name,Tissue)
+dim(sig.coloc) # 380 colocalized eQTLs 
+sig.coloc$check <- map(1:dim(sig.coloc)[1],function(i){
+  row.df <- sig.coloc[i,]
+  check <- row.df$Locus%&%","%&%row.df$SNP_ID%&%","%&%row.df$gene_name
+}) %>% as.character(.)
+
+tiss.count <- map(unique(sig.coloc$check),function(u){
+  (filter(sig.coloc,check==u) %>% dim(.))[1]
+}) %>% as.integer(.)
+
+df <- data.frame(id=unique(sig.coloc$check),tiss.count,stringsAsFactors = FALSE)
+summary(df$tiss.count) # 155, unique snp-eQTL pairs
+#of the 380 eQTL colocalizations, 272 involved the same SNP-eGene pair in multiple tissues, whereas only 108 where unique to a specific tissue (72%)
+
+
+
+
+```
+
+
+
+
+```{r}
+
+get_sig_egene_list <- function(loc,tiss,clpp.thresh=0.05){
+  sub <- filter(coloc.df,Locus==loc,Tissue==tiss, CLPP>=clpp.thresh) %>% 
+    group_by(.,gene_name)  %>% arrange(.,desc(CLPP))
+  ##%>% summarise(.,clpp.sum=sum(CLPP)) %>% arrange(.,desc(clpp.sum)) %>% filter(.,clpp.sum>=clpp.thresh)
+  gene <- sub$gene_name[1] #%>% paste0(.,collapse=",") # NOW JUST GET TOP RESULT PER LOCUS
+  clpp <- sub$CLPP[1] # NOW JUST GET TOP RESULT PER LOCUS
+  #clpp.sum <- sub$clpp.sum %>% round(.,digits=3) %>% paste0(.,collapse=",")
+  return(list(gene,clpp))
+}
+
+append_coloc_df <- function(toa.df){
+  pb <- txtProgressBar(min=0,max=dim(toa.df)[1],style=3)
+  out.df <- c()
+  for (i in 1:dim(toa.df)[1]){
+    setTxtProgressBar(pb,i)
+    loc <- toa.df$Locus.ID[i]
+    isl <- get_sig_egene_list(loc,"Islet")
+    mus <- get_sig_egene_list(loc,"Muscle_Skeletal")
+    adi <- get_sig_egene_list(loc,"Adipose_Subcutaneous")
+    liv <- get_sig_egene_list(loc,"Liver")
+    build.df <- data.frame("islet eGene"=isl[[1]],"islet CLPP"=isl[[2]],
+                           "muscle eGene"=mus[[1]],"muscle CLPP"=mus[[2]],
+                           "adipose eGene"=adi[[1]],"adipose CLPP"=adi[[2]],
+                           "liver eGene"=liv[[1]],"liver CLPP"=liv[[2]],
+                           stringsAsFactors = FALSE)
+    out.df <- rbind(out.df,build.df)
+  }
+  return(cbind(toa.df,out.df))
+}
+
+
+ 
+```
+
+
+
+```{r}
+
+unw.df <- append_coloc_df(df1)
+write.table(x=unw.df,file=write.dir%&%"toa-scores_eGenes_unweighted.txt",
+            sep="\t",quote=FALSE,row.names=FALSE)
+w.df <- append_coloc_df(df2)
+write.table(x=w.df,file=write.dir%&%"toa-scores_eGenes_weighted.txt",
+            sep="\t",quote=FALSE,row.names=FALSE)
+
+```
+
+
+```{r}
+
+a.df <- fread(work.dir %&% "analysis_files/annotation-divvy-weighted-unscaled.txt")
+
+```
+
+
+```{r}
+
+get_candidate_df <- function(df,colname="assigned_20"){
+  # df must be appended toa df with colocalisation results 
+  out.df <- c()
+  pb <- txtProgressBar(min=0,max=dim(df)[1],style=3)
+  for (i in 1:dim(df)[1]){
+    setTxtProgressBar(pb,i)
+    sub <- df[i,]
+    loc <- df$Locus.ID[i]
+    coding <- filter(a.df,Locus.ID==loc) %>% dplyr::select(.,contains("coding")) %>%
+      as.numeric(.) %>% sum(.)
+    tiss <- dplyr::select(sub,one_of(colname)) %>% as.character(.)
+    if (tiss!="unclassified"&tiss!="other"){
+      vec <- c(tiss%&%".eGene",tiss%&%".CLPP")
+      eGene <- dplyr::select(sub,one_of(vec[1],vec[2]))[,1] %>% as.character(.)
+      CLPP <- dplyr::select(sub,one_of(vec[1],vec[2]))[,2] %>% as.numeric(.)
+    } else{
+      eGene <- NA
+      CLPP <- NA
+    }
+    build1 <- dplyr::select(sub,one_of("Locus.ID","islet","muscle","adipose","liver","other",colname,"symbol"))
+    build2 <- data.frame(eGene,CLPP,coding,stringsAsFactors = FALSE)
+    build.df <- cbind(build1,build2)
+    out.df <- rbind(out.df,build.df)
+  }
+  out.df <- arrange(out.df,desc(CLPP))
+  return(out.df)
+}
+  
+
+```
+
+
+```{r}
+
+candw.df <- get_candidate_df(w.df) # 64 with eGenes, includes CCND2 and CAMK1D, not in unweighted
+candu.df <- get_candidate_df(unw.df) # 56 with eGenes, includes ST6GAL1 and IRS2 not in weighted
+
+
+```
+
+
+```{r}
+
+filter(candu.df,symbol=="ST6GAL1") # this is an example of an edge case where islet/liver scores are very similar and only differ slightly between weighted and unweighted but enough to alter classification; and tissue for colocalisation
+filter(candw.df,symbol=="ST6GAL1") # 
+
+```
+
+
+```{r}
+
+keep.vec <- (na.omit(candw.df))$Locus.ID
+candw.df$coloc <- candw.df$Locus.ID %in% keep.vec
+keep.vec2 <- (na.omit(candu.df))$Locus.ID
+candu.df$coloc <- candu.df$Locus.ID %in% keep.vec2
+
+ggplot(data=candw.df,aes(x=coloc,y=coding)) + geom_boxplot()
+
+candw.df %>% group_by(.,coloc) %>% summarise(mean(coding))
+
+```
+
+
+Append snpcount 
+
+
+```{r}
+
+candw.df$snpcount <- map(1:dim(candw.df)[1],function(i){
+  loc <- candw.df$Locus.ID[i]
+  dim(filter(cred.df,CondID==loc))[1]
+}) %>% as.integer(.)
+candu.df$snpcount <- map(1:dim(candu.df)[1],function(i){
+  loc <- candu.df$Locus.ID[i]
+  dim(filter(cred.df,CondID==loc))[1]
+}) %>% as.integer(.)
+
+
+
+```
+
+Append max PPA 
+
+```{r}
+
+candw.df$maxppa <- map(1:dim(candw.df)[1],function(i){
+  loc <- candw.df$Locus.ID[i]
+  sub <- filter(cred.df,CondID==loc) %>% arrange(.,desc(PPA))
+  sub$PPA[1]
+}) %>% as.numeric(.)
+candu.df$maxppa <- map(1:dim(candu.df)[1],function(i){
+  loc <- candu.df$Locus.ID[i]
+  sub <- filter(cred.df,CondID==loc) %>% arrange(.,desc(PPA))
+  sub$PPA[1]
+}) %>% as.numeric(.)
+
+
+
+```
+
+
+# Save tables
+
+```{r}
+
+library("gridExtra")
+library("grid")
+
+edit_cell <- function(table, row, col, name="core-fg", ...){
+  #http://stackoverflow.com/questions/32173928/r-tablegrob-change-format-of-row
+  row <- row + 1 # my adjustment 
+  col <- col + 1 # my adjustment
+  l <- table$layout
+  ids <- which(l$t %in% row & l$l %in% col & l$name==name)
+  for (id in ids){
+  newgrob <- editGrob(table$grobs[id][[1]], ...)
+  table$grobs[id][[1]] <- newgrob
+  }
+  table
+}
+
+make_table_plot <- function(cand.df,limit=NULL){
+  cv <- brewer.pal(5,"Set3")
+  mycols <- c(cv[2],cv[1],"brown",cv[4],"grey")
+  plot.df <- filter(cand.df,coloc==TRUE) %>% arrange(.,desc(CLPP))
+  if (!is.null(limit)){
+    plot.df <- plot.df[1:limit,]
+  }
+  plot.df <- dplyr::select(plot.df,
+                           one_of("Locus.ID","snpcount","coding","islet","liver","adipose",
+                                  "muscle","other","assigned_20",
+                                  "symbol","eGene","CLPP"))
+  names(plot.df) <- c("Signal","Num.SNPs","coding","islet","liver","adipose","muscle",
+                           "other","assigned","Locus","eGene","CLPP")
+  plot.df$coding <- prettyNum(plot.df$coding,digits=2)
+  plot.df$islet <- prettyNum(plot.df$islet,digits=2)
+  plot.df$liver <- prettyNum(plot.df$liver,digits=2)
+  plot.df$muscle <- prettyNum(plot.df$muscle,digits=2)
+  plot.df$adipose <- prettyNum(plot.df$adipose,digits=2)
+  plot.df$other <- prettyNum(plot.df$other,digits=2)
+  plot.df$CLPP <- prettyNum(plot.df$CLPP,digits=3)
+  mytheme <- gridExtra::ttheme_default(
+    core = list(fg_params=list(cex = 0.7),
+    bg_params=list(fill="ghostwhite",alpha=0.3,
+                   col="black")),
+    colhead = list(fg_params=list(cex = 0.9),
+    bg_params=list(alpha=0.30,col="black")),
+    rowhead = list(fg_params=list(cex = 0))) 
+  
+  tabgrob <- tableGrob(plot.df,
+                      theme=mytheme) 
+  tabgrob <- edit_cell(tabgrob, row=1:dim(plot.df)[1], 
+                       col=10:11, "core-fg", 
+                 gp=gpar(fontface="italic"))  
+  tabgrob <- edit_cell(tabgrob,
+                    row=(1:dim(plot.df)[1])[plot.df$assigned=="adipose"],
+                    col=1:dim(plot.df)[2],
+                   "core-bg", gp=gpar(fill="#FFFFB3"))
+  tabgrob <- edit_cell(tabgrob,
+                    row=(1:dim(plot.df)[1])[plot.df$assigned=="liver"],
+                    col=1:dim(plot.df)[2],
+                   "core-bg", gp=gpar(fill="brown"))
+  tabgrob <- edit_cell(tabgrob,
+                    row=(1:dim(plot.df)[1])[plot.df$assigned=="islet"],
+                    col=1:dim(plot.df)[2],
+                   "core-bg", gp=gpar(fill="#8DD3C7"))
+  tabgrob <- edit_cell(tabgrob,
+                    row=(1:dim(plot.df)[1])[plot.df$assigned=="muscle"],
+                    col=1:dim(plot.df)[2],
+                   "core-bg", gp=gpar(fill="#FB8072"))
+  return(tabgrob)
+}
+
+```
+
+Weighted
+
+```{r}
+
+plot.dir <- work.dir %&% "plots/"
+
+grob1 <- make_table_plot(candw.df,20)
+ggsave(plot=grob1,filename=plot.dir %&%
+         "coloc-table_weighted_top20.png",height=10,width=20)
+grob1b <- make_table_plot(candw.df)
+ggsave(plot=grob1b,filename=plot.dir %&%
+         "coloc-table_weighted.png",height=30,width=20)
+```
+
+Unweighted 
+
+```{r}
+
+grob2 <- make_table_plot(candu.df,20)
+ggsave(plot=grob2,filename=plot.dir %&%
+         "coloc-table_unweighted_top20.png",height=10,width=20)
+grob2b <- make_table_plot(candu.df)
+ggsave(plot=grob2b,filename=plot.dir %&%
+         "coloc-table_unweighted.png",height=30,width=20)
+
+```
+
+
+# Coding genes-tissue tables 
+
+
+```{r}
+
+
+make_table_plot_coding <- function(cand.df,limit=NULL){
+  plot.df <- filter(cand.df) %>% arrange(.,desc(coding))
+  if (!is.null(limit)){
+    plot.df <- plot.df[1:limit,]
+  }
+  plot.df <- dplyr::select(plot.df,
+                           one_of("Locus.ID","snpcount","coding","islet","liver","adipose",
+                                  "muscle","other","assigned_20",
+                                  "symbol"))
+  names(plot.df) <- c("Signal","Num.SNPs","coding","islet","liver","adipose","muscle",
+                           "other","assigned","Locus")
+  plot.df$coding <- prettyNum(plot.df$coding,digits=2)
+  plot.df$islet <- prettyNum(plot.df$islet,digits=2)
+  plot.df$liver <- prettyNum(plot.df$liver,digits=2)
+  plot.df$muscle <- prettyNum(plot.df$muscle,digits=2)
+  plot.df$adipose <- prettyNum(plot.df$adipose,digits=2)
+  plot.df$other <- prettyNum(plot.df$other,digits=2)
+  mytheme <- gridExtra::ttheme_default(
+    core = list(fg_params=list(cex = 0.7),
+    bg_params=list(fill="ghostwhite",alpha=0.3,
+                   col="black")),
+    colhead = list(fg_params=list(cex = 0.9),
+    bg_params=list(alpha=0.30,col="black")),
+    rowhead = list(fg_params=list(cex = 0))) 
+  
+  tabgrob <- tableGrob(plot.df,
+                      theme=mytheme) 
+  tabgrob <- edit_cell(tabgrob, row=1:dim(plot.df)[1], 
+                       col=10, "core-fg", 
+                 gp=gpar(fontface="italic"))  
+  tabgrob <- edit_cell(tabgrob,
+                    row=(1:dim(plot.df)[1])[plot.df$assigned=="adipose"],
+                    col=1:dim(plot.df)[2],
+                   "core-bg", gp=gpar(fill="#FFFFB3"))
+  tabgrob <- edit_cell(tabgrob,
+                    row=(1:dim(plot.df)[1])[plot.df$assigned=="liver"],
+                    col=1:dim(plot.df)[2],
+                   "core-bg", gp=gpar(fill="brown"))
+  tabgrob <- edit_cell(tabgrob,
+                    row=(1:dim(plot.df)[1])[plot.df$assigned=="islet"],
+                    col=1:dim(plot.df)[2],
+                   "core-bg", gp=gpar(fill="#8DD3C7"))
+  tabgrob <- edit_cell(tabgrob,
+                    row=(1:dim(plot.df)[1])[plot.df$assigned=="muscle"],
+                    col=1:dim(plot.df)[2],
+                   "core-bg", gp=gpar(fill="#FB8072"))
+  return(tabgrob)
+}
+
+ 
+```
+
+
+Weigthed
+
+```{r}
+
+plot.dir <- work.dir %&% "plots/"
+
+grob2 <- make_table_plot_coding(candw.df,20)
+ggsave(plot=grob2,filename=plot.dir %&%
+         "coding-table_weighted_top20.png",height=10,width=20)
+grob2b <- make_table_plot_coding(candu.df,20)
+ggsave(plot=grob2b,filename=plot.dir %&%
+         "coding-table_unweighted_top20.png",height=10,width=20)
+```
+
+
+
+
+
+# Stringent thresholds 
+
+
+Evaluate with maxpp SNP is the reported colocalised SNP 
+
+```{r}
+
+
+candw.df$maxsnpcoloc  <- map(1:dim(candw.df)[1],function(i){
+  loc <- candw.df$Locus.ID[i]
+  sub <- filter(candw.df,Locus.ID==loc)
+  sym <- sub$symbol; maxpp <- sub$maxppa; tiss <- sub$assigned_20; clpp <- sub$CLPP
+  t <- ifelse(tiss=="adipose","Adipose_Subcutaneous",
+              ifelse(tiss=="muscle","Muscle_Skeletal",
+                     ifelse(tiss=="islet","Islet",
+                            ifelse(tiss=="liver","Liver",NA))))
+  maxsnp <- filter(cred.df,CondID==loc,PPA==maxpp)$IndexSNP %>% unique(.)
+  colocsnp <- filter(coloc.df,Locus==loc,Tissue==t,CLPP==clpp)$SNP_ID %>% unique(.)
+  colocsnp <- gsub("_",":",colocsnp)
+  colocsnp <- "chr" %&% colocsnp
+  any(maxsnp==colocsnp)
+}) %>% as.logical(.)
+
+
+candu.df$maxsnpcoloc  <- map(1:dim(candu.df)[1],function(i){
+  loc <- candu.df$Locus.ID[i]
+  sub <- filter(candu.df,Locus.ID==loc)
+  sym <- sub$symbol; maxpp <- sub$maxppa; tiss <- sub$assigned_20; clpp <- sub$CLPP
+  t <- ifelse(tiss=="adipose","Adipose_Subcutaneous",
+              ifelse(tiss=="muscle","Muscle_Skeletal",
+                     ifelse(tiss=="islet","Islet",
+                            ifelse(tiss=="liver","Liver",NA))))
+  maxsnp <- filter(cred.df,CondID==loc,PPA==maxpp)$IndexSNP %>% unique(.)
+  colocsnp <- filter(coloc.df,Locus==loc,Tissue==t,CLPP==clpp)$SNP_ID %>% unique(.)
+  colocsnp <- gsub("_",":",colocsnp)
+  colocsnp <- "chr" %&% colocsnp
+  any(maxsnp==colocsnp)
+}) %>% as.logical(.)
+
+```
+
+
+
+
+```{r}
+
+
+
+make_table_plot_filtered <- function(cand.df){
+  
+  full.df <- filter(cand.df) #%>% arrange(.,desc(coding),desc(maxppa))
+  full.df$eGene[is.na(full.df$eGene)] <- ""
+  full.df$CLPP[is.na(full.df$CLPP)] <- ""
+  plot.df <- dplyr::select(full.df,
+                           one_of("Number","Locus.ID","snpcount","maxppa","coding",
+                                  "islet","liver","adipose","muscle","other",
+                                  "assigned_20","symbol","eGene","CLPP"))
+  names(plot.df) <- c("Number","Signal","Num.SNPs","Max.PPA","coding",
+                      "islet","liver","adipose","muscle",
+                           "other","assigned","Locus","eGene","CLPP")
+  plot.df$Max.PPA<- prettyNum(plot.df$Max.PPA,digits=2)
+  plot.df$coding <- prettyNum(plot.df$coding,digits=2)
+  plot.df$islet <- prettyNum(plot.df$islet,digits=2)
+  plot.df$liver <- prettyNum(plot.df$liver,digits=2)
+  plot.df$muscle <- prettyNum(plot.df$muscle,digits=2)
+  plot.df$adipose <- prettyNum(plot.df$adipose,digits=2)
+  plot.df$other <- prettyNum(plot.df$other,digits=2)
+  plot.df$CLPP<- prettyNum(plot.df$CLPP,digits=2)
+  mytheme <- gridExtra::ttheme_default(
+    core = list(fg_params=list(cex = 0.7),
+    bg_params=list(fill="ghostwhite",alpha=0.3,
+                   col="black")),
+    colhead = list(fg_params=list(cex = 0.9),
+    bg_params=list(alpha=0.30,col="black")),
+    rowhead = list(fg_params=list(cex = 0))) 
+  
+  tabgrob <- tableGrob(plot.df,
+                      theme=mytheme) 
+  tabgrob <- edit_cell(tabgrob, row=1:dim(plot.df)[1], 
+                       col=12:13, "core-fg", 
+                 gp=gpar(fontface="italic"))  
+  tabgrob <- edit_cell(tabgrob,
+                    row=(1:dim(plot.df)[1])[plot.df$assigned=="adipose"],
+                    col=1:dim(plot.df)[2],
+                   "core-bg", gp=gpar(fill="#FFFFB3"))
+  tabgrob <- edit_cell(tabgrob,
+                    row=(1:dim(plot.df)[1])[plot.df$assigned=="liver"],
+                    col=1:dim(plot.df)[2],
+                   "core-bg", gp=gpar(fill="brown"))
+  tabgrob <- edit_cell(tabgrob,
+                    row=(1:dim(plot.df)[1])[plot.df$assigned=="islet"],
+                    col=1:dim(plot.df)[2],
+                   "core-bg", gp=gpar(fill="#8DD3C7"))
+  tabgrob <- edit_cell(tabgrob,
+                    row=(1:dim(plot.df)[1])[plot.df$assigned=="muscle"],
+                    col=1:dim(plot.df)[2],
+                   "core-bg", gp=gpar(fill="#FB8072"))
+  tabgrob <- edit_cell(tabgrob,
+                row=(1:dim(plot.df)[1])[full.df$maxsnpcoloc==TRUE],
+                col=13:14,"core-fg", gp=gpar(fontface="bold"))
+  
+  return(tabgrob)
+}
+
+```
+
+
+```{r}
+
+s1 <- filter(candw.df,maxppa>=0.5) %>% arrange(.,desc(maxppa))
+s2 <- filter(candu.df,maxppa>=0.5) %>% arrange(.,desc(maxppa))
+
+
+grob3 <- make_table_plot_filtered(s1)
+ggsave(plot=grob3,filename=plot.dir %&%
+         "filtered-table_weighted_maxppa50.png",height=20,width=20)
+grob3b <- make_table_plot_filtered(s2)
+ggsave(plot=grob3b,filename=plot.dir %&%
+         "filtered-table_unweighted_maxppa50.png",height=20,width=20)
+
+```
+
+Chunk the table 
+
+```{r}
+Number <- 1:101
+s1 <- filter(candw.df,maxppa>=0.5) %>% arrange(.,desc(maxppa))
+s1 <- cbind(Number,s1)
+
+grobA <- make_table_plot_filtered(s1[1:33,])
+ggsave(plot=grobA,filename=plot.dir %&%
+         "filtered-table_weighted_maxppa50-A.png",height=20,width=20)
+grobB <- make_table_plot_filtered(s1[34:66,])
+ggsave(plot=grobB,filename=plot.dir %&%
+         "filtered-table_weighted_maxppa50-B.png",height=20,width=20)
+grobC <- make_table_plot_filtered(s1[67:101,])
+ggsave(plot=grobC,filename=plot.dir %&%
+         "filtered-table_weighted_maxppa50-C.png",height=20,width=20)
+
+
+
+
+```
+
+
+
+
+
+# Profile for loci that have closely matching contributions from multiple tissues 
+
+
+```{r}
+
+
+append_matching_info <- function(s.df,limit=0.10){
+  t.vec <- c("islet","muscle","liver","adipose")
+  match.vec <- c()
+  secondary.tissue <- c()
+  secondary.eGene <- c()
+  secondary.CLPP <- c() 
+  pb <- txtProgressBar(min=0,max=dim(s.df)[1],style=3)
+  for (i in 1:dim(s.df)[1]){
+    setTxtProgressBar(pb,i)
+    sub <- s.df[i,]
+    eval <- sub$maxsnpcoloc
+    if (eval==FALSE){
+      s.df$eGene[i] <- NA; s.df$CLPP[i] <- NA
+    }
+    tiss <- sub$assigned_20
+    max <- dplyr::select(sub,one_of(tiss)) %>% as.numeric(.)
+    vec <- t.vec[t.vec != tiss]
+    secsub <- dplyr::select(sub,one_of(vec)) %>% as.vector(.) %>% sort(.,decreasing = TRUE)
+    # named vector 
+    sec <-  secsub[1] %>% as.numeric(.); sec.tiss <- names(secsub)[1]
+    matched <- (max - sec) <= limit
+    match.vec <- append(match.vec,matched)
+    secondary.tissue <- append(secondary.tissue,ifelse(matched==TRUE,sec.tiss,NA))
+    if (matched==TRUE){
+      # lookup max ppa SNP 
+      maxsnp <- (filter(cred.df,CondID==sub$Locus.ID) %>% arrange(.,desc(PPA)))$SNPID[1]
+      lookup <- gsub("chr","",maxsnp) %>% gsub(":","_",.)
+      t <- ifelse(sec.tiss=="adipose","Adipose_Subcutaneous",
+              ifelse(sec.tiss=="muscle","Muscle_Skeletal",
+                     ifelse(sec.tiss=="islet","Islet",
+                            ifelse(sec.tiss=="liver","Liver",NA))))
+      filt.df <- filter(coloc.df,SNP_ID==lookup,Locus==sub$Locus.ID,Tissue==t,CLPP>0) %>% arrange(.,desc(CLPP))
+      # lookup eGENE/CLPP in secondary tissue 
+      if (dim(filt.df)[1]>0){
+        secondary.eGene <- append(secondary.eGene,filt.df$gene_name[1])
+        secondary.CLPP <- append(secondary.CLPP,filt.df$CLPP[1])        
+      } else{
+        secondary.eGene <- append(secondary.eGene,NA)
+        secondary.CLPP <- append(secondary.CLPP,NA)
+      }
+    } else{
+      secondary.eGene <- append(secondary.eGene,NA); append(secondary.CLPP,NA)
+    }
+  }
+  s.df$mixed.locus <- match.vec
+  s.df$secondary.tissue <- secondary.tissue
+  s.df$secondary.eGene <- secondary.eGene
+  s.df$secondary.CLPP <- secondary.eGene
+  s.df <- dplyr::select(s.df,one_of("Locus.ID","symbol","maxppa","snpcount","coding",
+                                    "islet","muscle","adipose","liver","other",
+                                    "assigned_20","eGene","CLPP",
+                                    "mixed.locus",
+                                    "secondary.tissue","secondary.eGene","secondary.CLPP")) %>% 
+    arrange(.,desc(maxppa),desc(coding))
+  s.df$eGene[is.na(s.df$eGene)] <- "";  s.df$CLPP[is.na(s.df$CLPP)] <- ""
+  s.df$secondary.tissue[is.na(s.df$secondary.tissue)] <- ""
+  s.df$secondary.CLPP[is.na(s.df$secondary.CLPP)] <- ""
+  s.df$secondary.eGene[is.na(s.df$secondary.eGene)] <- ""
+  return(s.df)
+}
+
+```
+
+
+```{r}
+
+s1.df <- append_matching_info(s1)
+s2.df <- append_matching_info(s2)
+
+write.table(x=s1.df,file=work.dir%&%"analysis_files/results-maxppa50_weighted.txt",
+            sep="\t",quote=F,row.names=F)
+write.table(x=s1.df,file=work.dir%&%"analysis_files/results-maxppa50_unweighted.txt",
+            sep="\t",quote=F,row.names=F)
+
+# rs78408340; p.S539W; --> Defective expression; 76_2 
+#PLIN1
+
+```
+
+
+
+
+```{r}
+
+make_table_plot_filtered_v2 <- function(cand.df){
+  
+  full.df <- filter(cand.df) %>% arrange(.,desc(maxppa))
+  full.df$eGene[is.na(full.df$eGene)] <- ""
+  full.df$CLPP[is.na(full.df$CLPP)] <- ""
+  plot.df <- dplyr::select(full.df,
+                           one_of("Locus.ID","snpcount","maxppa","coding","islet","liver","adipose",
+                                  "muscle","other","assigned_20",
+                                  "symbol","eGene","CLPP"))
+  names(plot.df) <- c("Signal","Num.SNPs","Max.PPA","coding","islet","liver","adipose","muscle",
+                           "other","assigned","Locus","eGene","CLPP")
+  plot.df$coding <- prettyNum(plot.df$coding,digits=2)
+  plot.df$islet <- prettyNum(plot.df$islet,digits=2)
+  plot.df$liver <- prettyNum(plot.df$liver,digits=2)
+  plot.df$muscle <- prettyNum(plot.df$muscle,digits=2)
+  plot.df$adipose <- prettyNum(plot.df$adipose,digits=2)
+  plot.df$other <- prettyNum(plot.df$other,digits=2)
+  plot.df$CLPP<- prettyNum(plot.df$CLPP,digits=2)
+  mytheme <- gridExtra::ttheme_default(
+    core = list(fg_params=list(cex = 0.7),
+    bg_params=list(fill="ghostwhite",alpha=0.3,
+                   col="black")),
+    colhead = list(fg_params=list(cex = 0.9),
+    bg_params=list(alpha=0.30,col="black")),
+    rowhead = list(fg_params=list(cex = 0))) 
+  
+  tabgrob <- tableGrob(plot.df,
+                      theme=mytheme) 
+  tabgrob <- edit_cell(tabgrob, row=1:dim(plot.df)[1], 
+                       col=11:12, "core-fg", 
+                 gp=gpar(fontface="italic"))  
+  tabgrob <- edit_cell(tabgrob,
+                    row=(1:dim(plot.df)[1])[plot.df$assigned=="adipose"],
+                    col=1:dim(plot.df)[2],
+                   "core-bg", gp=gpar(fill="#FFFFB3"))
+  tabgrob <- edit_cell(tabgrob,
+                    row=(1:dim(plot.df)[1])[plot.df$assigned=="liver"],
+                    col=1:dim(plot.df)[2],
+                   "core-bg", gp=gpar(fill="brown"))
+  tabgrob <- edit_cell(tabgrob,
+                    row=(1:dim(plot.df)[1])[plot.df$assigned=="islet"],
+                    col=1:dim(plot.df)[2],
+                   "core-bg", gp=gpar(fill="#8DD3C7"))
+  tabgrob <- edit_cell(tabgrob,
+                    row=(1:dim(plot.df)[1])[plot.df$assigned=="muscle"],
+                    col=1:dim(plot.df)[2],
+                   "core-bg", gp=gpar(fill="#FB8072"))
+  tabgrob <- edit_cell(tabgrob,
+                row=(1:dim(plot.df)[1])[full.df$maxsnpcoloc==TRUE],
+                col=12:13,"core-fg", gp=gpar(fontface="bold"))
+  
+  return(tabgrob)
+}
+
+
+```
+
+
+```{r}
+
+grobA <- make_table_plot_filtered_v2(arrange(s1,desc(coding))[1:10,])
+ggsave(plot=grobA,filename=plot.dir %&%
+         "filtered-table_weighted_maxppa50_top10coding.png",height=10,width=10)
+grobB <- make_table_plot_filtered_v2(filter(s1,coding==0,coloc==TRUE,maxsnpcoloc==TRUE))
+ggsave(plot=grobB,filename=plot.dir %&%
+         "filtered-table_weighted_maxppa50_top10coloc.png",height=10,width=10)
+```
+
+
+```{r}
+table(w.df$assigned_20)
+(table(w.df$assigned_20) %>% as.vector(.)) / sum(table(w.df$assigned_20) %>% as.vector(.))
+
+table(s1.df$assigned_20)
+(table(s1.df$assigned_20) %>% as.vector(.)) / sum(table(s1.df$assigned_20) %>% as.vector(.))
+
+```
+
+
+
+
+# Save gen cred bed file 
+
+
+```{r}
+
+cred.df$POS0 <- cred.df$POS - 1
+
+bed.df <- dplyr::select(cred.df,one_of("CHR","POS0","POS","CondID"))
+write.table(x=bed.df,write.dir %&% "gencred.bed",sep="\t",quote=F,
+            row.names=F,col.names=F)
+
+bdg.df <- dplyr::select(cred.df,
+                        one_of("CHR","POS0","POS","CondID","PPA",
+                               "SNPID")) %>% 
+  arrange(.,CondID,desc(PPA))
+
+dups <- bdg.df[duplicated(bdg.df$SNPID),]$SNPID %>% unique(.)
+
+bdg.df <- bdg.df[!duplicated(bdg.df$SNPID),]
+pb <- txtProgressBar(min=0,max=length(dups),style=3)
+for (i in 1:length(dups)){
+  setTxtProgressBar(pb,i)
+  dup <- dups[i]
+  max.val <- (filter(cred.df,SNPID==dup) %>% 
+                arrange(.,desc(PPA)))$PPA[1]
+  bdg.df[match(dup,bdg.df$SNPID),]$PPA <- max.val
+}
+
+bdg.df <- dplyr::select(bdg.df,one_of("CHR","POS0","POS","PPA"))
+
+write.table(x=bdg.df,write.dir %&% "gencred.bdg",sep="\t",quote=F,
+            row.names=F,col.names=F)
+
+```
+
+
+```{r}
+
+write.table(candw.df,file = work.dir %&% "analysis_files/profile-coloc.txt",
+            sep="\t",quote=F,row.names=F)
+
+```
+
+

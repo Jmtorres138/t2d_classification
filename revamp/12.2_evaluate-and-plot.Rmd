@@ -1,0 +1,166 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+
+serv.dir <- "/home/jason/science/servers/FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "method_C/"
+file.dir <- proj.dir %&% "method_C/analysis_files/"
+input.dir <- proj.dir %&% "analysis_files/"
+
+full.df <- fread(file.dir %&% "islet-profile-all.txt")
+isl.df <- fread(file.dir %&%  "islet-profile-IsletMaxPPA50.txt")
+
+```
+
+
+# adding in lead rsID info 
+
+```{r}
+
+gencred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+
+append_rslead <- function(df){
+  pb <- txtProgressBar(min=0,max=dim(df)[1],style=3)
+  lead.rsid <- map(1:dim(df)[1],function(i){
+      setTxtProgressBar(pb,i)
+      id <- df$Locus.ID[i]
+      filter(gencred.df,CondID==id)$lead.rsid %>% unique(.)
+    }) %>% as.character(.)
+  df$lead.rsid <- lead.rsid
+  return(df)
+}
+
+full.df <- append_rslead(full.df)
+isl.df <- append_rslead(isl.df)
+
+```
+
+
+
+```{r}
+
+(isl.df$coding > 0.1) %>% sum(.)
+filter(isl.df,coding>=0.10) %>% arrange(.,desc(coding)) 
+
+```
+
+Of the 51 islet classified, 8 have signficant coding scores (>10%) and include PAM (2), PATJ (1), RREB1 (1), NEUROG3 (4), FAM57B (2), POC5 (1), SLC30A8 (1), QSER (1) 
+
+
+```{r}
+library("viridis")
+vircols <- viridis(100)
+
+
+plt.df1 <- filter(isl.df,islet>0.1,coding < 0.10) # 16
+sum(plt.df1$islet>.50) # 15 
+# filter(plt.df1,islet>0.5)
+
+plt.df1$Signal <- plt.df1$symbol %&% " (" %&% plt.df1$lead.rsid %&% ")" %>%
+  as.factor(.)
+plt.df1$Signal <- factor(plt.df1$Signal,levels=arrange(plt.df1,desc(islet))$Signal)
+
+plt1 <- ggplot(data = plt.df1, aes(x=Signal,y=islet)) + 
+  geom_bar(stat="identity",size=1.2,color="black",fill=vircols[40]) + 
+  ylab("Islet Open Chromatin Score") + 
+  theme(axis.text.x=element_text(angle=90,vjust = .5)) + 
+  scale_y_continuous(breaks=seq(0,1,0.1))
+
+ggsave(plot=plt1,filename = work.dir %&% "plots/islet-atac-scores.png",
+       height = 4,width=10)
+ggsave(plot=plt1,filename = work.dir %&% "plots/islet-atac-scores.pdf",
+       height = 4,width=10)
+
+  
+```
+
+There are 16 (of the 51 islet clasified loci) credible sets that overlap islet open chromatin ATAC and account for more than 10% of cumulative PPA and have coding < 10%; 15 of which have majority of PPA mapping to open islet chromatin  
+
+
+
+```{r}
+
+build_pltdf2 <- function(plt.df1){
+  out.df <- c()
+  for (i in 1:dim(plt.df1)[1]){
+    row.df <- plt.df1[i,]
+    Type <- c("endocrine","exocrine")
+    Score <- dplyr::select(row.df,one_of(Type)) %>% as.numeric(.)
+    build.df <- data.frame(Signal=row.df$Signal,Type,Score)
+    out.df <- rbind(out.df,build.df)
+  }
+  return(out.df)
+}
+
+```
+
+```{r}
+plt.df2 <- build_pltdf2(plt.df1) #%>% filter(.,Score>0.0001)
+plt2 <- ggplot(data = plt.df2, aes(x=Signal,y=Score,fill=Type)) + 
+  geom_bar(stat="identity",color="black") + 
+  ylab("Differentially Open Chromatin Score") + 
+  theme(axis.text.x=element_text(angle=90,vjust = .5)) + 
+  scale_y_continuous(breaks=seq(0,1,0.1)) + 
+  scale_fill_manual(values=c(vircols[40],vircols[90]))
+
+ggsave(plot=plt2,filename = work.dir %&% "plots/islet-diff-atac-scores.png",
+       height = 5,width=10)
+ggsave(plot=plt2,filename = work.dir %&% "plots/islet-diff-atac-scores.pdf",
+       height = 5,width=10)
+```
+
+
+Of the 36, 2 signals overlap regions that have differentially open chromatin in endocrine islet tissue, both at ANKH (4 and 5 signals) 
+
+
+```{r}
+
+build_pltdf3 <- function(plt.df1){
+  out.df <- c()
+  for (i in 1:dim(plt.df1)[1]){
+    row.df <- plt.df1[i,]
+    Type <- c("alpha","beta","duct")
+    Score <- dplyr::select(row.df,one_of(Type)) %>% as.numeric(.)
+    build.df <- data.frame(Signal=row.df$Signal,Type,Score)
+    out.df <- rbind(out.df,build.df)
+  }
+  return(out.df)
+}
+
+```
+
+
+```{r}
+
+plt.df3 <- build_pltdf3(plt.df1) #%>% filter(.,Score>0)
+plt3 <- ggplot(data = plt.df3, aes(x=Signal,y=Score,fill=Type)) + 
+  geom_bar(stat="identity",color="black") + 
+  ylab("Differentially Open Chromatin Score") + 
+  theme(axis.text.x=element_text(angle=90,vjust = .5)) + 
+  scale_y_continuous(breaks=seq(0,1,0.1)) + 
+  scale_fill_manual(values=c(vircols[60],vircols[40],vircols[90]))
+
+ggsave(plot=plt3,filename = work.dir %&% "plots/islet-diff-atacCELLS-scores.png",
+       height = 5,width=10)
+ggsave(plot=plt3,filename = work.dir %&% "plots/islet-diff-atacCELLS-scores.pdf",
+       height = 5,width=10)
+```
+
+
+The primary signal at FAM49A is differentially open in beta cells, whereas the ninth signal at KCNQ1 is differentially open in alpha cells 
+
