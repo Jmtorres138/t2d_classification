@@ -1,0 +1,213 @@
+---
+title: "partition"
+author: "Jason Torres"
+date: "10/4/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+library("GenomicRanges")
+
+serv.dir <- "/Users/jtorres/FUSE/"
+
+bed.dir <- serv.dir %&% "reference/chromatin_segmentation/varshney_2016/chromatin_states/" 
+work.dir <- bed.dir %&% "partitioned_updated/"
+
+
+```
+
+
+
+Prepare data frames 
+
+
+```{r}
+
+tiss.vec <- c("Islets","Adipose","SkeletalMuscle","Liver")
+isl.df <- fread("cat " %&% bed.dir %&% "Islets.chromatinStates.bed.gz | zmore",sep="\t")
+adi.df <- fread("cat " %&% bed.dir %&% "Adipose.chromatinStates.bed.gz | zmore",sep="\t")
+mus.df <- fread("cat " %&% bed.dir %&% "SkeletalMuscle.chromatinStates.bed.gz | zmore",sep="\t")
+liv.df <- fread("cat " %&% bed.dir %&% "Liver.chromatinStates.bed.gz | zmore",sep="\t")
+
+isl.df$V4 <- isl.df$V4 %>% gsub("/","_",.)
+adi.df$V4 <- adi.df$V4 %>% gsub("/","_",.)
+mus.df$V4 <- mus.df$V4 %>% gsub("/","_",.)
+liv.df$V4 <- liv.df$V4 %>% gsub("/","_",.)
+
+```
+
+
+Parition function 
+
+```{r}
+
+gr_to_df <- function(gr){
+  df <- data.frame("chr"=seqnames(gr),"start"=start(gr),"end"=end(gr))
+  df$chr <- as.character(df$chr)
+  return(df)
+}
+
+partition_split <- function(query.vec = strong.enhancers, key.term = "strong_enhancer"){
+  df1 <- filter(isl.df,V4 %in% query.vec) %>% dplyr::select(one_of("V1","V2","V3"))
+  gr1 <-GRanges(seqnames=df1$V1,IRanges(start=df1$V2,end=df1$V3)) %>% disjoin(.)
+  
+  df2 <- filter(adi.df,V4 %in% query.vec) %>% dplyr::select(one_of("V1","V2","V3"))
+  gr2 <-GRanges(seqnames=df2$V1,IRanges(start=df2$V2,end=df2$V3)) %>% disjoin(.)
+  
+  df3 <- filter(mus.df,V4 %in% query.vec) %>% dplyr::select(one_of("V1","V2","V3"))
+  gr3 <-GRanges(seqnames=df3$V1,IRanges(start=df3$V2,end=df3$V3)) %>% disjoin(.)
+  
+  df4 <- filter(liv.df,V4 %in% query.vec) %>% dplyr::select(one_of("V1","V2","V3"))
+  gr4 <-GRanges(seqnames=df4$V1,IRanges(start=df4$V2,end=df4$V3)) %>% disjoin(.)
+  
+  all.gr <- append(gr1,gr2) %>% append(.,gr3) %>% append(.,gr4) %>% disjoin(.)
+  isl.gr <- all.gr[all.gr %over% gr1]
+  adi.gr <- all.gr[all.gr %over% gr2]
+  mus.gr <- all.gr[all.gr %over% gr3]
+  liv.gr <- all.gr[all.gr %over% gr4]
+
+  
+  
+  isl.spec <- isl.gr[!(isl.gr %over% append(append(adi.gr,mus.gr),liv.gr))] 
+  adi.spec <- adi.gr[!(adi.gr %over% append(append(isl.gr,mus.gr),liv.gr))] 
+  mus.spec <- mus.gr[!(mus.gr %over% append(append(isl.gr,adi.gr),liv.gr))] 
+  liv.spec <- liv.gr[!(liv.gr %over% append(append(isl.gr,adi.gr),mus.gr))] 
+  spec.gr <- append(append(append(isl.spec,adi.spec),mus.spec),liv.spec)
+  
+  shared.gr <- all.gr[!(all.gr %over% spec.gr)] %>% disjoin(.)
+
+  
+  shared.all <- shared.gr[shared.gr %over% gr1 & 
+                                   shared.gr %over% gr2 & shared.gr %over% gr3 & shared.gr %over% gr4]  #%>% disjoin(.)
+  
+  shared.islet.adipose.muscle <- shared.gr[shared.gr %over% gr1 & shared.gr %over% gr2 & 
+                                             shared.gr %over% gr3 & !(shared.gr %over% shared.all)]  #%>% disjoin(.)
+  shared.islet.adipose.liver <- shared.gr[shared.gr %over% gr1 & shared.gr %over% gr2 & 
+                                             shared.gr %over% gr4 & !(shared.gr %over% shared.all) & 
+                                               !(shared.gr %over% shared.islet.adipose.muscle)]  #%>% disjoin(.)
+  shared.adipose.muscle.liver <- shared.gr[shared.gr %over% gr2 & shared.gr %over% gr3 & 
+                                             shared.gr %over% gr4 & !(shared.gr %over% shared.all) & 
+                                               !(shared.gr %over% shared.islet.adipose.muscle) & 
+                                               !(shared.gr %over% shared.islet.adipose.liver)] # %>% disjoin(.)
+  shared.3plus <- append(append(append(shared.all,shared.islet.adipose.muscle),
+                                shared.islet.adipose.liver),shared.adipose.muscle.liver)
+  
+  shared.islet.adipose <- shared.gr[shared.gr %over% gr1 & shared.gr %over% gr2 & 
+                                      !(shared.gr %over% shared.3plus)]#  %>% disjoin(.)
+  shared.islet.muscle <- shared.gr[shared.gr %over% gr1 & shared.gr %over% gr3 & 
+                                     !(shared.gr %over% shared.3plus) & !(shared.gr %over% shared.islet.adipose)] # %>% disjoin(.)
+  shared.islet.liver <- shared.gr[shared.gr %over% gr1 & shared.gr %over% gr4 & 
+                                    !(shared.gr %over% shared.3plus) & !(shared.gr %over% shared.islet.adipose) &
+                                    !(shared.gr %over% shared.islet.muscle)] # %>% disjoin(.)
+  
+  shared.adipose.muscle <- shared.gr[shared.gr %over% gr2 & shared.gr %over% gr3 & 
+                                    !(shared.gr %over% shared.3plus) & !(shared.gr %over% shared.islet.adipose) &
+                                    !(shared.gr %over% shared.islet.muscle) & !(shared.gr %over% shared.islet.liver)]  #%>% disjoin(.)
+  shared.adipose.liver <- shared.gr[shared.gr %over% gr2 & shared.gr %over% gr4 & 
+                                    !(shared.gr %over% shared.3plus) & !(shared.gr %over% shared.islet.adipose) &
+                                    !(shared.gr %over% shared.islet.muscle) & !(shared.gr %over% shared.islet.liver) & 
+                                    !(shared.gr %over% shared.adipose.muscle)]  #%>% disjoin(.)
+  
+  shared.muscle.liver <- shared.gr[shared.gr %over% gr3 & shared.gr %over% gr4 & 
+                                    !(shared.gr %over% shared.3plus) & !(shared.gr %over% shared.islet.adipose) &
+                                    !(shared.gr %over% shared.islet.muscle) & !(shared.gr %over% shared.islet.liver) & 
+                                    !(shared.gr %over% shared.adipose.muscle) & 
+                                      !(shared.gr %over% shared.adipose.liver)]  #%>% disjoin(.)
+  
+  islet.shared <- (shared.islet.adipose.muscle) %>% append(., shared.islet.adipose.liver) %>% append(., shared.islet.adipose) %>% append(., shared.islet.muscle) %>% append(., shared.islet.liver) 
+  irpt.shared <- append(shared.adipose.muscle.liver, shared.adipose.muscle) %>% append(., shared.adipose.liver) %>% append(.,shared.muscle.liver)
+  
+  # Tissue-specific annotations 
+  annot.name <- "islet_specific_" %&% key.term
+  out.df1 <- gr_to_df(isl.spec); out.df1$name <- annot.name ; write.table(out.df1,file=work.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)
+  annot.name <- "adipose_specific_" %&% key.term
+  out.df2 <- gr_to_df(adi.spec); out.df2$name <- annot.name; write.table(out.df2,file=work.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)
+  annot.name <- "muscle_specific_" %&% key.term 
+  out.df3 <- gr_to_df(mus.spec); out.df3$name <- annot.name; write.table(out.df3,file=work.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)
+  annot.name <- "liver_specific_" %&% key.term 
+  out.df4 <- gr_to_df(liv.spec); out.df4$name <- annot.name; write.table(out.df4,file=work.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)
+  
+  # Shared annotations 
+  annot.name <- "islet_shared_" %&% key.term
+  out.df5 <- gr_to_df(islet.shared); out.df5$name <- annot.name; write.table(out.df5,file=work.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)
+  annot.name <- "irpt_shared_" %&% key.term
+  out.df6 <- gr_to_df(irpt.shared); out.df6$name <- annot.name; write.table(out.df6,file=work.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)
+  annot.name <- "all_shared_" %&% key.term
+  out.df7 <- gr_to_df(shared.all); out.df7$name <- annot.name; write.table(out.df7,file=work.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)  
+  fgwas.out.df <- bind_rows(out.df1,out.df2,out.df3,out.df4,out.df5,out.df6,out.df7)
+  
+  # Save shared subset files for future reference 
+  # shared.islet.adipose.muscle, shared.islet.adipose.liver, shared.adipose.muscle.liver, shared.islet.adipose, shared.islet.muscle, shared.islet.liver, shared.adipose.muscle, shared.adipose.liver, shared.muscle.liver
+  annot.name <- "shared.islet.adipose.muscle." %&% key.term
+  out.df <- gr_to_df(shared.islet.adipose.muscle); out.df$name <- annot.name; write.table(out.df,file=work.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)  
+  annot.name <- "shared.islet.adipose.liver." %&% key.term
+  out.df <- gr_to_df(shared.islet.adipose.liver); out.df$name <- annot.name; write.table(out.df,file=work.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)    
+  annot.name <- "shared.adipose.muscle.liver." %&% key.term
+  out.df <- gr_to_df(shared.adipose.muscle.liver); out.df$name <- annot.name; write.table(out.df,file=work.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)   
+  annot.name <- "shared.islet.adipose." %&% key.term
+  out.df <- gr_to_df(shared.islet.adipose); out.df$name <- annot.name; write.table(out.df,file=work.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)   
+  annot.name <- "shared.islet.muscle." %&% key.term
+  out.df <- gr_to_df(shared.islet.muscle); out.df$name <- annot.name; write.table(out.df,file=work.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)      
+  annot.name <- "shared.islet.liver." %&% key.term
+  out.df <- gr_to_df(shared.islet.liver); out.df$name <- annot.name; write.table(out.df,file=work.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)      
+  annot.name <- "shared.adipose.muscle." %&% key.term
+  out.df <- gr_to_df(shared.adipose.muscle); out.df$name <- annot.name; write.table(out.df,file=work.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)      
+  annot.name <- "shared.adipose.liver." %&% key.term
+  out.df <- gr_to_df(shared.adipose.liver); out.df$name <- annot.name; write.table(out.df,file=work.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)      
+  annot.name <- "shared.muscle.liver." %&% key.term
+  out.df <- gr_to_df(shared.muscle.liver); out.df$name <- annot.name; write.table(out.df,file=work.dir%&%annot.name%&%".bed",sep="\t",quote=F,row.names=F,col.names=F)      
+  return(fgwas.out.df)
+}
+
+#check.gr
+#GRanges object with 1 range and 0 metadata columns:
+#      seqnames                 ranges strand
+#         <Rle>              <IRanges>  <Rle>
+#  [1]     chr1 [214150821, 214150821]      *
+#  -------
+#  seqinfo: 1 sequence from an unspecified genome; no seqlengths
+
+```
+
+write bed files
+
+```{r}
+
+strong.enhancers <- c("9_Active_enhancer_1","10_Active_enhancer_2")
+weak.enhancers <- c("11_Weak_enhancer")
+repressed.regions <- c("16_Repressed_polycomb", "17_Weak_repressed_polycomb")
+promoters <- c("1_Active_TSS","2_Weak_TSS","3_Flanking_TSS")
+gene.transcription <- c("5_Strong_transcription","6_Weak_transcription")
+bivalent.tss <- c("14_Bivalent_poised_TSS")
+genic.enhancer <- c("8_Genic_enhancer")
+low.signal <- c("18_Quiescent_low_signal")
+
+df1 <- partition_split(strong.enhancers,key.term="strong_enhancer")
+df2 <- partition_split(weak.enhancers,key.term="weak_enhancer")
+df3 <- partition_split(repressed.regions,key.term="repressed")
+df4 <- partition_split(promoters,key.term="promoter")
+df5 <- partition_split(gene.transcription,key.term="gene_transcription")
+df6 <- partition_split(bivalent.tss,key.term="bivalent_tss")
+df7 <- partition_split(genic.enhancer,key.term="genic_enhancer")
+df8 <- partition_split(genic.enhancer,key.term="low_signal")
+
+bed.df <- bind_rows(df1,df2,df3,df4,df5,df6,df7,df8)
+
+bed.df$num <- as.integer(gsub("chr","",bed.df$chr)) 
+bed.df <- bed.df %>% arrange(chr,start) %>% dplyr::select(one_of("chr","start","end","name"))
+write.table(bed.df,file=work.dir%&%"complete_isl-adi-mus-liv.partitioned_updated.bed",quote=F,sep="\t",row.names=F,col.names=F)
+
+
+```
+
+
+
