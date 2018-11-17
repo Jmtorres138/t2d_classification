@@ -11,17 +11,17 @@ import os,sys
 import subprocess as sp
 import numpy
 
-work_dir = "/well/mccarthy/users/jason/projects/t2d_classification/method_C/"
+work_dir = "/well/mccarthy/users/jason/projects/t2d_classification/revamp/"
 proc_dir = work_dir + "enrichment_files/" + "weighted/"
 if os.path.isdir(proc_dir)==False:
 	os.mkdir(proc_dir)
 out_dir = work_dir + "analysis_files/"
 genome_file = work_dir + "hg19.chrom.sizes"
 
-islet_bed = "/well/mccarthy/users/jason/projects/t2d_classification/method_C/enrichment_files/downsample_islet.hg19.bed"#"/well/got2d/jason/reference/islet/atac_peaks/oxford_islet_atac_macs2_n17.bed"
-adi_bed = "/well/mccarthy/users/jason/projects/t2d_classification/method_C/enrichment_files/downsample_adipose.hg19.bed"#"/well/got2d/jason/reference/encode/adipose/adipose.hg19.bed"
-liv_bed = "/well/mccarthy/users/jason/projects/t2d_classification/method_C/enrichment_files/downsample_liver.hg19.bed"#"/well/got2d/jason/reference/encode/liver/liver.hg19.bed"
-mus_bed = "/well/mccarthy/users/jason/projects/t2d_classification/method_C/enrichment_files/downsample_muscle.hg19.bed"#"/well/got2d/jason/reference/encode/muscle/muscle.hg19.bed"
+islet_bed = "/well/mccarthy/users/jason/projects/t2d_classification/revamp/enrichment_files/downsample_islet.hg19.bed"#"/well/got2d/jason/reference/islet/atac_peaks/oxford_islet_atac_macs2_n17.bed"
+adi_bed = "/well/mccarthy/users/jason/projects/t2d_classification/revamp/enrichment_files/downsample_adipose.hg19.bed"#"/well/got2d/jason/reference/encode/adipose/adipose.hg19.bed"
+liv_bed = "/well/mccarthy/users/jason/projects/t2d_classification/revamp/enrichment_files/downsample_liver.hg19.bed"#"/well/got2d/jason/reference/encode/liver/liver.hg19.bed"
+mus_bed = "/well/mccarthy/users/jason/projects/t2d_classification/revamp/enrichment_files/downsample_muscle.hg19.bed"#"/well/got2d/jason/reference/encode/muscle/muscle.hg19.bed"
 
 def get_intersect(snp_bed,annot_bed,temp_name):
 	command = ["/apps/well/bedtools/2.24.0/bedtools", "intersect", "-wa","-a",snp_bed,"-b",annot_bed,"|","uniq",">",proc_dir+"inter.temp."+temp_name+".bed"]

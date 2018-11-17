@@ -23,7 +23,7 @@ library("GenomicRanges")
 serv.dir1 <- "/home/jason/science/servers/FUSE/"
 serv.dir2 <- "/home/jason/science/servers/FUSE5/"
 
-out.dir <- serv.dir2 %&% "projects/t2d_classification/method_C/enrichment_files/" 
+out.dir <- serv.dir2 %&% "projects/t2d_classification/revamp/enrichment_files/" 
 
 islet_bed =  serv.dir1 %&% "reference/islet/atac_peaks/oxford_islet_atac_macs2_n17.bed"
 adi_bed = serv.dir1 %&% "reference/encode/adipose/adipose.hg19.bed"
