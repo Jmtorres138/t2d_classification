@@ -25,7 +25,7 @@ fuse.path <- "/home/jason/science/servers/"
 serv.dir <- fuse.path %&% "FUSE5/"
 proj.dir <- serv.dir %&% "projects/t2d_classification/"
 methA.dir <- proj.dir %&% "method_A/"
-work.dir <- proj.dir %&% "method_C/"
+work.dir <- proj.dir %&% "revamp/"
 analysis.dir <- work.dir %&% "analysis_files/"
 plot.dir <- work.dir %&% "plots/"
 
@@ -37,18 +37,29 @@ cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
 
 ```{r}
 
-map_condids <- function(df){
-  Cond.ID <- map(1:dim(df)[1],function(i){
-    filter(cred.df,Locus.ID==df$Locus.ID[i])$CondID %>% unique(.)
-  }) %>% as.character(.)
-  df$Locus.ID <- Cond.ID
+#unweighted.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-unweighted-unscaled.txt") 
+weighted.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-weighted-unscaled.txt")
+names(weighted.df) <- c("Locus.ID","Islet","Muscle","Adipose","Liver","Unclassified")
+
+```
+
+
+# append lead rsID info 
+
+```{r}
+
+append_rslead <- function(df){
+  pb <- txtProgressBar(min=0,max=dim(df)[1],style=3)
+  lead.rsid <- map(1:dim(df)[1],function(i){
+      setTxtProgressBar(pb,i)
+      id <- df$Locus.ID[i]
+      filter(cred.df,CondID==id)$lead.rsid %>% unique(.)
+    }) %>% as.character(.)
+  df$lead.rsid <- lead.rsid
   return(df)
 }
 
 
-
-unweighted.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-unweighted-unscaled.txt") %>% map_condids(.)
-weighted.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-weighted-unscaled.txt") %>% map_condids(.) 
 ```
 
 
@@ -92,15 +103,19 @@ reformat_ppa_df <- function(ppa.df,cred.df){
 ```{r}
 
 ppa_plot <- function(ppa.df,col.vec=c("olivedrab2","red","gold1","brown","grey"),
-                     rankby="islet",number=NULL,leg=TRUE){
+                     rankby="Islet",number=NULL,leg=TRUE){
   rank.by <- stringToQuoser(rankby)
   append.df <- ppa.df
   append.df$PlotID <- map(ppa.df$Locus.ID,function(loc.id){
-    loc.id %&% ": " %&% (filter(cred.df,CondID==loc.id)$symbol%>%unique(.))
+    sub <- filter(cred.df,CondID==loc.id) %>% dplyr::select(.,one_of("symbol","lead.rsid")) 
+    sub <- sub[!duplicated(sub),]
+    sub$symbol %&% " (" %&% sub$lead.rsid %&% ")"
+    #loc.id %&% ": " %&% (filter(cred.df,CondID==loc.id)$symbol%>%unique(.))
   }) %>% as.character(.)
   
   format.df <- reformat_ppa_df(ppa.df,cred.df)
-  PlotID <- paste0(format.df$Locus.ID,": ",format.df$Symbol)
+  format.df <- append_rslead(format.df)
+  PlotID <- paste0(format.df$Symbol," (",format.df$lead.rsid, ")")
   plot.df <- cbind(PlotID,format.df)
 
   
@@ -122,11 +137,11 @@ ppa_plot <- function(ppa.df,col.vec=c("olivedrab2","red","gold1","brown","grey")
                                  y=Proportion,fill=Annotation)) + 
             geom_bar(stat="identity",color="black",size=0.2) + 
             scale_y_continuous(breaks=seq(0,1,0.1)) + 
-            xlab("Locus") + 
+            xlab("Signal") + 
             coord_flip() + 
             #scale_y_reverse() + 
             scale_fill_manual(values=col.vec) +
-            ggtitle("Proportion of PPA attributable to each annotation\n" %&% rankby)
+            ggtitle(rankby)
   if(leg==FALSE){
     plt <- plt + theme(legend.position = "none")
   }
@@ -135,11 +150,11 @@ ppa_plot <- function(ppa.df,col.vec=c("olivedrab2","red","gold1","brown","grey")
 }
 
 all_tissues_plot <- function(ppa.df,number=NULL,col.vec=c("olivedrab2","red","gold1","brown","grey")){
-  plt1 <- ppa_plot(ppa.df,col.vec,rankby="islet",number,leg=FALSE)
-  plt2 <- ppa_plot(ppa.df,col.vec,rankby="muscle",number,leg=FALSE)
-  plt3 <- ppa_plot(ppa.df,col.vec,rankby="adipose",number,leg=FALSE)
-  plt4 <- ppa_plot(ppa.df,col.vec,rankby="liver",number,leg=FALSE)
-  plt5 <- ppa_plot(ppa.df,col.vec,rankby="other",number,leg=TRUE)  
+  plt1 <- ppa_plot(ppa.df,col.vec,rankby="Islet",number,leg=FALSE)
+  plt2 <- ppa_plot(ppa.df,col.vec,rankby="Muscle",number,leg=FALSE)
+  plt3 <- ppa_plot(ppa.df,col.vec,rankby="Adipose",number,leg=FALSE)
+  plt4 <- ppa_plot(ppa.df,col.vec,rankby="Liver",number,leg=FALSE)
+  plt5 <- ppa_plot(ppa.df,col.vec,rankby="Unclassified",number,leg=TRUE)  
   grob <- arrangeGrob(plt1,plt2,plt3,plt4,plt5,nrow=1)
 }
 
@@ -151,7 +166,7 @@ Lookup loci with 100 SNP or fewer in credible set
 ```{r}
 
 df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-weighted-unscaled_snpcount.txt")
-
+names(df) <- c("Locus.ID", "Islet",   "Muscle",   "Adipose",  "Liver",    "Unclassified",    "snpcount")
 keep.loci <- filter(df,snpcount<=100)$Locus.ID %>% unique(.)
 
 ```
@@ -175,22 +190,22 @@ keep.vec <- filter(df,max.ppa >= 0.50)$Locus.ID %>% unique(.)
 grob1 <- all_tissues_plot(weighted.df,number=50)
 ggsave(plot=grob1,filename=plot.dir%&%"stacked_barplots_full-weighted.png",width=25,height=15)
 
-grob2 <- all_tissues_plot(unweighted.df,number=50)
-ggsave(plot=grob2,filename=plot.dir%&%"stacked_barplots_full-unweighted.png",width=25,height=15)
+##grob2 <- all_tissues_plot(unweighted.df,number=50)
+##ggsave(plot=grob2,filename=plot.dir%&%"stacked_barplots_full-unweighted.png",width=25,height=15)
 
 grob3 <- all_tissues_plot(filter(weighted.df,Locus.ID%in%keep.loci),number=50)
 ggsave(plot=grob3,filename=plot.dir%&%"stacked_barplots_snpcount100-weighted.png",width=27,height=12)
 
-grob4 <- all_tissues_plot(filter(unweighted.df,Locus.ID%in%keep.loci),number=50)
-ggsave(plot=grob4,filename=plot.dir%&%"stacked_barplots_snpcount100-unweighted.png",width=27,height=12)
+##grob4 <- all_tissues_plot(filter(unweighted.df,Locus.ID%in%keep.loci),number=50)
+##ggsave(plot=grob4,filename=plot.dir%&%"stacked_barplots_snpcount100-unweighted.png",width=27,height=12)
 
 
 grob5 <- all_tissues_plot(filter(weighted.df,Locus.ID%in%keep.vec),number=30)
 ggsave(plot=grob5,filename=plot.dir%&%"stacked_barplots_maxppa50-weighted.png",width=25,height=8.5)
 ggsave(plot=grob5,filename=plot.dir%&%"stacked_barplots_maxppa50-weighted.pdf",width=25,height=8.5)
 
-grob6 <- all_tissues_plot(filter(unweighted.df,Locus.ID%in%keep.vec),number=30)
-ggsave(plot=grob6,filename=plot.dir%&%"stacked_barplots_maxppa50-unweighted.png",width=27,height=12)
+##grob6 <- all_tissues_plot(filter(unweighted.df,Locus.ID%in%keep.vec),number=30)
+#3ggsave(plot=grob6,filename=plot.dir%&%"stacked_barplots_maxppa50-unweighted.png",width=27,height=12)
 
 
 ```
