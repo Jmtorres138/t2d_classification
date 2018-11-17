@@ -13,7 +13,7 @@ serv.dir2 <- "/well/mccarthy/users/jason/" #
 #serv.dir2 <- "/home/jason/science/servers/FUSE5/"
 
 proj.dir <- serv.dir2 %&% "projects/t2d_classification/"
-work.dir <- proj.dir %&% "method_C/"
+work.dir <- proj.dir %&% "revamp/"
 
 gwas.dir <- serv.dir1 %&% "reference/gwas/diamante-ukbb_hrc/"
 gwas.df <- fread(gwas.dir %&% "ukbb_diamante-euro.bed") # will take a while to load, 0.681 GB file
@@ -185,17 +185,18 @@ evaluate_thresholds <- function(input.df,iter){
 
 
 
-cred.dir <- serv.dir2 %&% "projects/t2d_classification/method_C/genetic_credible_sets/"
+cred.dir <- serv.dir2 %&% "projects/t2d_classification/revamp/genetic_credible_sets/"
 cred.df <- fread(cred.dir %&% "gencred.txt") %>% filter(.,PPA>=0.01)
+cred.df$Locus.ID <- cred.df$CondID
 # PPA 1% filter reduces number of query SNPs from 126K to 5,010 SNPs 
 
-#input1.df <- fread(proj.dir %&% "method_C/analysis_files/classified-loci_unweighted.txt")
+#input1.df <- fread(proj.dir %&% "revamp/analysis_files/classified-loci_unweighted.txt")
 #thresh1.df <- evaluate_thresholds(input1.df,iter=1000)
-#write.table(x=thresh1.df,file=proj.dir%&%"method_C/analysis_files/downsampled_eqtl-specific-validation_unweighted.txt",
+#write.table(x=thresh1.df,file=proj.dir%&%"revamp/analysis_files/downsampled_eqtl-specific-validation_unweighted.txt",
 #            sep="\t",quote=FALSE,row.names=FALSE)
 
-input2.df <- fread(proj.dir %&% "method_C/analysis_files/classified-loci_weighted.txt")
+input2.df <- fread(proj.dir %&% "revamp/analysis_files/classified-loci_weighted.txt")
 thresh2.df <- evaluate_thresholds(input2.df,iter=1000)
-write.table(x=thresh2.df,file=proj.dir%&%"method_C/analysis_files/downsampled_eqtl-specific-validation_weighted.txt",
+write.table(x=thresh2.df,file=proj.dir%&%"revamp/analysis_files/downsampled_eqtl-specific-validation_weighted.txt",
             sep="\t",quote=FALSE,row.names=FALSE)
 
