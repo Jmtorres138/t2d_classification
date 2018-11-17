@@ -25,7 +25,7 @@ library("RColorBrewer")
 serv.dir <- "/home/jason/science/servers/FUSE5/"
 proj.dir <- serv.dir %&% "projects/t2d_classification/"
 methA.dir <- proj.dir %&% "method_A/"
-work.dir <- proj.dir %&% "method_C/"
+work.dir <- proj.dir %&% "revamp/"
 
 analysis.dir <- work.dir %&% "analysis_files/"
 plot.dir <- work.dir %&% "plots/"
@@ -50,6 +50,7 @@ block.df <- fread(methA.dir %&% "multi_results/results_blocks.txt")
 
 
 cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+cred.df$Locus.ID <- cred.df$CondID
 
 ```
 
@@ -61,23 +62,15 @@ Read data files
 block.df <- fread(methA.dir %&%"multi_results/results_blocks.txt",sep="\t")
 fcred.df <- fread(methA.dir %&%"multi_results/results_func-cred-sets.txt",sep="\t")
 
-append_condid <- function(class.df){
-  Cond.ID <- map(1:dim(class.df)[1],function(i){
-    filter(cred.df,Locus.ID==class.df$Locus.ID[i])$CondID %>% unique(.)
-  }) %>% as.character(.)
-  class.df$Locus.ID <- Cond.ID
-  return(class.df)
-}
-
-unweighted.df <- fread(work.dir %&% "analysis_files/" %&% 
-                     "classified-loci_unweighted.txt") %>% append_condid(.)
+##unweighted.df <- fread(work.dir %&% "analysis_files/" %&% 
+##                     "classified-loci_unweighted.txt") %>% append_condid(.)
 weighted.df <- fread(work.dir %&% "analysis_files/" %&% 
-                     "classified-loci_weighted.txt") %>% append_condid(.)
+                     "classified-loci_weighted.txt") 
 
-unweighted.df$assigned_00 <- gsub("other","unclassified",unweighted.df$assigned_00)
-unweighted.df$assigned_20 <- gsub("other","unclassified",unweighted.df$assigned_20)
-unweighted.df$assigned_50 <- gsub("other","unclassified",unweighted.df$assigned_50)
-unweighted.df$assigned_80 <- gsub("other","unclassified",unweighted.df$assigned_80)
+##unweighted.df$assigned_00 <- gsub("other","unclassified",unweighted.df$assigned_00)
+##unweighted.df$assigned_20 <- gsub("other","unclassified",unweighted.df$assigned_20)
+##unweighted.df$assigned_50 <- gsub("other","unclassified",unweighted.df$assigned_50)
+##unweighted.df$assigned_80 <- gsub("other","unclassified",unweighted.df$assigned_80)
 
 weighted.df$assigned_00 <- gsub("other","unclassified",weighted.df$assigned_00)
 weighted.df$assigned_20 <- gsub("other","unclassified",weighted.df$assigned_20)
@@ -306,9 +299,9 @@ ggsave(plot=plt1,filename=plot.dir%&%"finemap_wilcox-compare-max_weightedV2.pdf"
 
 ```{r}
 
-plt.list2 <- make_test_plot(unweighted.df)
+##plt.list2 <- make_test_plot(unweighted.df)
   
-ggsave(plot=plt.list2[[1]],filename=plot.dir%&%"finemap_wilcox-compare-max_unweighted.png",height=3.5,width=4)
+##ggsave(plot=plt.list2[[1]],filename=plot.dir%&%"finemap_wilcox-compare-max_unweighted.png",height=3.5,width=4)
 
 ```
 
