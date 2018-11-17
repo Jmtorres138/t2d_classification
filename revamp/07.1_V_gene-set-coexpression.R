@@ -199,26 +199,21 @@ plot_enrich <- function(plot.df){
 
 
 
-work.dir2 <- proj.dir %&% "method_C/"
+work.dir2 <- proj.dir %&% "revamp/"
 cred.df <- fread(work.dir2 %&% "genetic_credible_sets/gencred.txt")
+cred.df$Locus.ID <- cred.df$CondID
 
-append_condid <- function(class.df){
-  Cond.ID <- map(1:dim(class.df)[1],function(i){
-    filter(cred.df,Locus.ID==class.df$Locus.ID[i])$CondID %>% unique(.)
-  }) %>% as.character(.)
-  class.df$Locus.ID <- Cond.ID
-  return(class.df)
-}
 
-unweighted.df <- fread(work.dir2 %&% "analysis_files/" %&% 
-                         "classified-loci_unweighted.txt") %>% append_condid(.)
+
+##unweighted.df <- fread(work.dir2 %&% "analysis_files/" %&% 
+##                         "classified-loci_unweighted.txt") 
 weighted.df <- fread(work.dir2 %&% "analysis_files/" %&% 
-                       "classified-loci_weighted.txt") %>% append_condid(.)
+                       "classified-loci_weighted.txt") 
 
-unweighted.df$assigned_00 <- gsub("other","unclassified",unweighted.df$assigned_00)
-unweighted.df$assigned_20 <- gsub("other","unclassified",unweighted.df$assigned_20)
-unweighted.df$assigned_50 <- gsub("other","unclassified",unweighted.df$assigned_50)
-unweighted.df$assigned_80 <- gsub("other","unclassified",unweighted.df$assigned_80)
+##unweighted.df$assigned_00 <- gsub("other","unclassified",unweighted.df$assigned_00)
+##unweighted.df$assigned_20 <- gsub("other","unclassified",unweighted.df$assigned_20)
+##unweighted.df$assigned_50 <- gsub("other","unclassified",unweighted.df$assigned_50)
+##unweighted.df$assigned_80 <- gsub("other","unclassified",unweighted.df$assigned_80)
 
 weighted.df$assigned_00 <- gsub("other","unclassified",weighted.df$assigned_00)
 weighted.df$assigned_20 <- gsub("other","unclassified",weighted.df$assigned_20)
@@ -269,7 +264,7 @@ build_complete_df <- function(group.df,iter){
 #            sep="\t",row.names=F,quote=F)
 
 
-annot.prof.df <- fread(proj.dir %&% "method_C/analysis_files/annotation-divvy-weighted-unscaled.txt")
+annot.prof.df <- fread(proj.dir %&% "revamp/analysis_files/annotation-divvy-weighted-unscaled.txt")
 
 annot.prof.df$coding <- annot.prof.df$coding_islet + annot.prof.df$coding_adipose + 
   annot.prof.df$coding_muscle + annot.prof.df$coding_liver
