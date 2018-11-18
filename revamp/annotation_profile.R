@@ -232,6 +232,7 @@ divvy_ppa_loc <- function(loc.id,mode="full",weights=TRUE,scaled=FALSE){
 }
 
 build_ppa_partition_df <- function(mode="full",weights=TRUE,scaled=FALSE){
+  cred.df$Locus.ID <- cred.df$CondID
   loc.ids <- cred.df$Locus.ID %>% unique(.)
   #loc.ids <- loc.ids[1:3]
   out.df <- c()
