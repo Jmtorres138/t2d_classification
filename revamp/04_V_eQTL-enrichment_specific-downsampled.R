@@ -1,4 +1,4 @@
-set.seed(1)
+set.seed(2)
 
 "%&%" <- function(a,b) paste0(a,b)
 
@@ -197,6 +197,6 @@ cred.df$Locus.ID <- cred.df$CondID
 
 input2.df <- fread(proj.dir %&% "revamp/analysis_files/classified-loci_weighted.txt")
 thresh2.df <- evaluate_thresholds(input2.df,iter=1000)
-write.table(x=thresh2.df,file=proj.dir%&%"revamp/analysis_files/downsampled_eqtl-specific-validation_weighted.txt",
+write.table(x=thresh2.df,file=proj.dir%&%"revamp/analysis_files/downsampled_eqtl-specific-validation_weighted-seed2.txt",
             sep="\t",quote=FALSE,row.names=FALSE)
 
