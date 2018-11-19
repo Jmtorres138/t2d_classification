@@ -248,8 +248,8 @@ build_ppa_partition_df <- function(mode="full",weights=TRUE,scaled=FALSE){
     out.df <- rbind(out.df,build.df)
     out.df2 <- rbind(out.df2,build.df2)
   }
-  out.df <- map_condids(out.df)
-  out.df2 <- map_condids(out.df2)
+  #out.df <- map_condids(out.df)
+  #out.df2 <- map_condids(out.df2)
   return(list(out.df,out.df2))
 }
 
