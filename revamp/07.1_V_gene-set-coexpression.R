@@ -50,13 +50,6 @@ TPMs.tissues.rank.matrix <- readRDS(proj.dir%&%"input_data/TPMs.tissues.rank.mat
 
 
 
-
-
-
-
-
-
-
 enrichment <- function(geneset, perms){
   #geneset_ens <- TPM.merged.ranks[TPM.merged.ranks$Symbol %in% geneset, "Gene"]
   #names(geneset_ens) <- geneset
@@ -127,11 +120,13 @@ enrichment <- function(geneset, perms){
   }
   
   names(res.lista) = names(geneset.true)
-  zim <- data.frame(tissue = names(geneset.true), perm.pvalue = -9, count = -9, log_pval = -9)
+  zim <- data.frame(tissue = names(geneset.true), perm.pvalue = -9, count = -9, log_pval = -9,
+                    enrich.factor=-9)
   for ( i in 1:length(res.lista)){
     zim[i,2] <- (sum(res.lista[[i]] <= geneset.true.sum[[i]])+1)/(length(res.lista[[i]])+1)
     zim[i,3] <- (sum(geneset.true.sum[[i]] >=res.lista[[i]])+1)
     zim[i,4] <- -log10(zim[i,2])
+    zim[i,5] <- (res.lista[[i]] %>% mean(.)) / geneset.true.sum[[i]] # May need to ammend
   }
   zim <- zim[order(zim$log_pval, decreasing = TRUE),]
   #ht(zim)
@@ -144,25 +139,25 @@ build_plot_df <- function(islet.genes,muscle.genes,
     enrich.isl.df <- enrichment(islet.genes, iter)
   } else{
     enrich.isl.df <- data.frame(tissue=NA,perm.pvalue=NA,
-                                count=NA,log_pval=NA)
+                                count=NA,log_pval=NA,enrich.factor=NA)
   }
   if(length(muscle.genes)>2){
     enrich.mus.df <- enrichment(muscle.genes, iter)
   } else{
     enrich.mus.df <- data.frame(tissue=NA,perm.pvalue=NA,
-                                count=NA,log_pval=NA)
+                                count=NA,log_pval=NA,enrich.factor=NA)
   }
   if(length(adipose.genes)>2){
     enrich.adi.df <- enrichment(adipose.genes, iter)
   } else{
     enrich.adi.df <- data.frame(tissue=NA,perm.pvalue=NA,
-                                count=NA,log_pval=NA)
+                                count=NA,log_pval=NA,enrich.factor=NA)
   }
   if(length(liver.genes)>2){
     enrich.liv.df <- enrichment(liver.genes, iter)
   } else{
     enrich.liv.df <- data.frame(tissue=NA,perm.pvalue=NA,
-                                count=NA,log_pval=NA)
+                                count=NA,log_pval=NA,enrich.factor=NA)
   }
   enrich.isl.df$geneset <- "islet"
   enrich.mus.df$geneset <- "muscle"
@@ -186,17 +181,7 @@ plot_enrich <- function(plot.df){
 }
 
 
-
-
-
-
-
-
-
-
 #Get co-expression enrichments enrichments 
-
-
 
 
 work.dir2 <- proj.dir %&% "revamp/"
@@ -204,16 +189,9 @@ cred.df <- fread(work.dir2 %&% "genetic_credible_sets/gencred.txt")
 cred.df$Locus.ID <- cred.df$CondID
 
 
-
-##unweighted.df <- fread(work.dir2 %&% "analysis_files/" %&% 
-##                         "classified-loci_unweighted.txt") 
 weighted.df <- fread(work.dir2 %&% "analysis_files/" %&% 
                        "classified-loci_weighted.txt") 
 
-##unweighted.df$assigned_00 <- gsub("other","unclassified",unweighted.df$assigned_00)
-##unweighted.df$assigned_20 <- gsub("other","unclassified",unweighted.df$assigned_20)
-##unweighted.df$assigned_50 <- gsub("other","unclassified",unweighted.df$assigned_50)
-##unweighted.df$assigned_80 <- gsub("other","unclassified",unweighted.df$assigned_80)
 
 weighted.df$assigned_00 <- gsub("other","unclassified",weighted.df$assigned_00)
 weighted.df$assigned_20 <- gsub("other","unclassified",weighted.df$assigned_20)
@@ -249,38 +227,16 @@ build_complete_df <- function(group.df,iter){
 }
 
 
-#plt1 <- plot_enrich(plot.df)
-
-
-
-
-
-#df1 <- build_complete_df(unweighted.df,iter=10000)
-#df2 <- build_complete_df(weighted.df,iter=10000)
-
-#write.table(x=df1,file=work.dir2%&%"analysis_files/coexpress-enrich_unweighted.txt",
-#            sep="\t",row.names=F,quote=F)
-#write.table(x=df2,file=work.dir2%&%"analysis_files/coexpress-enrich_weighted.txt",
-#            sep="\t",row.names=F,quote=F)
-
-
 annot.prof.df <- fread(proj.dir %&% "revamp/analysis_files/annotation-divvy-weighted-unscaled.txt")
 
 annot.prof.df$coding <- annot.prof.df$coding_islet + annot.prof.df$coding_adipose + 
   annot.prof.df$coding_muscle + annot.prof.df$coding_liver
 
-# 210 loci with coding score = 0; 354 loci with coding <= 0.1; 
-# 315 loci with coding <= 0.01; 363 loci w/ coding <= 0.20 
+
 
 zero.vec <- filter(annot.prof.df,coding==0)$Locus.ID %>% unique(.)
 p10.vec <- filter(annot.prof.df,coding<=0.1)$Locus.ID %>% unique(.)
 
-##df3 <- build_complete_df(filter(unweighted.df,Locus.ID %in% zero.vec),iter=10000)
-#df3 <- build_complete_df(filter(weighted.df,Locus.ID %in% zero.vec),iter=10000)
-##write.table(x=df3,file=work.dir2%&%"analysis_files/coexpress-enrich_unweighted_noCoding.txt",
-##            sep="\t",row.names=F,quote=F)
-#write.table(x=df3,file=work.dir2%&%"analysis_files/coexpress-enrich_weighted_noCoding.txt",
-#            sep="\t",row.names=F,quote=F)
 
 
 df4 <- build_complete_df(filter(weighted.df,Locus.ID %in% p10.vec),iter=10000)
