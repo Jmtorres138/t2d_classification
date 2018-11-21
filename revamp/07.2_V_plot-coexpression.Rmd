@@ -21,18 +21,11 @@ library("plyr")
 serv.dir <- "/home/jason/science/servers/FUSE5/"
 proj.dir <- serv.dir %&% "projects/t2d_classification/"
 
-work.dir <- proj.dir %&% "method_C/"
+work.dir <- proj.dir %&% "revamp/"
 analysis.dir <- work.dir %&% "analysis_files/"
 plot.dir <- work.dir %&% "plots/"
 
-w.df <- fread(analysis.dir %&% "coexpress-enrich_weighted.txt") %>% 
-  na.omit(.)
-u.df <- fread(analysis.dir %&% "coexpress-enrich_unweighted.txt") %>% 
-  na.omit(.)
-
-w.df2 <- fread(analysis.dir %&% "coexpress-enrich_weighted_noCoding.txt") %>% 
-  na.omit(.)
-w.df3 <- fread(analysis.dir %&% "coexpress-enrich_weighted_p10Coding.txt") %>% 
+w.df <- fread(analysis.dir %&% "coexpress-enrich_weighted_p10Coding.txt") %>% 
   na.omit(.)
 ```
 
@@ -40,14 +33,18 @@ w.df3 <- fread(analysis.dir %&% "coexpress-enrich_weighted_p10Coding.txt") %>%
 
 ```{r}
 
-plot_enrich <- function(plot.df){
+plot_enrich <- function(plot.df,nrow1=FALSE){
   plt <- ggplot(data=plot.df,aes(x=tissue,y=log_pval)) + 
     geom_point(size=3,aes(shape=geneset,fill=log_pval),
                alpha=0.7) + 
     geom_hline(yintercept = -log(0.05/54,base=10)) + 
-    geom_hline(yintercept = -log(0.05,base=10),linetype=2) + 
-    facet_wrap(~threshold) + 
-    scale_shape_manual(name="Gene set",values=c(21,22,23,24)) +
+    geom_hline(yintercept = -log(0.05,base=10),linetype=2)
+  if (nrow1==TRUE){
+    plt <- plt + facet_wrap(~threshold,nrow=1)
+  } else{
+    plt <- plt + facet_wrap(~threshold)
+  }
+  plt <- plt + scale_shape_manual(name="Gene set",values=c(21,22,23,24)) +
     scale_fill_viridis(name="-log10(p)",direction = -1) + 
     ylab("-log10(p)") + xlab("Tissue") + 
     theme(axis.text.x=element_text(size=14),
@@ -62,33 +59,12 @@ plot_enrich <- function(plot.df){
 ```
 
 
-```{r}
-
-plt1 <- plot_enrich(w.df)
-ggsave(plot=plt1,filename = plot.dir %&% "coexpress-enrich_weighted-ALL.png",width=12,height=12)
-
-plt2 <- plot_enrich(u.df)
-ggsave(plot=plt2,filename = plot.dir %&% "coexpress-enrich_unweighted-ALL.png",width=12,height=12)
-
-```
-
-
-```{r}
-
-filter(w.df,threshold==0.50) %>% arrange(.,perm.pvalue) %>% View(.)
-
-```
-
 # Filtering 
 
 ```{r}
 
-plt3 <- plot_enrich(w.df2)
-ggsave(plot=plt3,filename = plot.dir %&% "coexpress-enrich_weighted-noCoding.png",width=12,height=12)
-ggsave(plot=plt3,filename = plot.dir %&% "coexpress-enrich_weighted-noCoding.pdf",width=16,height=12)
-
-plt4 <- plot_enrich(w.df3)
-ggsave(plot=plt4,filename = plot.dir %&% "coexpress-enrich_weighted-p10Coding.png",width=12,height=12)
+plt1 <- plot_enrich(w.df)
+ggsave(plot=plt1,filename = plot.dir %&% "coexpress-enrich_weighted-p10Coding.png",width=12,height=12)
 
 
 ```
@@ -97,10 +73,24 @@ ggsave(plot=plt4,filename = plot.dir %&% "coexpress-enrich_weighted-p10Coding.pn
 
 ```{r}
 
-plt3b <- plot_enrich(filter(w.df2,threshold==0.20))
+plt1b <- plot_enrich(filter(w.df,threshold==0.20))
 
-ggsave(plot=plt3b,filename = plot.dir %&% "coexpress-enrich_weighted-noCoding20.png",width=6.5,height=9)
-ggsave(plot=plt3b,filename = plot.dir %&% "coexpress-enrich_weighted-noCoding20.pdf",width=6.5,height=9)
+ggsave(plot=plt1b,filename = plot.dir %&% "coexpress-enrich_weighted-noCoding20.png",width=6.5,height=9)
+ggsave(plot=plt1b,filename = plot.dir %&% "coexpress-enrich_weighted-noCoding20.pdf",width=6.5,height=9)
 
 ```
+
+
+# Just the four relative tissues 
+
+
+```{r}
+
+keep.tissues <- c("Islet","Muscle...Skeletal","Liver","Adipose...Subcutaneous")
+sub.df <- filter(w.df,tissue %in% keep.tissues)
+
+plt2 <- plot_enrich(sub.df,nrow1=TRUE)
+
+```
+
 
