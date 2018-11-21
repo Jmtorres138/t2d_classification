@@ -26,7 +26,7 @@ serv.dir <- "/home/jason/science/servers/FUSE5/"
 #serv.dir <- "/Users/jtorres/FUSE5/"
 
 proj.dir <- serv.dir %&% "projects/t2d_classification/"
-work.dir <-  proj.dir %&% "method_C/" 
+work.dir <-  proj.dir %&% "revamp/" 
 
 cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
 
@@ -42,53 +42,8 @@ names(phys94.df)[2] <- "Physiology"
 
 ```{r}
 
-#phys.df <- fread(proj.dir %&% "analysis_files/physiology_hrc_for_Jason.txt")
-#phys.df$Locus.ID_inCREDS <- map(1:dim(phys.df)[1],function(i){
-#  s <- phys.df$Locus.ID_inCREDS[i]
-#  ifelse(grepl("_",s)==FALSE,s%&%"_1",s)
-#}) %>% as.character(.)
-
-```
-
-
-```{r}
-
-append_condid <- function(class.df){
-  Cond.ID <- map(1:dim(class.df)[1],function(i){
-    filter(cred.df,Locus.ID==class.df$Locus.ID[i])$CondID %>% unique(.)
-  }) %>% as.character(.)
-  class.df$Cond.ID <- Cond.ID
-  return(class.df)
-}
-
-unweighted.df <- fread(work.dir %&% "analysis_files/" %&% 
-                     "classified-loci_unweighted.txt") %>% append_condid(.)
 weighted.df <- fread(work.dir %&% "analysis_files/" %&% 
-                     "classified-loci_weighted.txt") %>% append_condid(.)
-```
-
-
-# Rename Locus Id and write files 
-
-```{r}
-
-rename_locid <- function(class.df){
-  Locus.ID <- map(1:dim(class.df)[1],function(i){
-    filter(cred.df,Locus.ID==class.df$Locus.ID[i])$CondID %>% unique(.)
-  }) %>% as.character(.)
-  class.df$Locus.ID <- Locus.ID
-  return(class.df)
-}
-
-df.1 <- fread(work.dir %&% "analysis_files/" %&% 
-                     "classified-loci_unweighted.txt") %>% rename_locid(.)
-write.table(x=df.1,file=write.dir %&% "analysis_files/classified-loci_unweighted_renamed.txt",
-            sep="\t",row.names=F,col.names=T)
-df.2 <- fread(work.dir %&% "analysis_files/" %&% 
-                     "classified-loci_weighted.txt") %>% rename_locid(.)
-write.table(x=df.2,file=write.dir %&% "analysis_files/classified-loci_weighted_renamed.txt",
-            sep="\t",row.names=F,col.names=T)
-
+                     "classified-loci_weighted.txt") #%>% append_condid(.)
 ```
 
 
@@ -121,15 +76,15 @@ build_enrich_df <- function(class.df,phys.df){
   phys.vec <- phys.df$Physiology  %>% unique(.)
   out.df <- c()
   for (t in tvec){
-    cond <- "Cond.ID"
+    cond <- "Locus.ID"
     threshold <- t
     sub <- dplyr::select(class.df,one_of(cond,threshold))
     names(sub)[2] <- "assigned"
     for (tiss in tiss.vec){
       if (tiss=="peripheral"){
-        query.vec <- filter(sub,assigned!="islet")$Cond.ID %>% unique(.)
+        query.vec <- filter(sub,assigned!="islet")$Locus.ID %>% unique(.)
       } else{
-        query.vec <- filter(sub,assigned==tiss)$Cond.ID %>% unique(.)
+        query.vec <- filter(sub,assigned==tiss)$Locus.ID %>% unique(.)
       }
       for (phys in phys.vec){
         print("Threshold: " %&% t %&% " Tissue: " %&% tiss %&% " Physiology: " %&% phys)
@@ -156,12 +111,6 @@ build_enrich_df <- function(class.df,phys.df){
 
 ```{r}
 
-df1 <- build_enrich_df(unweighted.df,phys71.df)
-write.table(x=df1,file = write.dir %&% "analysis_files/" %&% 
-              "phys71-enrich_unweighted.txt",sep="\t",quote=F,row.names=F)
-df2 <- build_enrich_df(unweighted.df,phys94.df)
-write.table(x=df2,file = write.dir %&% "analysis_files/" %&% 
-              "phys94-enrich_unweighted.txt",sep="\t",quote=F,row.names=F)
 df3 <- build_enrich_df(weighted.df,phys71.df)
 write.table(x=df3,file = write.dir %&% "analysis_files/" %&% 
               "phys71-enrich_weighted.txt",sep="\t",quote=F,row.names=F)
@@ -182,10 +131,10 @@ write.table(x=df4,file = write.dir %&% "analysis_files/" %&%
 enrich_test_v2 <- function(phys.vec, tissue, class.df,iter=10000){
   if (tissue == "peripheral"){
     full.vec <- dplyr::select(class.df,one_of("liver","muscle","adipose")) %>% rowSums(.)
-    query.vec <- filter(class.df,Cond.ID%in%phys.vec) %>% dplyr::select(.,one_of("liver","muscle","adipose")) %>% rowSums(.)
+    query.vec <- filter(class.df,Locus.ID%in%phys.vec) %>% dplyr::select(.,one_of("liver","muscle","adipose")) %>% rowSums(.)
   } else{
     full.vec <- dplyr::select(class.df,one_of(tissue)) %>% as.matrix(.) %>% as.numeric(.)
-    query.vec <- filter(class.df,Cond.ID%in%phys.vec) %>% dplyr::select(.,one_of(tissue)) %>% as.matrix(.) %>% as.numeric(.)
+    query.vec <- filter(class.df,Locus.ID%in%phys.vec) %>% dplyr::select(.,one_of(tissue)) %>% as.matrix(.) %>% as.numeric(.)
   }
   obs.mean <- mean(query.vec)
   null.vec <- c()
@@ -226,12 +175,6 @@ build_enrich_df_v2 <- function(class.df,phys.df){
 
 ```{r}
 
-df1b <- build_enrich_df_v2(unweighted.df,phys71.df)
-write.table(x=df1b,file = write.dir %&% "analysis_files/" %&% 
-              "phys71-enrich_unweighted-V2.txt",sep="\t",quote=F,row.names=F)
-df2b <- build_enrich_df_v2(unweighted.df,phys94.df)
-write.table(x=df2b,file = write.dir %&% "analysis_files/" %&% 
-              "phys94-enrich_unweighted-V2.txt",sep="\t",quote=F,row.names=F)
 df3b <- build_enrich_df_v2(weighted.df,phys71.df)
 write.table(x=df3b,file = write.dir %&% "analysis_files/" %&% 
               "phys71-enrich_weighted-V2.txt",sep="\t",quote=F,row.names=F)
