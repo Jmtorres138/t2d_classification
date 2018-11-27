@@ -34,11 +34,11 @@ w.df <- fread(analysis.dir %&% "coexpress-enrich_weighted_p10Coding.txt") %>%
 ```{r}
 
 plot_enrich <- function(plot.df,nrow1=FALSE){
-  plt <- ggplot(data=plot.df,aes(x=tissue,y=log_pval)) + 
+  plt <- ggplot(data=plot.df,aes(x=tissue,y=enrich.factor)) + 
     geom_point(size=3,aes(shape=geneset,fill=log_pval),
-               alpha=0.7) + 
-    geom_hline(yintercept = -log(0.05/54,base=10)) + 
-    geom_hline(yintercept = -log(0.05,base=10),linetype=2)
+               alpha=0.7) #+ 
+    #geom_hline(yintercept = -log(0.05/54,base=10)) + 
+    #geom_hline(yintercept = -log(0.05,base=10),linetype=2)
   if (nrow1==TRUE){
     plt <- plt + facet_wrap(~threshold,nrow=1)
   } else{
@@ -46,7 +46,7 @@ plot_enrich <- function(plot.df,nrow1=FALSE){
   }
   plt <- plt + scale_shape_manual(name="Gene set",values=c(21,22,23,24)) +
     scale_fill_viridis(name="-log10(p)",direction = -1) + 
-    ylab("-log10(p)") + xlab("Tissue") + 
+    ylab("Enrichment") + xlab("Tissue") + 
     theme(axis.text.x=element_text(size=14),
           strip.text = element_text(size=17),
           axis.title=element_text(size=17),
