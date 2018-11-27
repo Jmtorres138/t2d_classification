@@ -15,7 +15,6 @@ library("tidyverse")
 library("data.table")
 library("Homo.sapiens")
 
-#fuse.path <- "/Users/jtorres/"
 fuse.path <- "/home/jason/science/servers/"
 serv.dir <- fuse.path %&% "FUSE5/"
 proj.dir <- serv.dir %&% "projects/t2d_classification/"
@@ -33,13 +32,10 @@ enrich.dir <- work.dir %&% "enrichment_files/"
 
 ```{r}
 
-#keep.df <- fread(proj.dir %&% "input_data/" %&% "380.locus.ID.txt")
-#keep.vec <- keep.df$Locus.ID_inCREDS
+
 
 weighted.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-weighted-unscaled.txt")
-#unweighted.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-unweighted-unscaled.txt")
-#alt.df <- fread(analysis.dir %&% "tissue-scores-alternative_CodingNotRN.txt") #%>% 
-  #filter(.,Locus.ID %in% keep.vec) 
+
 
 ```
 
@@ -49,20 +45,22 @@ weighted.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-weighted-unscaled.t
 ```{r}
 
 build_classify_df <- function(ppa.df){
+  names(ppa.df)[6] <- "unclassified"
   pb <- txtProgressBar(min=0,max=dim(ppa.df)[1],style=3)
   assigned_00 <- c(); assigned_20 <- c(); assigned_50 <- c(); assigned_80 <- c()
   for (i in 1:dim(ppa.df)[1]){
     setTxtProgressBar(pb,i)
     row.df <- ppa.df[i,]
-    val00 <- names(row.df[,2:6])[((row.df[,2:6]) >= 0.00) &
-                          ((row.df[,2:6]) == max(row.df[,2:6]))]
+    eval0 <- ((row.df[,2:5]) > 0.00) &
+                          ((row.df[,2:5]) == max(row.df[,2:5]))
+    val00 <- ifelse(sum(eval0)==0,"unclassified",names(row.df[,2:5])[eval0])
     val20 <- names(row.df[,2:6])[((row.df[,2:6]) >= 0.20) &
                           ((row.df[,2:6]) == max(row.df[,2:6]))]
     val50 <- names(row.df[,2:6])[((row.df[,2:6]) >= 0.50) &
                           ((row.df[,2:6]) == max(row.df[,2:6]))]
     val80 <- names(row.df[,2:6])[((row.df[,2:6]) >= 0.80) &
                           ((row.df[,2:6]) == max(row.df[,2:6]))]
-    val00 <- ifelse(length(val20)==0,"unclassified",val20)
+    val00 <- ifelse(length(val00)==0,"unclassified",val00)
     val20 <- ifelse(length(val20)==0,"unclassified",val20)
     val50 <- ifelse(length(val50)==0,"unclassified",val50)
     val80 <- ifelse(length(val80)==0,"unclassified",val80)
@@ -142,33 +140,13 @@ save_classifed_snp_bedfiles <- function(class.df,cred.df,type.name="weighted"){
 ```{r}
 
 
-##df1 <- build_classify_df(unweighted.df)
 df2 <- build_classify_df(weighted.df)
-#df3 <- build_classify_df(alt.df)
-
-
-##write.table(x=df1,file=analysis.dir%&%"classified-loci_unweighted.txt",
-##            sep="\t",quote=F,row.names=FALSE,col.names=TRUE)
-##save_classifed_snp_bedfiles(df1,cred.df,type.name="unweighted")
 
 write.table(x=df2,file=analysis.dir%&%"classified-loci_weighted.txt",
             sep="\t",quote=F,row.names=FALSE,col.names=TRUE)
 save_classifed_snp_bedfiles(df2,cred.df,type.name="weighted")
 
-#write.table(x=df3,file=analysis.dir%&%"classified-loci_alternative.txt",
-#            sep="\t",quote=F,row.names=FALSE,col.names=TRUE)
 
-#table(df2$assigned_20)
-#table(df1$assigned_20)
-#table(df3$assigned_20)sl
-
-#table(df2$assigned_50)
-#table(df1$assigned_50)
-#table(df3$assigned_50)
-
-#table(df2$assigned_80)
-#table(df1$assigned_80)
-#table(df3$assigned_80)
 
 ```
 
