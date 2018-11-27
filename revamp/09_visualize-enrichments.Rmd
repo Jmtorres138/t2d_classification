@@ -72,9 +72,10 @@ eqtl_enrich_plot <- function(enrich.df,myname){
 df2 <- fread(work.dir %&% "analysis_files/eqtl-specific-validation_weighted.txt")
 
 plt2 <- eqtl_enrich_plot(df2,myname="eQTL enrichment for classifed loci (weighted)")
-ggsave(plot=plt2,filename = plot.dir %&% "enrichment-eqtl-specific_weighted.png",width=9,height=6.5)
 
+ggsave(plot=plt2,filename = plot.dir %&% "enrichment-eqtl-specific_weighted.png",width=8,height=6)
 
+ggsave(plot=plt2,filename = plot.dir %&% "enrichment-eqtl-specific_weighted.pdf",width=8,height=6)
 ```
 
 
