@@ -1,0 +1,155 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+library("tidyverse")
+library("data.table")
+serv.dir <- "/home/jason/science/servers/FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <-  proj.dir %&% "revamp/" 
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+write.dir <- work.dir   
+phys94.df <- fread(proj.dir %&% "analysis_files/physiology-fuzzy.txt")
+names(phys94.df)[2] <- "Physiology" 
+
+```
+
+
+```{r}
+
+cred.df$Locus.ID <- cred.df$CondID
+sub.df <- select(cred.df,one_of("Locus.ID","lead.rsid","CHR"))
+sub.df <- sub.df[!duplicated(sub.df),]
+
+str(phys94.df)
+
+join.df <- inner_join(phys94.df,sub.df,by="Locus.ID")
+join.df$matched <- join.df$rsID == join.df$lead.rsid
+
+sum(phys94.df$rsID %in% cred.df$lead.rsid) # only 18 of phys snps directly match a lead SNP from the 380
+
+snp.vec <- c(phys94.df$rsID,cred.df$lead.rsid) %>% unique(.)
+write.table(x=snp.vec,file=work.dir%&%"analysis_files/ld-query-snps.txt",
+            quote=F,row.names=F,col.names=F)
+
+df1 <- select(phys94.df,one_of("rsID","CHR"))
+df2 <- select(sub.df,one_of("lead.rsid","CHR"))
+names(df2)[1] <- c("rsID")
+
+df <- rbind(df1,df2)
+df <- df[!duplicated(df),]
+
+#snp.vec1 <- filter(df,CHR=="chr1")$rsID
+#write.table(x=snp.vec1,file=work.dir%&%"analysis_files/ld-query-snps_chr1.txt",
+#            quote=F,row.names=F,col.names=F)
+
+```
+
+# Write query SNP files 
+
+```{r}
+
+chrom.vec <- unique(df$CHR)
+for (c in chrom.vec){
+  svec <- filter(df,CHR==c)$rsID
+  #print(svec)
+  write.table(x=svec,file=work.dir%&%"analysis_files/ld_query_snps/ld-query-snps_" %&% c %&% ".txt",
+            quote=F,row.names=F,col.names=F)  
+}
+
+```
+
+
+# Manually upload chrom snp files into LD Link and calculate pairwise LD in all European populations 
+
+```{r}
+
+
+get_chrom_ld_matrix <- function(c){
+  f <- work.dir%&%"analysis_files/ld_query_snps/r2_" %&% c %&% ".txt"
+  d <- fread(f,header=TRUE)
+  out.df <- c()
+  vec <- d$RS_number
+  for (s in vec){
+    for (r in vec){
+      val <- filter(d,RS_number==s) %>% dplyr::select(one_of(r)) %>% as.numeric(.)
+      build.df <- data.frame(CHR=c,RS1=s,RS2=r,r2=val)
+      out.df <- rbind(out.df,build.df)
+    }
+  }
+  return(out.df)
+}
+
+build_ld_df <- function(chrom.vec){
+  out.df <- c()
+  for (c in chrom.vec){
+    print(c)
+    build.df <- get_chrom_ld_matrix(c)
+    out.df <- rbind(out.df,build.df)
+  }
+  out.df$CHR <- as.character(out.df$CHR)
+  out.df$RS1 <- as.character(out.df$RS1)
+  out.df$RS2 <- as.character(out.df$RS2)
+  return(out.df)
+}
+
+
+```
+
+
+```{r}
+
+ld.df  <- build_ld_df(chrom.vec)
+
+```
+
+```{r}
+
+names(join.df)[3] <- "CHR"
+
+closest.rs <- map(phys94.df$rsID,function(rs){
+  ifelse(rs%in%cred.df$lead.rsid,rs,(filter(ld.df,RS1==rs,RS2!=rs) %>% filter(.,RS2%in%cred.df$lead.rsid) %>% arrange(.,desc(r2))%>%na.omit(.))$RS2[1])
+}) %>% as.character(.)
+closest.ld <- map(phys94.df$rsID,function(rs){
+  ifelse(rs%in%cred.df$lead.rsid,1,(filter(ld.df,RS1==rs,RS2!=rs) %>% filter(.,RS2%in%cred.df$lead.rsid) %>% arrange(.,desc(r2))%>%na.omit(.))$r2[1])
+}) %>% as.numeric(.)
+
+join.df$closest.rs <- closest.rs
+join.df$closest.ld <- closest.ld
+
+```
+
+
+```{r}
+
+comp.df <- select(join.df,one_of("rsID","CHR","POS","Physiology","closest.rs","closest.ld"))
+comp.df$Locus.ID <- map(comp.df$closest.rs,function(rs){filter(cred.df,lead.rsid==rs)$CondID%>%unique(.)}) %>% 
+  as.character(.)
+comp.df$symbol <- map(comp.df$closest.rs,function(rs){filter(cred.df,lead.rsid==rs)$symbol%>%unique(.)}) %>% 
+  as.character(.)
+```
+
+
+```{r}
+
+filter(comp.df,closest.ld>=0.1) %>% dim(.)
+filter(comp.df,closest.ld>=0.5) %>% dim(.)
+filter(comp.df,closest.ld>=0.8) %>% dim(.)
+
+names(comp.df)[5:6] <- c("assigned.rsid", "assigned.r2")
+write.table(x=comp.df,file=work.dir%&%"analysis_files/phys94-ld-assigned.txt",sep="\t",quote=F,row.names=F)
+
+```
+
+
+
