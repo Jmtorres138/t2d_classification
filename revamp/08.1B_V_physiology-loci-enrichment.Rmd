@@ -1,0 +1,187 @@
+---
+title: "physiology-loci-enrichment.Rmd"
+author: "Jason Torres"
+date: "5/13/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup
+
+
+```{r}
+
+set.seed(100)
+
+"%&%" <- function(a,b) paste0(a,b)
+
+
+library("tidyverse")
+library("data.table")
+
+serv.dir <- "/home/jason/science/servers/FUSE5/"
+
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <-  proj.dir %&% "revamp/" 
+
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+
+write.dir <- work.dir   
+
+
+phys94.df <- fread(work.dir %&% "analysis_files/phys94-ld-assigned.txt") %>%
+  filter(.,assigned.r2>=0.1)
+  
+
+
+```
+
+
+```{r}
+
+weighted.df <- fread(work.dir %&% "analysis_files/" %&% 
+                     "classified-loci_weighted_with-shared.txt")
+```
+
+
+
+# Enrichment functions 
+
+```{r}
+
+enrich_test <- function(query.vec,ref.vec,iter=10000){
+  vec <- cred.df$CondID %>% unique(.)
+  obs <- (query.vec %in% ref.vec) %>% sum(.)
+  null.vec <- c()
+  pb <- txtProgressBar(min=0,max=iter,style=3)
+  for (i in 1:iter){
+    setTxtProgressBar(pb,i)
+    samp <- sample(x=vec,size=length(query.vec),replace=FALSE)
+    count <- (samp %in% ref.vec) %>% sum(.)
+    null.vec <- append(null.vec,count)
+  }
+  enrichment <- obs/(mean(null.vec))
+  p <- (sum(null.vec >= obs) + 1) / (iter + 1)
+  out.df <- data.frame(observed.count=obs,mean.null=mean(null.vec),
+                       enrichment=enrichment,p=p,stringsAsFactors = FALSE)
+  return(out.df)
+}
+
+build_enrich_df <- function(class.df,phys.df){
+  tvec <- c("assigned_00","assigned_20","assigned_50","assigned_80")
+  tiss.vec <- c("islet","liver","adipose","muscle","peripheral")
+  phys.vec <- phys.df$Physiology  %>% unique(.)
+  out.df <- c()
+  for (t in tvec){
+    cond <- "Locus.ID"
+    threshold <- t
+    sub <- dplyr::select(class.df,one_of(cond,threshold))
+    names(sub)[2] <- "assigned"
+    for (tiss in tiss.vec){
+      if (tiss=="peripheral"){
+        query.vec <- filter(sub,assigned!="islet")$Locus.ID %>% unique(.)
+      } else{
+        query.vec <- filter(sub,assigned==tiss)$Locus.ID %>% unique(.)
+      }
+      for (phys in phys.vec){
+        print("Threshold: " %&% t %&% " Tissue: " %&% tiss %&% " Physiology: " %&% phys)
+        ref.vec <- filter(phys.df,Physiology==phys)$Locus.ID %>% 
+          unique(.)
+        test.df <- enrich_test(query.vec,ref.vec,iter=10000)
+        test.df$threshold <- threshold; test.df$tissue <- tiss
+        test.df$physiology <- phys
+        test.df <- dplyr::select(test.df,one_of("tissue","physiology",
+                                                "observed.count",
+                                                "mean.null",
+                                                "enrichment","p",
+                                                "threshold"))
+        out.df <- rbind(out.df,test.df)
+      }
+    }
+  }
+  return(out.df)
+}
+
+
+```
+
+
+```{r}
+
+
+df4 <- build_enrich_df(weighted.df,phys94.df)
+write.table(x=df4,file = write.dir %&% "analysis_files/" %&% 
+              "phys94-enrich_weighted_with-shared.txt",
+            sep="\t",quote=F,row.names=F)
+
+
+```
+
+
+
+# Physiology driven enrichment (see if phys groups are enriched for higher tissue scores)
+
+
+```{r}
+
+enrich_test_v2 <- function(phys.vec, tissue, class.df,iter=10000){
+  if (tissue == "peripheral"){
+    full.vec <- dplyr::select(class.df,one_of("liver","muscle","adipose")) %>% rowSums(.)
+    query.vec <- filter(class.df,Locus.ID%in%phys.vec) %>% dplyr::select(.,one_of("liver","muscle","adipose")) %>% rowSums(.)
+  } else{
+    full.vec <- dplyr::select(class.df,one_of(tissue)) %>% as.matrix(.) %>% as.numeric(.)
+    query.vec <- filter(class.df,Locus.ID%in%phys.vec) %>% dplyr::select(.,one_of(tissue)) %>% as.matrix(.) %>% as.numeric(.)
+  }
+  obs.mean <- mean(query.vec)
+  null.vec <- c()
+  pb <- txtProgressBar(min=0,max=iter,style=3)
+  for (i in 1:iter){
+    setTxtProgressBar(pb,i)
+      null.vec <- append(null.vec,sample(x=full.vec,size=length(query.vec),replace=TRUE) %>% mean(.))
+  }
+  enrichment <- obs.mean / mean(null.vec)
+  p <- (sum(null.vec >= obs.mean) + 1) / (iter + 1)
+  out.df <- data.frame(obs.mean=obs.mean,null.mean=mean(null.vec),enrichment=enrichment,p=p,stringsAsFactors = F)
+}
+
+
+build_enrich_df_v2 <- function(class.df,phys.df){
+  tiss.vec <- c("islet","liver","adipose","muscle","peripheral")
+  phys.vec <- phys.df$Physiology  %>% unique(.)
+  out.df <- c()
+  for (phys in phys.vec){
+    query.vec <- filter(phys.df,Physiology==phys)$Locus.ID %>% 
+      unique(.)    
+    for (tiss in tiss.vec){
+      test.df <- enrich_test_v2(query.vec,tiss,class.df,iter=10000)
+      test.df$tissue <- tiss; test.df$physiology <- phys
+      test.df <- dplyr::select(test.df,one_of("physiology","tissue",
+                                              "obs.mean",
+                                              "null.mean",
+                                              "enrichment","p"))
+      out.df <- rbind(out.df,test.df)
+    }
+  }
+  return(out.df)
+}
+
+
+```
+
+
+```{r}
+
+df4b <- build_enrich_df_v2(weighted.df,phys94.df)
+write.table(x=df4b,file = write.dir %&% "analysis_files/" %&% 
+              "phys94-enrich_weighted-V2_with-shared.txt",
+            sep="\t",quote=F,row.names=F)
+
+```
+
+
+
+
+
