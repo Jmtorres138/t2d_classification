@@ -16,6 +16,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library("tidyverse")
 library("data.table")
 library("Homo.sapiens")
+library("grid");library("gridExtra")
 
 #fuse.path <- "/Users/jtorres/"
 fuse.path <- "/home/jason/science/servers/"
@@ -28,7 +29,6 @@ plot.dir <- work.dir %&% "plots/"
 cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
 cred.df$Locus.ID <- cred.df$CondID
 
-df <- fread(analysis.dir%&%"classified-loci_weighted.txt")
 
 ```
 
@@ -36,50 +36,79 @@ df <- fread(analysis.dir%&%"classified-loci_weighted.txt")
 
 ```{r}
 
-df2 <- rbind(table(df$assigned_00),
-      table(df$assigned_20),
-      table(df$assigned_50),
-      table(df$assigned_80)) %>% as.data.frame(.)
+make_plot_and_table <- function(df,saveprefix="classifier_counts",
+                                interm.df =NULL,
+                                col.vec=c("gold1","olivedrab2","brown","red","grey")){
+  if (is.null(interm.df)==TRUE){
+    interm.df <- rbind(table(df$assigned_00),
+          table(df$assigned_20),
+          table(df$assigned_50),
+          table(df$assigned_80)) %>% as.data.frame(.)    
+    Threshold <- c(rep("0.0",5),rep("0.2",5),rep("0.5",5),rep("0.8",5))
+  } else{
+    Threshold <- c(rep("0.0",6),rep("0.2",6),rep("0.5",6),rep("0.8",6))
 
-Tissue <- rep(names(df2),4)
-Count <- c(df2[1,],df2[2,],df2[3,],df2[4,]) %>% as.integer(.)
-Threshold <- c(rep("0.0",5),rep("0.2",5),rep("0.5",5),rep("0.8",5))
+  }
 
-df3 <- data.frame(Tissue,Count,Threshold,stringsAsFactors = TRUE)
+  Tissue <- rep(names(interm.df),4)
+  Count <- c(interm.df[1,],interm.df[2,],interm.df[3,],interm.df[4,]) %>% as.integer(.)
+  
+  interm.df2 <- data.frame(Tissue,Count,Threshold,stringsAsFactors = TRUE)
+  
+  plt <- ggplot(data=interm.df2,aes(x=Threshold,y=Count)) + 
+    geom_bar(stat="identity",aes(fill=Tissue),color="black") + 
+    theme_bw() + 
+    scale_fill_manual(values=col.vec) + 
+    scale_y_continuous(breaks=seq(0,380,40),limits = c(0,380))
+  
+  
+  ggsave(plot=plt,filename=plot.dir%&%saveprefix%&%".png",height = 5,width=5)
+  ggsave(plot=plt,filename=plot.dir%&%saveprefix%&%".pdf",height = 5,width=5)  
+  count.df <- cbind(Threshold=c("0.0","0.2","0.5","0.8"),interm.df)
+  if(length(names(count.df))==6){
+    names(count.df) <- c("Threshold","Adipose","Islet","Liver","Muscle","Unclassified")
+  } else{
+    names(count.df) <- c("Threshold","Adipose","Islet","Liver","Muscle","Shared","Unclassified")
+  }
+  write.table(x=count.df,file=analysis.dir%&%saveprefix%&%".txt",
+              sep="\t",quote=F,row.names=F)
+  gtab <- tableGrob(count.df)
+  grid.draw(gtab)
 
-plt <- ggplot(data=df3,aes(x=Threshold,y=Count)) + 
-  geom_bar(stat="identity",aes(fill=Tissue),color="black") + 
-  theme_bw() + 
-  scale_fill_manual(values=c("gold1","olivedrab2","brown","red","grey")) + 
-  scale_y_continuous(breaks=seq(0,380,40),limits = c(0,380))
+  ggsave(plot=gtab,filename=plot.dir%&%saveprefix%&%"_table.png",height = 5,width=5)
+  ggsave(plot=gtab,filename=plot.dir%&%saveprefix%&%"_table.pdf",height = 5,width=5)
+  return(list(plt,count.df))
+}
 
-
-ggsave(plot=plt,filename=plot.dir%&%"classifier_counts.png",height = 5,width=5)
-ggsave(plot=plt,filename=plot.dir%&%"classifier_counts.pdf",height = 5,width=5)
 
 ```
 
 
+
 ```{r}
 
-count.df <- cbind(Threshold=c("0.0","0.2","0.5","0.8"),df2)
-names(count.df) <- c("Threshold","Adipose","Islet","Liver","Muscle","Unclassified")
-write.table(x=count.df,file=analysis.dir%&%"classifier_counts.txt",
-            sep="\t",quote=F,row.names=F)
+df1 <- fread(analysis.dir%&%"classified-loci_weighted.txt")
+l1 <- make_plot_and_table(df1,saveprefix="classifier_counts",
+                                col.vec=c("gold1","olivedrab2","brown","red","grey"))
 
 ```
 
 
+
 ```{r}
 
-library("grid");library("gridExtra")
+df2 <- fread(analysis.dir%&%"classified-loci_weighted_with-shared.txt")
+interm.df <- rbind(table(df2$assigned_00),
+              table(df2$assigned_20),
+              table(df2$assigned_50)) %>% as.data.frame(.)
+table(df2$assigned_80)
+interm.df <- rbind(interm.df,c(6,23,10,1,0,340))
 
-gtab <- tableGrob(count.df)
-grid.draw(gtab)
 
-ggsave(plot=gtab,filename=plot.dir%&%"classifier_count_table.png",height = 5,width=5)
-ggsave(plot=gtab,filename=plot.dir%&%"classifier_count_table.pdf",height = 5,width=5)
+l2 <- make_plot_and_table(df2,interm.df=interm.df,saveprefix="classifier_counts_with-shared",
+                              col.vec=c("gold1","olivedrab2","brown","red","dodgerblue","grey"))
 
+ 
 ```
 
 
