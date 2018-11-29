@@ -13,7 +13,7 @@ proj.dir <- serv.dir %&% "projects/t2d_classification/"
 work.dir <- proj.dir %&% "revamp/"
 out.dir <- proj.dir %&% "revamp/analysis_files/"
 res.dir <- work.dir %&% "genetic_credible_sets/" #"null_results/"
-input.dir <- proj.dir %&% "analysis_files/"
+input.dir <- proj.dir %&% "revamp/analysis_files/"
 
 sym.ids <- unique(keys(Homo.sapiens, keytype = "SYMBOL"))
 sym.df <- select(Homo.sapiens,key=sym.ids,keytype="SYMBOL",
