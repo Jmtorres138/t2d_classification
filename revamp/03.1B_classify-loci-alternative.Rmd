@@ -1,0 +1,170 @@
+---
+title: "classify-loci"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+library("Homo.sapiens")
+
+fuse.path <- "/home/jason/science/servers/"
+serv.dir <- fuse.path %&% "FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "revamp/"
+analysis.dir <- work.dir %&% "analysis_files/"
+plot.dir <- work.dir %&% "plots/"
+
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+cred.df$Locus.ID <- cred.df$CondID
+
+enrich.dir <- work.dir %&% "enrichment_files/"
+
+```
+
+
+```{r}
+
+
+
+weighted.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-weighted-unscaled.txt")
+
+
+```
+
+
+# Classify function 
+
+```{r}
+
+is_shared <- function(row.df){
+  sub <- row.df[,2:5] %>% sort(.,decreasing = TRUE) %>% as.numeric(.)
+  ((sub[1] - sub[2]) <= 0.10)
+}
+
+build_classify_df <- function(ppa.df){
+  names(ppa.df)[6] <- "unclassified"
+  pb <- txtProgressBar(min=0,max=dim(ppa.df)[1],style=3)
+  assigned_00 <- c(); assigned_20 <- c(); assigned_50 <- c(); assigned_80 <- c()
+  for (i in 1:dim(ppa.df)[1]){
+    setTxtProgressBar(pb,i)
+    row.df <- ppa.df[i,]
+    eval0 <- ((row.df[,2:5]) > 0.00) &
+                          ((row.df[,2:5]) == max(row.df[,2:5]))
+    val00 <- ifelse(sum(eval0)==0,"unclassified",names(row.df[,2:5])[eval0])
+    val20 <- names(row.df[,2:6])[((row.df[,2:6]) >= 0.20) &
+                          ((row.df[,2:6]) == max(row.df[,2:6]))]
+    val50 <- names(row.df[,2:6])[((row.df[,2:6]) >= 0.50) &
+                          ((row.df[,2:6]) == max(row.df[,2:6]))]
+    val80 <- names(row.df[,2:6])[((row.df[,2:6]) >= 0.80) &
+                          ((row.df[,2:6]) == max(row.df[,2:6]))]
+    
+    val00 <- ifelse(length(val00)==0,"unclassified",
+                    ifelse(val00=="unclassified","unclassified",
+                           ifelse(is_shared(row.df)==TRUE, "shared",val00)))
+  
+    val20 <- ifelse(length(val20)==0,"unclassified",
+                    ifelse(val20=="unclassified","unclassified",
+                           ifelse(is_shared(row.df)==TRUE, "shared",val20)))
+
+    val50 <- ifelse(length(val50)==0,"unclassified",
+                    ifelse(val50=="unclassified","unclassified",
+                           ifelse(is_shared(row.df)==TRUE, "shared",val50)))
+    val80 <- ifelse(length(val80)==0,"unclassified",
+                    ifelse(val80=="unclassified","unclassified",
+                           ifelse(is_shared(row.df)==TRUE, "shared",val80)))
+                    
+
+    assigned_00 <- c(assigned_00,val00)
+    assigned_20 <- c(assigned_20,val20)
+    assigned_50 <- c(assigned_50,val50)
+    assigned_80 <- c(assigned_80,val80)
+  }
+  pb <- txtProgressBar(min=0,max=dim(ppa.df)[1],style=3)
+  symbol <- map(1:dim(ppa.df)[1],function(i){
+    setTxtProgressBar(pb,i)
+    loc.id <- ppa.df$Locus.ID[i]
+    filter(cred.df,CondID==loc.id)$symbol %>% unique(.)
+  }) %>% as.character(.)
+  out.df <- cbind(ppa.df,assigned_00,assigned_20,assigned_50,assigned_80,symbol)
+  out.df$assigned_00 <- as.character(out.df$assigned_00)
+  out.df$assigned_20 <- as.character(out.df$assigned_20)
+  out.df$assigned_50 <- as.character(out.df$assigned_50)
+  out.df$assigned_80 <- as.character(out.df$assigned_80)
+  out.df$symbol <- as.character(out.df$symbol)
+  return(out.df)
+}
+
+
+make_bed_df <- function(prebed,tname){
+  out.df <- dplyr::select(prebed,one_of("CHR","POS"))
+  out.df$POS1 <- out.df$POS
+  out.df <- out.df[!duplicated(out.df),]
+  out.df$tissue <- tname 
+  return(out.df)
+}
+
+save_classifed_snp_bedfiles <- function(class.df,cred.df,type.name="weighted_alternative"){
+  cred.df <- filter(cred.df,PPA>=0.01)
+  df <- filter(cred.df,Locus.ID %in% (filter(class.df,assigned_20=="islet")$Locus.ID)) %>% make_bed_df(.,"islet")
+  write.table(df,file=enrich.dir %&% type.name %&% "/" %&%type.name%&%"_islet_"%&%"thresh20.txt",sep="\t",quote=F,row.names=F,col.names=F)
+  df <- filter(cred.df,Locus.ID %in% (filter(class.df,assigned_20=="adipose")$Locus.ID))  %>% make_bed_df(.,"adipose")
+  write.table(df,file=enrich.dir %&% type.name %&% "/" %&%type.name%&%"_adipose_"%&%"thresh20.txt",sep="\t",quote=F,row.names=F,col.names=F)
+  df <- filter(cred.df,Locus.ID %in% (filter(class.df,assigned_20=="liver")$Locus.ID))  %>% make_bed_df(.,"liver")
+  write.table(df,file=enrich.dir %&% type.name %&% "/" %&%type.name%&%"_liver_"%&%"thresh20.txt",sep="\t",quote=F,row.names=F,col.names=F)
+  df <- filter(cred.df,Locus.ID %in% (filter(class.df,assigned_20=="muscle")$Locus.ID))  %>% make_bed_df(.,"muscle")
+  write.table(df,file=enrich.dir %&% type.name %&% "/" %&%type.name%&%"_muscle_"%&%"thresh20.txt",sep="\t",quote=F,row.names=F,col.names=F)
+  
+  df <- filter(cred.df,Locus.ID %in% (filter(class.df,assigned_50=="islet")$Locus.ID))  %>% make_bed_df(.,"islet")
+  write.table(df,file=enrich.dir %&% type.name %&% "/" %&%type.name%&%"_islet_"%&%"thresh50.txt",sep="\t",quote=F,row.names=F,col.names=F)
+  df <- filter(cred.df,Locus.ID %in% (filter(class.df,assigned_50=="adipose")$Locus.ID))  %>% make_bed_df(.,"adipose")
+  write.table(df,file=enrich.dir %&% type.name %&% "/" %&%type.name%&%"_adipose_"%&%"thresh50.txt",sep="\t",quote=F,row.names=F,col.names=F)
+  df <- filter(cred.df,Locus.ID %in% (filter(class.df,assigned_50=="liver")$Locus.ID))  %>% make_bed_df(.,"liver")
+  write.table(df,file=enrich.dir %&% type.name %&% "/" %&%type.name%&%"_liver_"%&%"thresh50.txt",sep="\t",quote=F,row.names=F,col.names=F)
+  df <- filter(cred.df,Locus.ID %in% (filter(class.df,assigned_50=="muscle")$Locus.ID))  %>% make_bed_df(.,"muscle")
+  write.table(df,file=enrich.dir %&% type.name %&% "/" %&%type.name%&%"_muscle_"%&%"thresh50.txt",sep="\t",quote=F,row.names=F,col.names=F) 
+  
+  df <- filter(cred.df,Locus.ID %in% (filter(class.df,assigned_80=="islet")$Locus.ID))  %>% make_bed_df(.,"islet")
+  write.table(df,file=enrich.dir %&% type.name %&% "/" %&%type.name%&%"_islet_"%&%"thresh80.txt",sep="\t",quote=F,row.names=F,col.names=F)
+  df <- filter(cred.df,Locus.ID %in% (filter(class.df,assigned_80=="adipose")$Locus.ID))  %>% make_bed_df(.,"adipose")
+  write.table(df,file=enrich.dir %&% type.name %&% "/" %&%type.name%&%"_adipose_"%&%"thresh80.txt",sep="\t",quote=F,row.names=F,col.names=F)
+  df <- filter(cred.df,Locus.ID %in% (filter(class.df,assigned_80=="liver")$Locus.ID))  %>% make_bed_df(.,"liver")
+  write.table(df,file=enrich.dir %&% type.name %&% "/" %&%type.name%&%"_liver_"%&%"thresh80.txt",sep="\t",quote=F,row.names=F,col.names=F)
+  df <- filter(cred.df,Locus.ID %in% (filter(class.df,assigned_80=="muscle")$Locus.ID))  %>% make_bed_df(.,"muscle")
+  write.table(df,file=enrich.dir %&% type.name %&% "/" %&%type.name%&%"_muscle_"%&%"thresh80.txt",sep="\t",quote=F,row.names=F,col.names=F)
+  
+  df <- filter(cred.df,Locus.ID %in% (filter(class.df,assigned_00=="islet")$Locus.ID))  %>% make_bed_df(.,"islet")
+  write.table(df,file=enrich.dir %&% type.name %&% "/" %&%type.name%&%"_islet_"%&%"thresh00.txt",sep="\t",quote=F,row.names=F,col.names=F)
+  df <- filter(cred.df,Locus.ID %in% (filter(class.df,assigned_00=="adipose")$Locus.ID))  %>% make_bed_df(.,"adipose")
+  write.table(df,file=enrich.dir %&% type.name %&% "/" %&%type.name%&%"_adipose_"%&%"thresh00.txt",sep="\t",quote=F,row.names=F,col.names=F)
+  df <- filter(cred.df,Locus.ID %in% (filter(class.df,assigned_00=="liver")$Locus.ID))  %>% make_bed_df(.,"liver")
+  write.table(df,file=enrich.dir %&% type.name %&% "/" %&%type.name%&%"_liver_"%&%"thresh00.txt",sep="\t",quote=F,row.names=F,col.names=F)
+  df <- filter(cred.df,Locus.ID %in% (filter(class.df,assigned_00=="muscle")$Locus.ID))  %>% make_bed_df(.,"muscle")
+  write.table(df,file=enrich.dir %&% type.name %&% "/" %&%type.name%&%"_muscle_"%&%"thresh00.txt",sep="\t",quote=F,row.names=F,col.names=F)
+}
+
+
+
+```
+
+
+```{r}
+
+
+df <- build_classify_df(weighted.df)
+
+write.table(x=df,file=analysis.dir%&%"classified-loci_weighted_with-shared.txt",
+            sep="\t",quote=F,row.names=FALSE,col.names=TRUE)
+save_classifed_snp_bedfiles(df,cred.df,type.name="weighted")
+
+
+
+```
+
