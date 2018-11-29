@@ -1,0 +1,110 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+library("tidyverse")
+library("GenomicRanges")
+library("viridis")
+library("data.table")
+library("RColorBrewer")
+
+serv.dir <- "/home/jason/science/servers/FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "revamp/"
+
+analysis.dir <- work.dir %&% "analysis_files/"
+plot.dir <- work.dir %&% "plots/"
+
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+cred.df$Locus.ID <- cred.df$CondID
+
+df1 <- fread(analysis.dir%&%"classified-loci_weighted.txt")
+df2 <- fread(analysis.dir%&%"classified-loci_weighted_with-shared.txt")
+
+```
+
+
+# Tissue contributions across all loci 
+
+```{r}
+
+tiss.vec <- c("islet","liver","adipose","muscle","unclassified")
+score.sum <- c(df1$islet %>% sum(.), df1$liver %>% sum(.), df1$adipose %>% sum(.),
+               df1$muscle %>% sum(.),df1$unclassified %>% sum(.))
+score.prop <- score.sum / sum(score.sum)
+assigned_00 <- c((filter(df1,assigned_00=="islet") %>% dim(.))[1],
+                 (filter(df1,assigned_00=="liver") %>% dim(.))[1],
+                 (filter(df1,assigned_00=="adipose") %>% dim(.))[1],
+                 (filter(df1,assigned_00=="muscle") %>% dim(.))[1],
+                 (filter(df1,assigned_00=="unclassified") %>% dim(.))[1])
+assigned_20 <- c((filter(df1,assigned_20=="islet") %>% dim(.))[1],
+                 (filter(df1,assigned_20=="liver") %>% dim(.))[1],
+                 (filter(df1,assigned_20=="adipose") %>% dim(.))[1],
+                 (filter(df1,assigned_20=="muscle") %>% dim(.))[1],
+                 (filter(df1,assigned_20=="unclassified") %>% dim(.))[1])
+assigned_50 <- c((filter(df1,assigned_50=="islet") %>% dim(.))[1],
+                 (filter(df1,assigned_50=="liver") %>% dim(.))[1],
+                 (filter(df1,assigned_50=="adipose") %>% dim(.))[1],
+                 (filter(df1,assigned_50=="muscle") %>% dim(.))[1],
+                 (filter(df1,assigned_50=="unclassified") %>% dim(.))[1])
+assigned_80 <- c((filter(df1,assigned_80=="islet") %>% dim(.))[1],
+                 (filter(df1,assigned_80=="liver") %>% dim(.))[1],
+                 (filter(df1,assigned_80=="adipose") %>% dim(.))[1],
+                 (filter(df1,assigned_80=="muscle") %>% dim(.))[1],
+                 (filter(df1,assigned_80=="unclassified") %>% dim(.))[1])
+
+add.df <- data.frame(tissue=tiss.vec,score.sum,score.prop,assigned_00,
+                     assigned_20,assigned_50,assigned_80,stringsAsFactors = F)
+
+plt <- ggplot(data=add.df,aes(x=tissue,y=score.prop)) + 
+  geom_histogram(stat="identity",color="black",
+                 binwidth=1,size=1,fill=viridis(20)[7]) + 
+  theme_bw()
+
+write.table(add.df,file=analysis.dir%&%"score_sums.txt",sep="\t",quote=F,
+            row.names=F)
+
+ggsave(plot=plt,filename = plot.dir %&%"score_sums.png",height = 3,width=4)
+ggsave(plot=plt,filename = plot.dir %&%"score_sums.pdf",height = 3,width=4)
+
+```
+
+
+# Annotation divvy sums 
+
+```{r}
+
+annot.df <- fread(analysis.dir%&%"annotation-divvy-weighted-unscaled.txt")
+annot.mat <- dplyr::select(annot.df,-one_of("Locus.ID"))
+
+```
+
+# Develop "sharing" score
+
+```{r}
+
+df2$sep.score <- map(1:dim(df2)[1],function(i){
+  vec <- df2[i,2:6] %>% sort(.,decreasing=TRUE) %>% as.numeric(.)
+  vec[1] - vec[2]
+}) %>% as.numeric(.)
+df2$share.score <- 1-sep.score
+
+df2$num.snps <- map(1:dim(df2)[1],function(i){
+  id <- df2[i,]$Locus.ID
+  dim(filter(cred.df,CondID==id))[1]
+}) %>% as.integer(.)
+
+
+```
+
+
