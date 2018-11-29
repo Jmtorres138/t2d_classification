@@ -90,7 +90,8 @@ keep.tissues <- c("Islet","Muscle...Skeletal","Liver","Adipose...Subcutaneous")
 sub.df <- filter(w.df,tissue %in% keep.tissues)
 
 plt2 <- plot_enrich(sub.df,nrow1=TRUE)
-
+ggsave(plot=plt2,filename = plot.dir %&% "coexpress-enrich_weighted-noCoding-fourtiss.png",width=8,height=4)
+ggsave(plot=plt2,filename = plot.dir %&% "coexpress-enrich_weighted-noCoding-fourtiss.pdf",width=8,height=4)
 ```
 
 

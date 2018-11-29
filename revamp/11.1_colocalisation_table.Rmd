@@ -20,12 +20,11 @@ serv.dir <- "/home/jason/science/servers/FUSE5/"
 #serv.dir <- "/Users/jtorres/FUSE5/"
 
 proj.dir <- serv.dir %&% "projects/t2d_classification/"
-work.dir <- proj.dir %&% "method_C/"
+work.dir <- proj.dir %&% "revamp/"
 
 cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
 
-work2.dir <- "/home/jason/science/projects/t2d_classification/method_C/"
-df1 <- fread(work.dir %&% "analysis_files/classified-loci_unweighted_renamed.txt")
+work2.dir <- "/home/jason/science/projects/t2d_classification/revamp/"
 df2 <- fread(work.dir %&% "analysis_files/classified-loci_weighted_renamed.txt")
 
 
@@ -43,7 +42,7 @@ sub2 <- dplyr::select(coloc.gtex,one_of("Locus","SNP_ID","Tissue",
 coloc.df <- rbind(sub1,sub2)
 
 
-write.dir <- "/home/jason/science/projects/t2d_classification/method_C/analysis_files/"
+write.dir <- "/home/jason/science/projects/t2d_classification/revamp/analysis_files/"
 
 ```
 
@@ -113,9 +112,6 @@ append_coloc_df <- function(toa.df){
 
 ```{r}
 
-unw.df <- append_coloc_df(df1)
-write.table(x=unw.df,file=write.dir%&%"toa-scores_eGenes_unweighted.txt",
-            sep="\t",quote=FALSE,row.names=FALSE)
 w.df <- append_coloc_df(df2)
 write.table(x=w.df,file=write.dir%&%"toa-scores_eGenes_weighted.txt",
             sep="\t",quote=FALSE,row.names=FALSE)

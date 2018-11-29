@@ -300,8 +300,8 @@ ggsave(plot=plt1,filename=plot.dir%&%"finemap_wilcox-compare-max_weightedV2.pdf"
 ```{r}
 
 ##plt.list2 <- make_test_plot(unweighted.df)
-  
 ##ggsave(plot=plt.list2[[1]],filename=plot.dir%&%"finemap_wilcox-compare-max_unweighted.png",height=3.5,width=4)
+
 
 ```
 
