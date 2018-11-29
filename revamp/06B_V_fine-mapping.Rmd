@@ -1,0 +1,290 @@
+---
+title: "Untitled"
+author: "Jason Torres"
+date: "11/23/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+library("tidyverse")
+library("GenomicRanges")
+library("viridis")
+library("data.table")
+library("RColorBrewer")
+
+serv.dir <- "/home/jason/science/servers/FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+methA.dir <- proj.dir %&% "method_A/"
+work.dir <- proj.dir %&% "revamp/"
+
+analysis.dir <- work.dir %&% "analysis_files/"
+plot.dir <- work.dir %&% "plots/"
+
+
+modify_keepvec <- function(keep.vec){
+  pb <- txtProgressBar(min=0,max=length(keep.vec),style=3)
+  vec <- map(1:length(keep.vec),function(i){
+    setTxtProgressBar(pb,i)
+    val <- keep.vec[i]
+    ifelse(grepl("_",val)==FALSE,val%&%"_1",val)
+  }) %>% as.character(.)
+  return(vec)
+}
+
+keep.df <- fread(proj.dir %&% "input_data/" %&% "380.locus.ID.txt")
+keep.vec <- keep.df$Locus.ID_inCREDS %>% modify_keepvec(.)
+
+
+
+block.df <- fread(methA.dir %&% "multi_results/results_blocks.txt")
+
+
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+cred.df$Locus.ID <- cred.df$CondID
+
+```
+
+
+Read data files 
+
+```{r}
+
+block.df <- fread(methA.dir %&%"multi_results/results_blocks.txt",sep="\t")
+fcred.df <- fread(methA.dir %&%"multi_results/results_func-cred-sets.txt",sep="\t")
+
+weighted.df <- fread(work.dir %&% "analysis_files/" %&% 
+                     "classified-loci_weighted_with-shared.txt") 
+
+
+weighted.df$assigned_00 <- gsub("other","unclassified",weighted.df$assigned_00)
+weighted.df$assigned_20 <- gsub("other","unclassified",weighted.df$assigned_20)
+weighted.df$assigned_50 <- gsub("other","unclassified",weighted.df$assigned_50)
+weighted.df$assigned_80 <- gsub("other","unclassified",weighted.df$assigned_80)
+
+
+```
+
+
+
+# Validation 2 - Comparison with islet only credible sets 
+
+Build analysis data frame 
+
+```{r}
+
+get_max_over_null <- function(id,query.df,null.df){
+  q <- max(filter(query.df,Locus.ID==id)$PPA)
+  n <- max(filter(null.df,Locus.ID==id)$PPA)
+  dif <- q - n 
+}
+
+get_num_vs_null <- function(id,query.df,null.df){
+  q <- length(filter(query.df,Locus.ID==id)$PPA)
+  n <- length(filter(null.df,Locus.ID==id)$PPA)
+  dif <- q - n 
+}
+
+modify_loc_ids <- function(df){
+  pb <- txtProgressBar(min=0,max=dim(df)[1],style=3)
+  Locus.ID <- map(1:dim(df)[1],function(i){
+    setTxtProgressBar(pb,i)
+    val <- df$Locus.ID[i]
+    ifelse(grepl("_",val)==FALSE,val%&%"_1",val)
+  }) %>% as.character(.)
+  df$Locus.ID <- Locus.ID 
+  return(df)
+}
+
+build_comp_df <- function(group.df,thresh){
+  fcred.multi.df <- fread(methA.dir%&%"multi_results/results_func-cred-sets.txt",sep="\t") %>%
+    modify_loc_ids(.)
+  fcred.islet.df <- fread(methA.dir%&%"islet_results/results_func-cred-sets.txt",sep="\t") %>% 
+    modify_loc_ids(.)
+  fcred.null.df <- fread(methA.dir%&%"null_results/null_results_func-cred-sets.txt",sep="\t") %>% 
+    modify_loc_ids(.)    
+  Locus.ID <- unique(fcred.multi.df$Locus.ID)
+  islet.max.vs.null <- map(Locus.ID,function(id){
+    q <- max(filter(fcred.islet.df,Locus.ID==id)$PPA)
+    n <- max(filter(fcred.null.df,Locus.ID==id)$PPA)
+    dif <- q - n 
+  }) %>% as.numeric(.)
+  islet.num.vs.null <- map(Locus.ID,function(id){
+    q <- length(filter(fcred.islet.df,Locus.ID==id)$PPA)
+    n <- length(filter(fcred.null.df,Locus.ID==id)$PPA)
+    dif <- q - n 
+  }) %>% as.numeric(.)  
+  multi.max.vs.null <- map(Locus.ID,function(id){
+    q <- max(filter(fcred.multi.df,Locus.ID==id)$PPA)
+    n <- max(filter(fcred.null.df,Locus.ID==id)$PPA)
+    dif <- q - n 
+  }) %>% as.numeric(.)
+  multi.num.vs.null <- map(Locus.ID,function(id){
+    q <- length(filter(fcred.multi.df,Locus.ID==id)$PPA)
+    n <- length(filter(fcred.null.df,Locus.ID==id)$PPA)
+    dif <- q - n 
+  }) %>% as.numeric(.) 
+  out.df <- data.frame(Locus.ID,islet.max.vs.null,islet.num.vs.null,
+                       multi.max.vs.null,multi.num.vs.null,stringsAsFactors=FALSE)
+  out.df <- filter(out.df,Locus.ID %in% keep.vec)
+  out.df$symbol <- map(out.df$Locus.ID,function(id){filter(cred.df,CondID==id)$symbol %>% unique(.)}) %>% 
+    as.character(.)
+  if (thresh==0.00){
+      out.df$group <- map(out.df$Locus.ID,function(id){filter(group.df,Locus.ID==id)$assigned_00}) %>% 
+      as.character(.)   
+  } else if (thresh==0.20){
+      out.df$group <- map(out.df$Locus.ID,function(id){filter(group.df,Locus.ID==id)$assigned_20}) %>% 
+      as.character(.)
+  } else if (thresh==0.50){
+      out.df$group <- map(out.df$Locus.ID,function(id){filter(group.df,Locus.ID==id)$assigned_50}) %>% 
+      as.character(.)  
+  } else if (thresh==0.80){
+      out.df$group <- map(out.df$Locus.ID,function(id){filter(group.df,Locus.ID==id)$assigned_80}) %>% 
+      as.character(.)  } 
+  else{
+      print("Thresh must be 0.00, 0.20, 0.50, or 0.80")
+  }
+  out.df$threshold <- thresh
+  return(out.df)
+}
+
+build_test_df <- function(comp.df,group.df,thresh){
+  if (thresh==0.00){
+    grps <- unique(group.df$assigned_00)     
+  } else if (thresh==0.20){
+    grps <- unique(group.df$assigned_20)     
+  } else if (thresh==0.50){
+    grps <- unique(group.df$assigned_50)     
+  } else if (thresh==0.80){
+    grps <- unique(group.df$assigned_80)     
+  } else{
+    print("Thresh must be 0.00, 0.20, 0.50, or 0.80")
+  }
+  grps <- (grps)[!(grps %in% c("NA"))]
+  Group <- c()
+  w.pval.max <- c()
+  w.pval.num <- c()
+
+  for (g in grps){
+    sub.df <- filter(comp.df,group==g)
+    pval1 <- wilcox.test(sub.df$islet.max.vs.null,sub.df$multi.max.vs.null)$p.value 
+    pval2 <- wilcox.test(sub.df$islet.num.vs.null,sub.df$multi.num.vs.null)$p.value 
+    Group <- c(Group,g)
+    w.pval.max <- c(w.pval.max,pval1)
+    w.pval.num <- c(w.pval.num,pval2)    
+  }
+  sub.df <- filter(comp.df,group!="islet"&group!="unclassified")
+  pval1 <- wilcox.test(sub.df$islet.max.vs.null,sub.df$multi.max.vs.null)$p.value 
+  pval2 <- wilcox.test(sub.df$islet.num.vs.null,sub.df$multi.num.vs.null)$p.value 
+  Group <- c(Group,"peripheral")
+  w.pval.max <- c(w.pval.max,pval1)
+  w.pval.num <- c(w.pval.num,pval2)  
+  out.df <- data.frame(Group,w.pval.max,w.pval.num,stringsAsFactors=FALSE)
+  out.df$threshold <- thresh
+  return(out.df)
+}
+
+build_full_test_df <- function(group.df){
+  comp00.df <- build_comp_df(group.df,thresh=0.00)
+  test00.df <- build_test_df(comp00.df,group.df,thresh=0.00)  
+  comp20.df <- build_comp_df(group.df,thresh=0.20)
+  test20.df <- build_test_df(comp20.df,group.df,thresh=0.20)  
+  comp50.df <- build_comp_df(group.df,thresh=0.50)
+  test50.df <- build_test_df(comp50.df,group.df,thresh=0.50)  
+  comp80.df <- build_comp_df(group.df,thresh=0.80)
+  test80.df <- build_test_df(comp80.df,group.df,thresh=0.80)  
+  comp.df <- rbind(comp00.df,comp20.df,comp50.df,comp80.df)
+  out.df <- rbind(test00.df,test20.df,test50.df,test80.df)
+  return(list(out.df,comp.df))
+}
+
+make_test_plot <- function(group.df){
+  test.list <- build_full_test_df(group.df)
+  test.df <- test.list[[1]]
+  comp.df <- test.list[[2]]
+  test.df$Group <- factor(test.df$Group,levels=c("islet",
+                                                 "liver",
+                                                 "muscle",
+                                                 "adipose",
+                                                 "peripheral",
+                                                 "unclassified"))
+  plt1 <- ggplot(data=test.df,aes(x=Group,y=-log(w.pval.max,base=10))) + 
+    geom_point(shape=21,color="black",
+               fill="grey",size=2) + 
+    facet_wrap(~threshold) + 
+    scale_y_continuous(limits=c(0,3),breaks=seq(0,3,0.5)) + 
+    theme_bw() + geom_hline(yintercept=-log(0.05,base=10),
+                            color="firebrick3",linetype=2) + 
+    ylab(expression(-log[10](p[value]))) + 
+    theme(axis.text.x=element_text(size=7)) +
+    ggtitle("Improvement of max PPA over null") + 
+    theme(axis.text.x=element_text(angle=30,vjust=0.6)) + 
+    xlab("Classified Tissue")
+  return(list(plt1,test.df,comp.df))
+}
+
+
+
+```
+
+
+# Statistical tests 
+
+```{r}
+
+
+plt.list1 <- make_test_plot(filter(weighted.df,!(assigned_00=="shared")))
+  
+ggsave(plot=plt.list1[[1]],filename=plot.dir%&%"finemap_wilcox-compare-max_weighted_with-shared.png",height=3.5,width=4)
+
+```
+
+
+```{r}
+
+count.df <- fread(work.dir %&% "analysis_files/classifier_counts_with-shared.txt")
+names(count.df) <- c("Threshold","adipose","islet","liver","muscle",
+                     "shared","unclassified")
+
+plt.df <- plt.list1[[2]]
+plt.df$count <- map(1:dim(plt.df)[1],function(i){
+  row.df <- plt.df[i,]
+  count <- filter(count.df,Threshold==row.df$threshold) %>% 
+    dplyr::select(.,one_of(as.character(unique(row.df$Group)))) %>% as.integer(.)
+  if (row.df$Group=="peripheral"){
+    count <- filter(count.df,Threshold==row.df$threshold) %>% 
+      dplyr::select(.,one_of("adipose","liver","muscle")) %>% sum(.)  
+  }
+  return(count)
+}) %>% as.integer(.)
+
+library("viridis")
+  plt1 <- ggplot(data=plt.df,aes(x=Group,y=-log(w.pval.max,base=10))) + 
+    geom_point(shape=21,color="black",
+               fill=magma(10)[3],aes(size=count)) + 
+    facet_wrap(~threshold,ncol=4) + 
+    scale_y_continuous(limits=c(0,3.5),breaks=seq(0,3.5,0.5)) + 
+    theme_bw() + geom_hline(yintercept=-log(0.05,base=10),
+                            color=magma(10)[7],linetype=2) + 
+    ylab(expression(-log[10](p[value]))) + 
+    theme(axis.text.x=element_text(size=7)) +
+    ggtitle("Improvement of max PPA over null") + 
+    theme(axis.text.x=element_text(angle=30,vjust=0.6),
+          panel.grid.major.x=element_blank(),
+          strip.background = element_rect(fill=viridis(10)[9])) + 
+    xlab("Classified Tissue")
+
+
+ggsave(plot=plt1,filename=plot.dir%&%"finemap_wilcox-compare-max_weightedV2_with-shared.png",height=3,width=8)  
+ggsave(plot=plt1,filename=plot.dir%&%"finemap_wilcox-compare-max_weightedV2_with-shared.pdf",height=3,width=8)    
+```
+
+
