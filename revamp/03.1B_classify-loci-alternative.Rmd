@@ -162,7 +162,7 @@ df <- build_classify_df(weighted.df)
 
 write.table(x=df,file=analysis.dir%&%"classified-loci_weighted_with-shared.txt",
             sep="\t",quote=F,row.names=FALSE,col.names=TRUE)
-save_classifed_snp_bedfiles(df,cred.df,type.name="weighted")
+save_classifed_snp_bedfiles(df,cred.df,type.name="weighted_alternative")
 
 
 
