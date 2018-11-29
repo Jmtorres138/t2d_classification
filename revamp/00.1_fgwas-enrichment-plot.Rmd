@@ -210,7 +210,8 @@ an_plot <- function(mydf,mytitl="",mylow=-10,myhigh=10,interval=1){
 ```{r}
 
 ex.vec <- c("utr_5","distance_tss_0_5000","18_Quiescent_low_signal",
-            "exon","14_Bivalent_poised_TSS","intron","17_Weak_repressed_polycomb",
+            "exon","14_Bivalent_poised_TSS","intron",
+            "17_Weak_repressed_polycomb","promoter",
             "utr_3","transcript","16_Repressed_polycomb")
 
 plot.df <- filter(all.df,!(parameter %in% ex.vec))
@@ -234,7 +235,6 @@ plot.df$fe <- 2^plot.df$estimate
 write.table(x=plot.df,file=write.dir %&%"fgwas-enrich-all.txt",sep="\t",
             quote=F,row.names = F)
 
-#plot.df$fe <- 2^plot.df$estimate 
 ```
 
 
