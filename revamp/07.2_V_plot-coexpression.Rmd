@@ -94,4 +94,22 @@ ggsave(plot=plt2,filename = plot.dir %&% "coexpress-enrich_weighted-noCoding-fou
 ggsave(plot=plt2,filename = plot.dir %&% "coexpress-enrich_weighted-noCoding-fourtiss.pdf",width=8,height=4)
 ```
 
+# Plots if we include "sharing" category 
+
+```{r}
+
+w.df2 <- fread(analysis.dir %&% "coexpress-enrich_weighted_p10Coding_with-shared.txt") %>% 
+  na.omit(.)
+plt3 <- plot_enrich(w.df2)
+ggsave(plot=plt3,filename = plot.dir %&% "coexpress-enrich_weighted-p10Coding_with-shared.png",width=12,height=12)
+ggsave(plot=plt3,filename = plot.dir %&% "coexpress-enrich_weighted-p10Coding_with-shared.pdf",width=12,height=12)
+keep.tissues <- c("Islet","Muscle...Skeletal","Liver","Adipose...Subcutaneous")
+sub.df2 <- filter(w.df2,tissue %in% keep.tissues)
+plt4 <- plot_enrich(sub.df2,nrow1=TRUE)
+ggsave(plot=plt4,filename = plot.dir %&% "coexpress-enrich_weighted-noCoding-fourtiss_with-shared.png",width=8,height=4)
+ggsave(plot=plt4,filename = plot.dir %&% "coexpress-enrich_weighted-noCoding-fourtiss_with-shared.pdf",width=8,height=4)
+
+```
+
+
 
