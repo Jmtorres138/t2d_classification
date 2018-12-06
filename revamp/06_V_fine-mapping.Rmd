@@ -274,6 +274,7 @@ library("viridis")
     theme_bw() + geom_hline(yintercept=-log(0.05,base=10),
                             color=magma(10)[7],linetype=2) + 
     ylab(expression(-log[10](p[value]))) + 
+    scale_size(range=c(0.1,3.5),limits=c(0,350)) + 
     theme(axis.text.x=element_text(size=7)) +
     ggtitle("Improvement of max PPA over null") + 
     theme(axis.text.x=element_text(angle=30,vjust=0.6),
