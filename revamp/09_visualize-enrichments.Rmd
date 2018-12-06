@@ -25,12 +25,42 @@ proj.dir <- serv.dir %&% "projects/t2d_classification/"
 work.dir <- proj.dir %&% "revamp/"
 plot.dir <- work.dir %&% "plots/"
 
+count.df1 <- fread(work.dir%&%"analysis_files/classifier_counts.txt")
+count.df2 <- fread(work.dir%&%"analysis_files/classifier_counts_with-shared.txt")
 
 ```
 
 
 
 # eQTL enrichments 
+
+```{r}
+
+simpleCap <- function(x) {
+  s <- strsplit(x, " ")[[1]]
+  paste(toupper(substring(s, 1,1)), substring(s, 2),
+      sep="", collapse=" ")
+}
+
+append_classifer_counts <- function(w.df, count.df){
+  names(count.df) <- names(count.df) %>% tolower(.)  
+  names(count.df)[1] <- names(count.df)[1] %>% simpleCap(.)
+  w.df$count <- map(1:dim(w.df)[1],function(i){
+    row.df <- w.df[i,]
+    count <- filter(count.df,Threshold==row.df$threshold) %>% 
+     dplyr::select(.,one_of(as.character(unique(row.df$tissue)))) %>% as.integer(.)
+    if (row.df$tissue=="peripheral"){
+     count <- filter(count.df,Threshold==row.df$threshold) %>% 
+        dplyr::select(.,one_of("adipose","liver","muscle")) %>% sum(.)  
+    }
+  return(count)
+}) %>% as.integer(.)  
+  return(w.df)
+}
+
+```
+
+
 
 ```{r}
 
@@ -46,19 +76,21 @@ eqtl_enrich_plot <- function(enrich.df,myname){
   enrich.df$tissue <- enrich.df$tissue %>% firstup(.)
   enrich.df$eQTL <- enrich.df$eQTL %>% firstup(.)
   plt <- ggplot(data=enrich.df,aes(x=threshold,y=enrichment)) + 
-    geom_point(color="black",size=2,shape=21,aes(fill=-log(pvalue,base=10))) + #,shape=as.factor(threshold))) + 
+    geom_point(color="black",shape=21,aes(size=count,fill=-log(pvalue,base=10))) + 
     facet_wrap(~eQTL+tissue) + 
     theme_bw() + 
     scale_y_log10(breaks=c(0.5,2,10,50)) +
     scale_fill_gradient2(low=viridis(n=50)[48],high=viridis(n=50)[10],
                          mid = viridis(n=50)[40],
                          midpoint=-log(0.05,base=10),name=expression(-log10(p))) + 
+    scale_size(range=c(0.5,2.5),limits=c(0,250)) + 
+    scale_x_continuous(breaks=c(0,0.2,0.5,0.8)) + 
     xlab("Threshold") + ylab("Enrichment") + 
     ggtitle(myname) +
     theme(axis.text.x=element_text(vjust=0.6),
           panel.grid.minor = element_blank(),
           panel.grid.major.x=element_blank(),
-          legend.key = element_rect(color="black",size=3),
+          legend.key = element_rect(color="black",size=0.5),
           strip.background =element_rect(fill="ghostwhite"),
           strip.text = element_text(colour = magma(n=2)[1]))
 
@@ -69,25 +101,38 @@ eqtl_enrich_plot <- function(enrich.df,myname){
 
 ```{r}
 
-df2 <- fread(work.dir %&% "analysis_files/eqtl-specific-validation_weighted.txt")
-
+df2 <- fread(work.dir %&% "analysis_files/eqtl-specific-validation_weighted.txt") %>% 
+  append_classifer_counts(.,count.df1)
 plt2 <- eqtl_enrich_plot(df2,myname="eQTL enrichment for classifed loci (weighted)")
-
 ggsave(plot=plt2,filename = plot.dir %&% "enrichment-eqtl-specific_weighted.png",width=8,height=6)
-
 ggsave(plot=plt2,filename = plot.dir %&% "enrichment-eqtl-specific_weighted.pdf",width=8,height=6)
+
 ```
 
 
 ```{r}
 
-df4 <- fread(work.dir %&% "analysis_files/downsampled_eqtl-specific-validation_weighted.txt")
+df4 <- fread(work.dir %&% "analysis_files/downsampled_eqtl-specific-validation_weighted.txt") %>% 
+  append_classifer_counts(.,count.df1)
 
 plt4 <- eqtl_enrich_plot(df4,myname="eQTL enrichment for classifed loci (weighted, downsampled)")
 ggsave(plot=plt4,filename = plot.dir %&% "downsampled_enrichment-eqtl-specific_weighted.png",width=8,height=6)
 ggsave(plot=plt4,filename = plot.dir %&% "downsampled_enrichment-eqtl-specific_weighted.pdf",width=8,height=6)
 
 ```
+
+
+```{r}
+
+df5 <- fread(work.dir %&% "analysis_files/downsampled_eqtl-specific-validation_weighted-seed2_with-shared.txt") %>% 
+  append_classifer_counts(.,count.df2)
+
+plt5 <- eqtl_enrich_plot(df5,myname="eQTL enrichment for classifed loci (weighted, downsampled)")
+ggsave(plot=plt5,filename = plot.dir %&% "downsampled_enrichment-eqtl-specific_weighted_with-shared.png",width=8,height=6)
+ggsave(plot=plt5,filename = plot.dir %&% "downsampled_enrichment-eqtl-specific_weighted_with-shared.pdf",width=8,height=6)
+
+```
+
 
 
 # ATAC enrichments 
@@ -99,18 +144,20 @@ atac_enrich_plot <- function(enrich.df,myname){
   enrich.df$tissue <- enrich.df$tissue %>% firstup(.)
   enrich.df$atac <- enrich.df$atac %>% firstup(.)
   plt <- ggplot(data=enrich.df,aes(x=threshold,y=enrich.factor)) + 
-    geom_point(size=2,aes(fill=-log(p.val,base=10)),shape=21) + #shape=as.factor(threshold))) + 
+    geom_point(aes(size=count,fill=-log(p.val,base=10)),shape=21) + #shape=as.factor(threshold))) + 
     facet_wrap(~atac+tissue) + 
     theme_bw() + 
     scale_fill_gradient2(low=viridis(n=50)[48],high=viridis(n=50)[10],
                          mid = viridis(n=50)[40],
                          midpoint=-log(0.05,base=10),name=expression(-log10(p))) + 
+    scale_size(range=c(0.5,2.5),limits=c(0,250)) + 
+    scale_x_continuous(breaks=c(0,0.2,0.5,0.8)) + 
     xlab("Threshold") + ylab("Enrichment") + 
     ggtitle(myname) +
     theme(axis.text.x=element_text(vjust=0.6),
           panel.grid.minor = element_blank(),
           panel.grid.major.x=element_blank(),
-          legend.key = element_rect(color="black",size=3),
+          legend.key = element_rect(color="black",size=0.5),
           strip.background =element_rect(fill="ghostwhite"),
           strip.text = element_text(colour = magma(n=2)[1]))
 }
@@ -154,8 +201,8 @@ read_input <- function(readstring="downsample_atac-enrichment_unweighted_thresh"
   return(out.df)
 }
 
-df6 <- read_input("downsample_atac-enrichment_weighted_thresh")
-
+df6 <- read_input("downsample_atac-enrichment_weighted_thresh") %>% 
+  append_classifer_counts(.,count.df1)
 
 plt6 <- atac_enrich_plot(df6,myname="ATAC enrichment for classifed loci (weighted, downsampled)")
 ggsave(plot=plt6,filename = plot.dir %&% "downsampled_enrichment-atac_weighted.png",width=9,height=6.5)
@@ -163,20 +210,13 @@ ggsave(plot=plt6,filename = plot.dir %&% "downsampled_enrichment-atac_weighted.p
 
 ```
 
-Lookups
 
 ```{r}
 
-filter(df5,atac=="adipose",tissue=="adipose")
-filter(df5,atac=="islet",tissue=="islet")
-filter(df5,atac=="liver",tissue=="liver")
-filter(df5,atac=="muscle",tissue=="muscle")
-
-filter(df6,atac=="adipose",tissue=="adipose")
-filter(df6,atac=="islet",tissue=="islet")
-filter(df6,atac=="liver",tissue=="liver")
-filter(df6,atac=="muscle",tissue=="muscle")
+df7 <- read_input("downsample_atac-enrichment_weighted_alternative_thresh") %>% 
+  append_classifer_counts(.,count.df2)
+plt7 <- atac_enrich_plot(df7,myname="ATAC enrichment for classifed loci (weighted, downsampled)")
+ggsave(plot=plt7,filename = plot.dir %&% "downsampled_enrichment-atac_weighted_with-shared.png",width=9,height=6.5)
 
 ```
-
 
