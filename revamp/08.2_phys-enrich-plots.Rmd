@@ -44,6 +44,8 @@ phys_enrich_plot <- function(enrich.df,myname,nc=4){
                          mid = viridis(n=50)[40],
                          midpoint=-log(0.05,base=10),
                          name=expression(-log10(p))) + 
+    scale_size(range=c(0.5,2.5),limits=c(0,250)) + 
+    #scale_x_continuous(breaks=c(0,0.2,0.5,0.8)) + 
     xlab("Classified Tissue") + ylab("Enrichment") + 
     ggtitle(myname) +
     theme(axis.text.x=element_text(vjust=0.6,angle=30),
@@ -149,7 +151,6 @@ phys_enrich_plot_v2 <- function(enrich.df,myname,nc=5){
     theme(axis.text.x=element_text(vjust=0.6,angle=30),
           panel.grid.minor = element_blank(),
           panel.grid.major.x=element_blank(),
-          #legend.key = element_rect(color="black",size=3),
           strip.background =element_rect(fill="ghostwhite"),
           strip.text = element_text(colour = magma(n=2)[1]))
 }
