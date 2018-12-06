@@ -28,7 +28,7 @@ names(phys94.df)[2] <- "Physiology"
 ```{r}
 
 cred.df$Locus.ID <- cred.df$CondID
-sub.df <- select(cred.df,one_of("Locus.ID","lead.rsid","CHR"))
+sub.df <- dplyr::select(cred.df,one_of("Locus.ID","lead.rsid","CHR"))
 sub.df <- sub.df[!duplicated(sub.df),]
 
 str(phys94.df)
@@ -42,8 +42,8 @@ snp.vec <- c(phys94.df$rsID,cred.df$lead.rsid) %>% unique(.)
 write.table(x=snp.vec,file=work.dir%&%"analysis_files/ld-query-snps.txt",
             quote=F,row.names=F,col.names=F)
 
-df1 <- select(phys94.df,one_of("rsID","CHR"))
-df2 <- select(sub.df,one_of("lead.rsid","CHR"))
+df1 <- dplyr::select(phys94.df,one_of("rsID","CHR"))
+df2 <- dplyr::select(sub.df,one_of("lead.rsid","CHR"))
 names(df2)[1] <- c("rsID")
 
 df <- rbind(df1,df2)
@@ -132,7 +132,7 @@ join.df$closest.ld <- closest.ld
 
 ```{r}
 
-comp.df <- select(join.df,one_of("rsID","CHR","POS","Physiology","closest.rs","closest.ld"))
+comp.df <- dplyr::select(join.df,one_of("rsID","CHR","POS","Physiology","closest.rs","closest.ld"))
 comp.df$Locus.ID <- map(comp.df$closest.rs,function(rs){filter(cred.df,lead.rsid==rs)$CondID%>%unique(.)}) %>% 
   as.character(.)
 comp.df$symbol <- map(comp.df$closest.rs,function(rs){filter(cred.df,lead.rsid==rs)$symbol%>%unique(.)}) %>% 
@@ -143,7 +143,7 @@ comp.df$symbol <- map(comp.df$closest.rs,function(rs){filter(cred.df,lead.rsid==
 ```{r}
 
 filter(comp.df,closest.ld>=0.1) %>% dim(.)
-filter(comp.df,closest.ld>=0.5) %>% dim(.)
+filter(comp.df,closest.ld>=0.3) %>% dim(.)
 filter(comp.df,closest.ld>=0.8) %>% dim(.)
 
 names(comp.df)[5:6] <- c("assigned.rsid", "assigned.r2")

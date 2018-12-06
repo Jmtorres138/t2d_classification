@@ -34,7 +34,7 @@ write.dir <- work.dir
 
 
 phys94.df <- fread(work.dir %&% "analysis_files/phys94-ld-assigned.txt") %>%
-  filter(.,assigned.r2>=0.1)
+  filter(.,assigned.r2>=0.3)
   
 
 
