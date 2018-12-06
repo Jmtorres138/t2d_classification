@@ -130,7 +130,8 @@ enrichment <- function(geneset, perms){
 }
 
 build_plot_df <- function(islet.genes,muscle.genes,
-                          liver.genes,adipose.genes,iter){
+                          liver.genes,adipose.genes,
+                          shared.genes,unclassified.genes,iter){
   if(length(islet.genes)>2){
     enrich.isl.df <- enrichment(islet.genes, iter)
   } else{
@@ -155,12 +156,26 @@ build_plot_df <- function(islet.genes,muscle.genes,
     enrich.liv.df <- data.frame(tissue=NA,perm.pvalue=NA,
                                 count=NA,log_pval=NA,enrich.factor=NA)
   }
+  if(length(shared.genes)>2){
+    enrich.share.df <- enrichment(shared.genes, iter)
+  } else{
+    enrich.share.df <- data.frame(tissue=NA,perm.pvalue=NA,
+                                count=NA,log_pval=NA,enrich.factor=NA)
+  }
+  if(length(unclassified.genes)>2){
+    enrich.unclass.df <- enrichment(unclassified.genes, iter)
+  } else{
+    enrich.unclass.df <- data.frame(tissue=NA,perm.pvalue=NA,
+                                  count=NA,log_pval=NA,enrich.factor=NA)
+  }
   enrich.isl.df$geneset <- "islet"
   enrich.mus.df$geneset <- "muscle"
   enrich.liv.df$geneset <- "liver"
   enrich.adi.df$geneset <- "adipose"
+  enrich.share.df$geneset <- "shared"
+  enrich.unclass.df$geneset <- "unclassified"
   plot.df <- rbind(enrich.isl.df,enrich.mus.df,
-                   enrich.adi.df,enrich.liv.df)
+                   enrich.adi.df,enrich.liv.df,enrich.share.df,enrich.unclass.df)
   return(plot.df)
 }
 
@@ -214,8 +229,11 @@ build_complete_df <- function(group.df,iter){
     muscle.genes <- filter(sub,assigned=="muscle")$symbol %>% unique(.)
     liver.genes <- filter(sub,assigned=="liver")$symbol %>% unique(.)
     adipose.genes <- filter(sub,assigned=="adipose")$symbol %>% unique(.)
+    shared.genes <- filter(sub,assigned=="shared")$symbol %>% unique(.)
+    unclassified.genes <- filter(sub,assigned=="unclassified")$symbol %>% unique(.)
+    
     plot.df <- build_plot_df(islet.genes,muscle.genes,
-                             liver.genes,adipose.genes,iter)
+                             liver.genes,adipose.genes,shared.genes,unclassified.genes,iter)
     plot.df$threshold <- t
     out.df <- rbind(out.df,plot.df)
   }
