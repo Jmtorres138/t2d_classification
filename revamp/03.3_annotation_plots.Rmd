@@ -1,0 +1,200 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+library("tidyverse")
+library("GenomicRanges")
+library("viridis")
+library("data.table")
+library("plyr")
+
+serv.dir <- "/home/jason/science/servers/FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+
+work.dir <- proj.dir %&% "revamp/"
+analysis.dir <- work.dir %&% "analysis_files/"
+plot.dir <- work.dir %&% "plots/"
+
+annot.df <- fread(work.dir%&%
+                    "analysis_files/annotation-divvy-weighted-unscaled.txt")
+annotall.df <- fread(work.dir%&%
+                    "analysis_files/annotation-divvy-weighted-unscaled_allSNPs.txt")
+
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+annot.df$maxppa <- map(annot.df$Locus.ID,function(id){
+  filter(cred.df,CondID==id)$PPA %>% max(.)
+}) %>% as.numeric(.)
+
+class.df1 <- fread(analysis.dir%&%"classified-loci_weighted.txt")
+class.df1$max.ppa <- map(class.df1$Locus.ID,function(id){
+  sub <- filter(cred.df,CondID==id) %>% arrange(.,desc(PPA))
+  sub$PPA[1]
+  }) %>% as.numeric(.)
+class.df2 <- fread(analysis.dir%&%"classified-loci_weighted_with-shared.txt")
+class.df2$max.ppa <- map(class.df2$Locus.ID,function(id){
+  sub <- filter(cred.df,CondID==id) %>% arrange(.,desc(PPA))
+  sub$PPA[1]
+  }) %>% as.numeric(.)
+
+```
+
+
+```{r}
+
+simpleCap <- function(x) {
+  s <- strsplit(x, " ")[[1]]
+  paste(toupper(substring(s, 1,1)), substring(s, 2),
+      sep="", collapse=" ")
+}
+
+```
+
+
+# Sum plots 
+
+```{r}
+
+name.df <- data.frame(short=c("coding","strongenh","weakenh","genenh",
+                              "strongprom","weakprom","flankprom",
+                              "stronggenetrans","weakgenetrans"),
+                      long=c("Coding","Strong Enhancer","Weak Enhancer",
+                             "Genic Enhancer","Strong Promoter","Weak Promoter",
+                             "Flanking TSS", "Strong Transcription",
+                             "Weak Transcription"),stringsAsFactors = F)
+
+
+
+
+build_plot_df <- function(a.df){
+  tiss.vec  <- c("islet","liver","muscle","adipose")
+  plot.df <- c()
+  for (tiss in tiss.vec){
+    sub.df <- dplyr::select(a.df,contains(tiss))
+    names(sub.df) <- map(names(sub.df),function(n){
+      strsplit(n,"_")[[1]][1]
+    }) %>% as.character(.)
+    names(sub.df) <- map(names(sub.df),function(n){
+      filter(name.df,short==n)$long 
+    }) %>% as.character(.)
+    mat <- as.matrix(sub.df)
+    sums <- colSums(mat)
+    build.df <- data.frame(Annotation=names(sub.df),Score.Sum=sums,Tissue=tiss,
+                          stringsAsFactors = FALSE)  
+    plot.df <- rbind(plot.df,build.df)
+  }
+  return(plot.df)
+}
+
+
+annot_plot <- function(plt.df){
+  plt.df$Annotation <- factor(plt.df$Annotation,
+                              levels=c("Coding","Strong Promoter","Weak Promoter",
+                                       "Flanking TSS","Genic Enhancer",
+                                       "Strong Enhancer","Weak Enhancer",
+                                       "Strong Transcription","Weak Transcription"))
+  p <- ggplot(data=plt.df,aes(x=Annotation,y=Score.Sum/sum(Score.Sum))) + 
+    geom_histogram(stat="identity",color="black",aes(fill=Tissue)) + 
+    theme_bw() + 
+    theme(axis.text.x=element_text(angle=30,vjust=0.6),
+          legend.position = "none") + 
+    scale_fill_manual(values=c("gold1","olivedrab2","brown","firebrick1")) + 
+    ylab("Proportion of PPA in functional regions") + 
+    coord_cartesian(ylim=c(0,0.5))
+}
+
+
+```
+
+
+
+```{r}
+
+
+library("gridExtra")
+plt.df1 <- build_plot_df(annot.df)
+plt.df2 <- build_plot_df(filter(annot.df,maxppa>0.5))
+plt.df3 <- build_plot_df(filter(annot.df,maxppa>0.9))
+
+plt1 <- annot_plot(plt.df1)
+plt2 <- annot_plot(plt.df2)
+plt3 <- annot_plot(plt.df3)
+
+
+plt <- grid.arrange(plt1,plt2,plt3,nrow=1)
+ggsave(plot=plt,filename=plot.dir%&%"annot_profile.png",
+       width=16,height=5)
+ggsave(plot=plt,filename=plot.dir%&%"annot_profile.pdf",
+       width=16,height=5)
+
+```
+
+
+```{r}
+
+prepare_toa_collapsed <- function(c.df){
+  tiss.vec <- c("islet","liver","adipose","muscle","unclassified")
+  score.sum <- c(c.df$islet %>% sum(.), 
+                 c.df$liver %>% sum(.), 
+                 c.df$adipose %>% sum(.),
+                 c.df$muscle %>% sum(.),
+                 c.df$unclassified %>% sum(.))
+  score.prop <- score.sum / sum(score.sum)
+  add.df <- data.frame(tissue=tiss.vec,score.sum,score.prop,stringsAsFactors = F)  
+}
+
+toa_collap_plot <- function(p.df){
+  p.df$tissue <- map(p.df$tissue,function(x) {
+    s <- strsplit(x, " ")[[1]]
+    paste(toupper(substring(s, 1,1)), substring(s, 2),
+        sep="", collapse=" ")
+    }) %>% as.character(.)
+  names(p.df)[1] <- "Tissue"
+  plt <- ggplot(data=p.df,aes(x=Tissue,y=score.prop)) + 
+    geom_histogram(stat="identity",color="black",aes(fill=Tissue),
+                 binwidth=1,size=1) + 
+    theme_bw()  + 
+    theme(axis.text.x=element_text(angle=30,vjust=0.6)) + 
+    scale_fill_manual(values=c("gold1","olivedrab2","brown","firebrick1","grey")) +
+  ylab("Proportion of Total PPA")
+}
+
+
+```
+
+
+```{r}
+
+plt.df1b <- prepare_toa_collapsed(class.df1)
+plt.df2b <- prepare_toa_collapsed(filter(class.df1,max.ppa>0.5))
+plt.df3b <- prepare_toa_collapsed(filter(class.df1,max.ppa>0.9))
+
+plt1b <- toa_collap_plot(plt.df1b)
+ggsave(plot=plt1b,filename=plot.dir%&%"toa_profile_all.png",
+       width=5,height=4)
+ggsave(plot=plt1b,filename=plot.dir%&%"toa_profile_all.pdf",
+       width=5,height=4)
+plt2b <- toa_collap_plot(plt.df2b)
+ggsave(plot=plt2b,filename=plot.dir%&%"toa_profile_50.png",
+       width=5,height=4)
+ggsave(plot=plt2b,filename=plot.dir%&%"toa_profile_50.pdf",
+       width=5,height=4)
+plt3b <- toa_collap_plot(plt.df3b)
+ggsave(plot=plt3b,filename=plot.dir%&%"toa_profile_90.png",
+       width=5,height=4)
+ggsave(plot=plt3b,filename=plot.dir%&%"toa_profile_90.pdf",
+       width=5,height=4)
+
+
+```
+
+
