@@ -139,6 +139,9 @@ ggsave(plot=plt,filename=plot.dir%&%"annot_profile.pdf",
 ```
 
 
+
+
+
 ```{r}
 
 prepare_toa_collapsed <- function(c.df){
@@ -197,4 +200,53 @@ ggsave(plot=plt3b,filename=plot.dir%&%"toa_profile_90.pdf",
 
 ```
 
+
+
+# Summary values for manuscript 
+
+```{r}
+
+ids <- unique(cred.df$CondID)
+snp.num <- map(ids,function(id){
+  dim(filter(cred.df,CondID==id))[1] 
+}) %>% as.integer(.)
+summary(snp.num)
+max.ppa <- map(ids,function(id){
+  (filter(cred.df,CondID==id) %>% arrange(.,desc(PPA)))$PPA[1]
+}) %>% as.numeric(.)
+summary(max.ppa)
+```
+
+
+```{r}
+
+plt.df1b %>% arrange(.,desc(score.prop)) # islet 31%, unclass 20%, 12-18%
+plt.df1$prop <- plt.df1$Score.Sum / sum(plt.df1$Score.Sum)
+plt.df1 %>% arrange(.,desc(prop)) # WT islet 22%, SE 17%
+# WT total 
+filter(plt.df1,Annotation=="Weak Transcription")$prop %>% sum(.) # 49% 
+
+```
+
+
+```{r}
+
+plt.df2b %>% arrange(.,desc(score.prop)) # islet 36%, unclass 14%, 11-20%
+plt.df2$prop <- plt.df2$Score.Sum / sum(plt.df2$Score.Sum)
+plt.df2 %>% arrange(.,desc(prop)) # WT islet 17%, SE 17%
+# WT total 
+filter(plt.df2,Annotation=="Weak Transcription")$prop %>% sum(.) # 39%
+
+```
+
+
+```{r}
+
+plt.df3b %>% arrange(.,desc(score.prop)) # islet 39%, unclass 5%, 13-23%
+plt.df3$prop <- plt.df3$Score.Sum / sum(plt.df3$Score.Sum)
+plt.df3 %>% arrange(.,desc(prop)) # WT islet 12%, SE 19%
+# WT total 
+filter(plt.df3,Annotation=="Weak Transcription")$prop %>% sum(.) # 28%
+
+```
 
