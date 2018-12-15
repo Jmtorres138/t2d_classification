@@ -74,10 +74,17 @@ plt <- ggplot(data=add.df,aes(x=tissue,y=score.prop)) +
 write.table(add.df,file=analysis.dir%&%"score_sums.txt",sep="\t",quote=F,
             row.names=F)
 
-ggsave(plot=plt,filename = plot.dir %&%"score_sums.png",height = 3,width=4)
-ggsave(plot=plt,filename = plot.dir %&%"score_sums.pdf",height = 3,width=4)
+ggsave(plot=plt,filename = plot.dir %&%"score_prop.png",height = 3,width=4)
+ggsave(plot=plt,filename = plot.dir %&%"score_prop.pdf",height = 3,width=4)
 
 ```
+
+
+
+# Tissue contributions across all loci 
+
+
+
 
 
 # Annotation divvy sums 

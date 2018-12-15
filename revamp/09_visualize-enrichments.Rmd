@@ -95,8 +95,53 @@ eqtl_enrich_plot <- function(enrich.df,myname){
           strip.text = element_text(colour = magma(n=2)[1]))
 
 }
+
+
+alt_plot <- function(sub,myname){
+  p <- ggplot(data=sub,aes(x=xpos,y=enrichment)) +
+    geom_point(shape=21,aes(size=count,fill=-log(pvalue,base=10))) + 
+    scale_x_continuous(breaks = sub$xpos, labels=rep(c("0.0","0.2","0.5","0.8"),4)) + 
+    theme_bw() + 
+    #scale_y_log10(breaks=c(0.5,2,10,50)) +
+    scale_fill_gradient2(low=viridis(n=50)[48],high=viridis(n=50)[10],
+                         mid = viridis(n=50)[40],
+                         midpoint=-log(0.05,base=10),
+                         name=expression(-log10(p)))   +  
+    theme(axis.text.x=element_text(vjust=0.6,angle=70),
+          panel.grid.minor = element_blank(),
+          panel.grid.major.x=element_blank(),
+          legend.key = element_rect(color="black",size=0.5),
+          strip.background =element_rect(fill="ghostwhite"),
+          strip.text = element_text(colour = magma(n=2)[1])) +
+  ggtitle(myname) #+ 
+    #coord_cartesian(ylim=c(0,50))
+  
+}
+
+eqtl_enrich_plot_v2 <- function(enrich.df){
+  enrich.df$tissue <- enrich.df$tissue %>% firstup(.)
+  enrich.df$eQTL <- enrich.df$eQTL %>% firstup(.)
+  sub1 <- filter(enrich.df,eQTL=="Islet") %>% arrange(.,tissue,threshold)
+  sub1$xpos <- 1:dim(sub1)[1]
+  p1 <- alt_plot(sub1,"Islet-specific eQTLs")
+  sub2 <- filter(enrich.df,eQTL=="Adipose") %>% arrange(.,tissue,threshold)
+  sub2$xpos <- 1:dim(sub2)[1]
+  p2 <- alt_plot(sub2,"Adipose-specific eQTLs")    
+  sub3 <- filter(enrich.df,eQTL=="Liver") %>% arrange(.,tissue,threshold)
+  sub3$xpos <- 1:dim(sub3)[1]
+  p3 <- alt_plot(sub3,"Liver-specific eQTLs")  
+  sub4 <- filter(enrich.df,eQTL=="Muscle") %>% arrange(.,tissue,threshold)
+  sub4$xpos <- 1:dim(sub4)[1]
+  p4 <- alt_plot(sub4,"Muscle-specific eQTLs")  
+  
+
+}
+
  
 ```
+
+
+
 
 
 ```{r}

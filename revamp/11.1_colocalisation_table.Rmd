@@ -21,11 +21,12 @@ serv.dir <- "/home/jason/science/servers/FUSE5/"
 
 proj.dir <- serv.dir %&% "projects/t2d_classification/"
 work.dir <- proj.dir %&% "revamp/"
+write.dir <- work.dir %&%  "analysis_files/"
 
 cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
 
 work2.dir <- "/home/jason/science/projects/t2d_classification/revamp/"
-df2 <- fread(work.dir %&% "analysis_files/classified-loci_weighted_renamed.txt")
+df2 <- fread(work.dir %&% "analysis_files/classified-loci_weighted_with-shared.txt")
 
 
 coloc.dir <- serv.dir %&% "datasets/diamante_hrc/eCAVIAR/"
@@ -41,16 +42,13 @@ sub2 <- dplyr::select(coloc.gtex,one_of("Locus","SNP_ID","Tissue",
                                          "eqtl_z","CLPP"))
 coloc.df <- rbind(sub1,sub2)
 
-
-write.dir <- "/home/jason/science/projects/t2d_classification/revamp/analysis_files/"
-
 ```
 
 
 ```{r}
 
-sig.coloc <- filter(coloc.df,CLPP>0.5) %>% arrange(.,Locus,SNP_ID,gene_name,Tissue)
-dim(sig.coloc) # 380 colocalized eQTLs 
+sig.coloc <- filter(coloc.df,CLPP>0.01) %>% arrange(.,Locus,SNP_ID,gene_name,Tissue)
+dim(sig.coloc) # 9212 colocalized eQTLs 
 sig.coloc$check <- map(1:dim(sig.coloc)[1],function(i){
   row.df <- sig.coloc[i,]
   check <- row.df$Locus%&%","%&%row.df$SNP_ID%&%","%&%row.df$gene_name
@@ -65,8 +63,6 @@ summary(df$tiss.count) # 155, unique snp-eQTL pairs
 #of the 380 eQTL colocalizations, 272 involved the same SNP-eGene pair in multiple tissues, whereas only 108 where unique to a specific tissue (72%)
 
 
-
-
 ```
 
 
@@ -77,10 +73,8 @@ summary(df$tiss.count) # 155, unique snp-eQTL pairs
 get_sig_egene_list <- function(loc,tiss,clpp.thresh=0.05){
   sub <- filter(coloc.df,Locus==loc,Tissue==tiss, CLPP>=clpp.thresh) %>% 
     group_by(.,gene_name)  %>% arrange(.,desc(CLPP))
-  ##%>% summarise(.,clpp.sum=sum(CLPP)) %>% arrange(.,desc(clpp.sum)) %>% filter(.,clpp.sum>=clpp.thresh)
-  gene <- sub$gene_name[1] #%>% paste0(.,collapse=",") # NOW JUST GET TOP RESULT PER LOCUS
+  gene <- sub$gene_name[1] 
   clpp <- sub$CLPP[1] # NOW JUST GET TOP RESULT PER LOCUS
-  #clpp.sum <- sub$clpp.sum %>% round(.,digits=3) %>% paste0(.,collapse=",")
   return(list(gene,clpp))
 }
 
@@ -104,8 +98,6 @@ append_coloc_df <- function(toa.df){
   return(cbind(toa.df,out.df))
 }
 
-
- 
 ```
 
 
