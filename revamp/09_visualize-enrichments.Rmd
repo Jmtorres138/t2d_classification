@@ -251,6 +251,7 @@ df6 <- read_input("downsample_atac-enrichment_weighted_thresh") %>%
 
 plt6 <- atac_enrich_plot(df6,myname="ATAC enrichment for classifed loci (weighted, downsampled)")
 ggsave(plot=plt6,filename = plot.dir %&% "downsampled_enrichment-atac_weighted.png",width=9,height=6.5)
+ggsave(plot=plt6,filename = plot.dir %&% "downsampled_enrichment-atac_weighted.pdf",width=9,height=6.5)
 
 
 ```
@@ -262,6 +263,8 @@ df7 <- read_input("downsample_atac-enrichment_weighted_alternative_thresh") %>%
   append_classifer_counts(.,count.df2)
 plt7 <- atac_enrich_plot(df7,myname="ATAC enrichment for classifed loci (weighted, downsampled)")
 ggsave(plot=plt7,filename = plot.dir %&% "downsampled_enrichment-atac_weighted_with-shared.png",width=9,height=6.5)
+ggsave(plot=plt7,filename = plot.dir %&% "downsampled_enrichment-atac_weighted_with-shared.pdf",width=9,height=6.5)
+write.table(x=df7,file=work.dir%&%"analysis_files/atac-enrichments_with-shared.txt",sep="\t",quote=F,row.names=F)
 
 ```
 
