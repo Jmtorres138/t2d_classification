@@ -23,6 +23,7 @@ adi_bed = "/well/mccarthy/users/jason/projects/t2d_classification/revamp/enrichm
 liv_bed = "/well/mccarthy/users/jason/projects/t2d_classification/revamp/enrichment_files/downsample_liver.hg19.bed"#"/well/got2d/jason/reference/encode/liver/liver.hg19.bed"
 mus_bed = "/well/mccarthy/users/jason/projects/t2d_classification/revamp/enrichment_files/downsample_muscle.hg19.bed"#"/well/got2d/jason/reference/encode/muscle/muscle.hg19.bed"
 
+
 def get_intersect(snp_bed,annot_bed,temp_name):
 	command = ["/apps/well/bedtools/2.24.0/bedtools", "intersect", "-wa","-a",snp_bed,"-b",annot_bed,"|","uniq",">",proc_dir+"inter.temp."+temp_name+".bed"]
 	sp.check_call(" ".join(command),shell=True)
@@ -66,7 +67,7 @@ def enrich(fname,snp_bed):
 	print ("Pvalue: %f" % pval)
 	return [observed,numpy.mean(iter_list), observed/numpy.mean(iter_list), pval]
 
-def run_enrichments(file_list,out_file):
+def run_enrichments(file_list,out_file,shared=False):
 	afile_list = [islet_bed,adi_bed,liv_bed,mus_bed]
 	aname_list = ["islet","adipose","liver","muscle"]
 	print afile_list
@@ -74,7 +75,10 @@ def run_enrichments(file_list,out_file):
 	fout = open(out_file,'w')
 	fout.write("\t".join(["tissue","atac","observed.count","null.mean","enrich.factor","p.val"])+"\n")
 	for f in file_list:
-		tname = f.split("_")[1]
+		if shared==True:
+			tname = f.split("_")[2]
+		else:
+			tname = f.split("_")[1]
 		print tname
 		for i in range(0,len(aname_list)):
 			aname = aname_list[i]
@@ -91,22 +95,26 @@ def main():
 	run_enrichments(file_list=["weighted_alternative_islet_thresh00.txt",
 		"weighted_alternative_liver_thresh00.txt","weighted_alternative_adipose_thresh00.txt",
 		"weighted_alternative_muscle_thresh00.txt"],
-		out_file=out_dir+"downsample_atac-enrichment_weighted_alternative_thresh00_alt.txt")
+		out_file=out_dir+"downsample_atac-enrichment_weighted_alternative_thresh00.txt",
+		shared=True)
 	print "weighted: thresh20"
 	run_enrichments(file_list=["weighted_alternative_islet_thresh20.txt",
 		"weighted_alternative_liver_thresh20.txt","weighted_alternative_adipose_thresh20.txt",
 		"weighted_alternative_muscle_thresh20.txt"],
-		out_file=out_dir+"downsample_atac-enrichment_weighted_alternative_thresh20_alt.txt")
+		out_file=out_dir+"downsample_atac-enrichment_weighted_alternative_thresh20.txt",
+		shared=True)
 	print "weighted: thresh50"
 	run_enrichments(file_list=["weighted_alternative_islet_thresh20.txt",
 		"weighted_alternative_liver_thresh50.txt","weighted_alternative_adipose_thresh50.txt",
 		"weighted_alternative_muscle_thresh50.txt"],
-		out_file=out_dir+"downsample_atac-enrichment_weighted_alternative_thresh50_alt.txt")
+		out_file=out_dir+"downsample_atac-enrichment_weighted_alternative_thresh50.txt",
+		shared=True)
 	print "weighted: thresh80"
 	run_enrichments(file_list=["weighted_alternative_islet_thresh80.txt",
 		"weighted_alternative_liver_thresh80.txt","weighted_alternative_adipose_thresh80.txt",
 		"weighted_alternative_muscle_thresh80.txt"],
-		out_file=out_dir+"downsample_atac-enrichment_weighted_alternative_thresh80_alt.txt")
+		out_file=out_dir+"downsample_atac-enrichment_weighted_alternative_thresh80.txt",
+		shared=True)
 
 
 if (__name__=="__main__"): main()
