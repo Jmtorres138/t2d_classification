@@ -290,3 +290,10 @@ ggsave(plot=plt1,filename=plot.dir%&%"finemap_wilcox-compare-max_weightedV2_with
 ```
 
 
+```{r}
+
+write.table(x=plt.df,file=work.dir%&%"analysis_files/finemap-enrich_with-shared.txt",sep="\t",quote=F,row.names=F)
+
+```
+
+
