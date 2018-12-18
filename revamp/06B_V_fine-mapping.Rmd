@@ -251,6 +251,20 @@ ggsave(plot=plt.list1[[1]],filename=plot.dir%&%"finemap_wilcox-compare-max_weigh
 
 ```{r}
 
+eval.df <- plt.list1[[3]]
+sub <- filter(eval.df,threshold==0.5,group=="islet")
+a <- sub$islet.max.vs.null %>% mean(.)
+b <- sub$multi.max.vs.null %>% mean(.)
+c <- a - b
+
+
+
+```
+
+
+
+```{r}
+
 count.df <- fread(work.dir %&% "analysis_files/classifier_counts_with-shared.txt")
 names(count.df) <- c("Threshold","adipose","islet","liver","muscle",
                      "shared","unclassified")
