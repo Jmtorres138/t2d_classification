@@ -1,0 +1,173 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+library("tidyverse")
+library("data.table")
+serv.dir <- "/home/jason/science/servers/FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <-  proj.dir %&% "revamp/" 
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+write.dir <- work.dir   
+
+udler.df <- fread(work.dir %&% "analysis_files/ulder_phys.txt")
+
+
+```
+
+## Classify at 0.75, recommended threshold from Miriam 
+
+```{r}
+
+
+library(biomaRt) 
+snp.db <- useMart("ENSEMBL_MART_SNP", dataset="hsapiens_snp")
+
+classify_phys <- function(){
+  group.names <- names(udler.df)[3:dim(udler.df)[2]]
+  out.df <- c()
+  for (i in 1:dim(udler.df)[1]){
+    print(i)
+    row.df <- udler.df[i,]
+    snp <- row.df$SNP
+    loc <- row.df$Loci
+    vec <- row.df[,3:dim(row.df)[2]] %>% as.numeric(.)
+    phys <- group.names[vec==max(vec) & vec >= 0.75]
+    phys <- ifelse(length(phys)>0,phys,NA)
+    nt.biomart <- getBM(c("refsnp_id","allele","chr_name","chrom_start",                   
+                      "chrom_strand","associated_gene","ensembl_gene_stable_id"),
+                    filters="snp_filter",values=snp,mart=snp.db)
+    chr <- nt.biomart$chr_name %>% unique(.)
+    chr <- ifelse(length(chr)>0,chr,NA)
+    build.df <- data.frame(snp,chr,loc,phys,stringsAsFactors = F)
+    out.df <- rbind(out.df,build.df)
+  }
+  return(out.df)
+}
+
+```
+
+
+```{r}
+
+phys.df <- classify_phys() 
+phys.df$chr[1] <- 9 # manual lookup for ABO gene 
+names(phys.df) <- c("rsID","CHR","symbol","Physiology")
+phys.df <- na.omit(phys.df)
+ 
+```
+
+
+
+```{r}
+
+snp.vec <- c(phys.df$rsID,cred.df$lead.rsid) %>% unique(.)
+write.table(x=snp.vec,file=work.dir%&%"analysis_files/ld-query-snps_udler.txt",
+            quote=F,row.names=F,col.names=F)
+
+```
+
+# Write query SNP files 
+
+```{r}
+
+chrom.vec <- unique(phys.df$CHR)
+for (c in chrom.vec){
+  svec <- c(filter(phys.df,CHR==c)$rsID,filter(cred.df,CHR=="chr"%&%c)$lead.rsid) %>% unique(.)
+  write.table(x=svec,file=work.dir%&%"analysis_files/ld_query_snps_udler/ld-query-snps_" %&% c %&% ".txt",
+            quote=F,row.names=F,col.names=F)  
+}
+
+```
+
+
+# Manually upload chrom snp files into LD Link and calculate pairwise LD in all European populations 
+
+```{r}
+
+
+get_chrom_ld_matrix <- function(c){
+  f <- work.dir%&%"analysis_files/ld_query_snps_udler/r2_chr" %&% c %&% ".txt"
+  d <- fread(f,header=TRUE)
+  out.df <- c()
+  vec <- d$RS_number
+  for (s in vec){
+    for (r in vec){
+      val <- filter(d,RS_number==s) %>% dplyr::select(one_of(r)) %>% as.numeric(.)
+      build.df <- data.frame(CHR=c,RS1=s,RS2=r,r2=val)
+      out.df <- rbind(out.df,build.df)
+    }
+  }
+  return(out.df)
+}
+
+build_ld_df <- function(chrom.vec){
+  out.df <- c()
+  for (c in chrom.vec){
+    print(c)
+    build.df <- get_chrom_ld_matrix(c)
+    out.df <- rbind(out.df,build.df)
+  }
+  out.df$CHR <- as.character(out.df$CHR)
+  out.df$RS1 <- as.character(out.df$RS1)
+  out.df$RS2 <- as.character(out.df$RS2)
+  return(out.df)
+}
+
+
+```
+
+
+```{r}
+
+ld.df  <- build_ld_df(chrom.vec)
+
+```
+
+```{r}
+
+
+closest.rs <- map(phys.df$rsID,function(rs){
+  ifelse(rs%in%cred.df$lead.rsid,rs,(filter(ld.df,RS1==rs,RS2!=rs) %>% filter(.,RS2%in%cred.df$lead.rsid) %>% arrange(.,desc(r2))%>%na.omit(.))$RS2[1])
+}) %>% as.character(.)
+closest.ld <- map(phys.df$rsID,function(rs){
+  ifelse(rs%in%cred.df$lead.rsid,1,(filter(ld.df,RS1==rs,RS2!=rs) %>% filter(.,RS2%in%cred.df$lead.rsid) %>% arrange(.,desc(r2))%>%na.omit(.))$r2[1])
+}) %>% as.numeric(.)
+
+phys.df$closest.rs <- closest.rs
+phys.df$closest.ld <- closest.ld
+phys.df$Locus.ID <- map(phys.df$closest.rs,function(rs){
+  filter(cred.df,lead.rsid==rs)$CondID %>% unique(.)
+}) %>% as.character(.)
+phys.df$symbol <- map(phys.df$closest.rs,function(rs){
+  filter(cred.df,lead.rsid==rs)$symbol %>% unique(.)
+}) %>% as.character(.)
+
+```
+
+
+```{r}
+
+filter(phys.df,closest.ld>=0.1) %>% dim(.)
+filter(phys.df,closest.ld>=0.3) %>% dim(.)
+filter(phys.df,closest.ld>=0.8) %>% dim(.)
+
+names(phys.df)[5:6] <- c("assigned.rsid", "assigned.r2")
+
+write.table(x=phys.df,file=work.dir %&% "analysis_files/physUDLER-ld-assigned.txt",
+            sep="\t",row.names=F,quote=F)
+
+```
+
+
+
