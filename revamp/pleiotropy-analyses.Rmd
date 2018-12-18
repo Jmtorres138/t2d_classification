@@ -17,6 +17,8 @@ library("GenomicRanges")
 library("viridis")
 library("data.table")
 library("RColorBrewer")
+library("gridExtra")
+
 
 serv.dir <- "/home/jason/science/servers/FUSE5/"
 proj.dir <- serv.dir %&% "projects/t2d_classification/"
@@ -28,49 +30,289 @@ plot.dir <- work.dir %&% "plots/"
 cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
 cred.df$Locus.ID <- cred.df$CondID
 
-df1 <- fread(analysis.dir%&%"classified-loci_weighted.txt")
-df2 <- fread(analysis.dir%&%"classified-loci_weighted_with-shared.txt")
+df <- fread(analysis.dir%&%"classified-loci_weighted_with-shared.txt")
 
 ```
 
+
+# some examples of signals with predominant tissue signatures 
 
 ```{r}
 
-(dplyr::select(df2,-contains("assigned_")) %>% arrange(.,desc(islet)) %>% filter(.,islet > 0.9))$symbol %>% unique(.)
-(dplyr::select(df2,-contains("assigned_")) %>% arrange(.,desc(liver)) %>% filter(.,liver > 0.9))$symbol %>% unique(.)
-(dplyr::select(df2,-contains("assigned_")) %>% arrange(.,desc(adipose)) %>% filter(.,adipose > 0.9))$symbol %>% unique(.)
-(dplyr::select(df2,-contains("assigned_")) %>% arrange(.,desc(muscle)) %>% filter(.,muscle > 0.9))$symbol %>% unique(.)
+(dplyr::select(df,-contains("assigned_")) %>% arrange(.,desc(islet)) %>% filter(.,islet > 0.9))$symbol %>% unique(.)
+(dplyr::select(df,-contains("assigned_")) %>% arrange(.,desc(liver)) %>% filter(.,liver > 0.9))$symbol %>% unique(.)
+(dplyr::select(df,-contains("assigned_")) %>% arrange(.,desc(adipose)) %>% filter(.,adipose > 0.9))$symbol %>% unique(.)
+(dplyr::select(df,-contains("assigned_")) %>% arrange(.,desc(muscle)) %>% filter(.,muscle > 0.9))$symbol %>% unique(.)
 
 ```
 
 
-
-
-# Annotation divvy sums 
-
-```{r}
-
-annot.df <- fread(analysis.dir%&%"annotation-divvy-weighted-unscaled.txt")
-annot.mat <- dplyr::select(annot.df,-one_of("Locus.ID"))
-
-```
 
 # Develop "sharing" score
 
 ```{r}
 
-df2$sep.score <- map(1:dim(df2)[1],function(i){
-  vec <- df2[i,2:6] %>% sort(.,decreasing=TRUE) %>% as.numeric(.)
+df$sep.score <- map(1:dim(df)[1],function(i){
+  vec <- df[i,2:6] %>% sort(.,decreasing=TRUE) %>% as.numeric(.)
   vec[1] - vec[2]
 }) %>% as.numeric(.)
-df2$share.score <- 1-sep.score
+df$share.score <- 1-df$sep.score
 
-df2$num.snps <- map(1:dim(df2)[1],function(i){
-  id <- df2[i,]$Locus.ID
+df$num.snps <- map(1:dim(df)[1],function(i){
+  id <- df[i,]$Locus.ID
   dim(filter(cred.df,CondID==id))[1]
 }) %>% as.integer(.)
 
+df$max.ppa <- map(df$Locus.ID,function(id){
+  filter(cred.df,CondID==id)$PPA %>% max(.)
+}) %>% as.numeric(.)
+
+sum(df$sep.score > median(df$sep.score))
+summary(df$sep.score)
 
 ```
+
+
+## EDA 
+
+Number of SNPs 
+```{r}
+
+plt1 <- ggplot(data=df,aes(x=sep.score)) + 
+  geom_histogram(color="black",fill=viridis(10)[4]) + 
+  xlab("Difference between two highest TOA scores") +
+  ylab("Count")
+ggsave(plot=plt1,filename = plot.dir %&% "pleio_eda_1.png",width=5,height=4)
+ggsave(plot=plt1,filename = plot.dir %&% "pleio_eda_1.pdf",width=5,height=4)
+
+plt2 <- ggplot(data=df,aes(x=num.snps,y=sep.score)) + 
+  geom_point(color="black",shape=21,alpha=0.6,fill=viridis(10)[4]) + 
+  xlab("Number of credible SNPs") +
+  ylab("Difference between two highest TOA scores") + 
+  geom_smooth(method='lm',color=viridis(10)[2])
+ggsave(plot=plt2,filename = plot.dir %&% "pleio_eda_2.png",width=5,height=4)
+ggsave(plot=plt2,filename = plot.dir %&% "pleio_eda_2.pdf",width=5,height=4)
+
+plt2b <- ggplot(data=df,aes(x=num.snps,y=sep.score)) + 
+  geom_point(color="black",shape=21,alpha=0.6,fill=viridis(10)[4]) + 
+  xlab("Number of credible SNPs") +
+  ylab("Difference between two highest TOA scores") + 
+  coord_cartesian(xlim=c(0,500))  + 
+  geom_smooth(method='lm',color=viridis(10)[2])
+ggsave(plot=plt2b,filename = plot.dir %&% "pleio_eda_2b.png",width=5,height=4)
+ggsave(plot=plt2b,filename = plot.dir %&% "pleio_eda_2b.pdf",width=5,height=4)
+
+cor.test(df$num.snps,df$sep.score)
+lm(df$sep.score~df$num.snps) %>% summary(.)
+
+
+```
+
+
+Maximum PPA 
+
+```{r}
+
+plt3 <- ggplot(data=df,aes(x=max.ppa,y=sep.score)) + 
+  geom_point(color="black",shape=21,alpha=0.6,fill=viridis(10)[4]) + 
+  xlab("Maximum PPA") +
+  ylab("Difference between two highest TOA scores") + 
+  geom_smooth(method='lm',color=viridis(10)[2])
+ggsave(plot=plt3,filename = plot.dir %&% "pleio_eda_3.png",width=5,height=4)
+ggsave(plot=plt3,filename = plot.dir %&% "pleio_eda_3.pdf",width=5,height=4)
+
+
+cor.test(df$max.ppa,df$sep.score)
+lm(df$sep.score~df$max.ppa) %>% summary(.)
+
+
+```
+
+
+## "Shared" loci at 10% difference threshold
+
+
+```{r}
+
+a <- filter(df,sep.score<=0.10)
+b <- filter(df,sep.score>0.10)
+t.test(a$max.ppa,b$max.ppa)
+
+```
+
+
+
+# Profile "shared" signals by fine-mapping resolution 
+
+Fine-mapped to a single SNP
+
+```{r}
+
+s.df <- a
+
+s1.df <- filter(s.df,num.snps==1)
+View(s1.df)
+
+s1.df$symbol
+
+```
+
+Fine-mapped to more than one variant, but one variant accounts for >50% of PPA 
+
+```{r}
+
+s2.df <- filter(s.df,num.snps>1,max.ppa>0.5) # 23 signals, including lead signal at TCF7L2, and two signals at HNF4A
+
+```
+
+Fine-mapped to more than one variant, but one variant accounts for >50% of PPA 
+
+```{r}
+
+s3.df <- filter(s.df,num.snps>1,max.ppa<=0.5) # 88 signals 
+
+```
+
+
+
+## Deep dive into a given signal 
+
+
+```{r}
+
+an.df <- fread(analysis.dir%&%"annotation-divvy-weighted-unscaled.txt")
+anall.df <- fread(analysis.dir%&%"annotation-divvy-weighted-unscaled_allSNPs.txt")
+
+
+```
+
+
+```{r}
+
+get_sig_df <- function(sig){
+  sub.df <- filter(anall.df,Locus.ID==sig)
+  sub.df$ppa <- map(sub.df$SNPID,function(id,loc=sig){
+    filter(cred.df,CondID==sig,SNPID==id)$PPA %>% max(.)
+  }) %>% as.numeric(.)
+  sub.df <- arrange(sub.df,desc(ppa))  
+}
+
+process_sig_snp <- function(sigsnp.df,ymax=1){
+  snpid <- sigsnp.df$SNPID; ppa <- sigsnp.df$ppa
+  test.df <- sigsnp.df[,3:(dim(sigsnp.df)[2]-1)]
+  #test.df <- sub.df[1,3:(dim(sub.df)[2]-1)]
+  annot <- test.df %>% names(.)
+  val <- test.df %>% as.numeric(.)
+  
+  new.df <- data.frame(annot,val,stringsAsFactors = F)
+  new.df$Annotation <- map(new.df$annot,function(a){
+    strsplit(x=a,split="_")[[1]][1]
+  }) %>% as.character(.)
+  new.df$Tissue <- map(new.df$annot,function(a){
+    strsplit(x=a,split="_")[[1]][2]
+  }) %>% as.character(.)
+  names(new.df) <- c("annot","score","Annotation","Tissue")
+  new.df$Annotation <- factor(new.df$Annotation,
+                              levels = c("coding","strongprom","weakprom",
+                                         "flankprom","strongenh","weakenh",
+                                         "genenh","stronggenetrans","weakgenetrans"))
+  p <- ggplot(data=new.df,aes(x=Tissue,y=score)) + 
+    geom_bar(aes(fill=Annotation),stat="identity",color="black") + 
+    coord_cartesian(ylim=c(0,ymax)) + 
+    scale_fill_manual(values=c("grey","firebrick1","firebrick3",
+                               "firebrick4","gold1","gold3","yellowgreen",
+                               "green1","green4")) + 
+    theme_bw() + 
+    ggtitle(snpid %&% "\nPPA="%&%round(ppa,3))
+  return(list(p,new.df))
+}
+
+
+```
+
+
+TCF7L2 lead signal 
+
+```{r}
+
+sig <- "130_1"
+
+d <- get_sig_df(sig)
+l1 <- process_sig_snp(d[1,],ymax=0.3)
+l2 <- process_sig_snp(d[2,],ymax=0.3)
+l3 <- process_sig_snp(d[3,],ymax=0.3)
+
+
+p <- grid.arrange(l1[[1]],l2[[1]],l3[[1]],nrow=1)
+write.table(x=d,file=analysis.dir%&%"signal_tcf7l2_130_1.txt",sep="\t",quote=F,row.names=F)
+ggsave(plot=p,filename = plot.dir %&% "signal_tcf7l2_130_1.png",h=4,w=11)
+ggsave(plot=p,filename = plot.dir %&% "signal_tcf7l2_130_1.pdf",h=4,w=11)
+
+
+```
+
+
+KCNJ11 lead signal 
+
+```{r}
+
+sig <- "135_1"
+
+d <- get_sig_df(sig)
+l1 <- process_sig_snp(d[1,],ymax=0.3)
+l2 <- process_sig_snp(d[2,],ymax=0.3)
+l3 <- process_sig_snp(d[3,],ymax=0.3)
+
+
+p <- grid.arrange(l1[[1]],l2[[1]],l3[[1]],nrow=1)
+write.table(x=d,file=analysis.dir%&%"signal_kcnj11_135_1.txt",sep="\t",quote=F,row.names=F)
+ggsave(plot=p,filename = plot.dir %&% "signal_kcnj11_135_1.png",h=4,w=11)
+ggsave(plot=p,filename = plot.dir %&% "signal_kcnj11_135_1.pdf",h=4,w=11)
+
+
+```
+
+GCK lead signal 
+
+```{r}
+
+sig <- "95_1"
+
+d <- get_sig_df(sig)
+l1 <- process_sig_snp(d[1,],ymax=1)
+l2 <- process_sig_snp(d[2,],ymax=1)
+
+
+p <- grid.arrange(l1[[1]],l2[[1]],nrow=1)
+write.table(x=d,file=analysis.dir%&%"signal_gck_95_1.txt",sep="\t",quote=F,row.names=F)
+ggsave(plot=p,filename = plot.dir %&% "signal_gck_95_1.png",h=4,w=8)
+ggsave(plot=p,filename = plot.dir %&% "signal_gck_95_1.pdf",h=4,w=8)
+
+
+```
+
+
+GCK secondary signal 
+
+```{r}
+
+sig <- "95_2"
+
+d <- get_sig_df(sig)
+l1 <- process_sig_snp(d[1,],ymax=0.3)
+l2 <- process_sig_snp(d[2,],ymax=0.3)
+l3 <- process_sig_snp(d[3,],ymax=0.3)
+l4 <- process_sig_snp(d[4,],ymax=0.3)
+l5 <- process_sig_snp(d[5,],ymax=0.3)
+
+p <- grid.arrange(l1[[1]],l2[[1]],l3[[1]],l4[[1]],l5[[1]],nrow=1)
+write.table(x=d,file=analysis.dir%&%"signal_gck_95_2.txt",sep="\t",quote=F,row.names=F)
+ggsave(plot=p,filename = plot.dir %&% "signal_gck_95_2.png",h=4,w=20)
+ggsave(plot=p,filename = plot.dir %&% "signal_gck_95_2.pdf",h=4,w=15)
+
+
+```
+
+
 
 
