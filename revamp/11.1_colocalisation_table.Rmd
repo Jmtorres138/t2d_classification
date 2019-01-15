@@ -41,6 +41,8 @@ sub2 <- dplyr::select(coloc.gtex,one_of("Locus","SNP_ID","Tissue",
                                          "Gene","gene_name","gwas_z",
                                          "eqtl_z","CLPP"))
 coloc.df <- rbind(sub1,sub2)
+write.table(x=coloc.df,file=write.dir%&%"coloc.txt",sep="\t",quote=F,row.names=F)
+
 
 ```
 
