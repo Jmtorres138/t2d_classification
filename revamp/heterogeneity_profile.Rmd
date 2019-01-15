@@ -1,0 +1,112 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup 
+
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+library("tidyverse")
+library("GenomicRanges")
+library("viridis")
+library("data.table")
+library("RColorBrewer")
+library("gridExtra")
+
+serv.dir <- "/home/jason/science/servers/FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "revamp/"
+analysis.dir <- work.dir %&% "analysis_files/"
+plot.dir <- work.dir %&% "plots/"
+
+cred.df <- fread(work.dir %&%  "genetic_credible_sets/gencred.txt")
+cred.df$Locus.ID <- cred.df$CondID
+
+df <- fread(analysis.dir%&%"classified-loci_weighted_with-shared.txt")
+df$loc <- map(df$Locus.ID,function(id){
+  strsplit(id,split="_")[[1]][1]
+}) %>% as.character(.)
+
+
+```
+
+
+## Identify heterogeneious loci 
+
+
+```{r}
+
+get_het_status <- function(hetloc){
+  diff.rank <- FALSE
+  diff.assign20 <- FALSE
+  iter<-1
+  sub <- filter(df,loc==hetloc)
+  enough.classified <- length(sub$assigned_20[sub$assigned_20!="unclassified"]) >= 2
+  for (i in 1:(dim(sub)[1]-1)){
+    a <- sub[iter,2:5] %>% as.numeric(.)
+    b <- sub[(iter+1),2:5] %>% as.numeric(.)
+    evalu <- all(rank(a)==rank(b))
+    diff.rank <- ifelse(diff.rank==TRUE,TRUE,
+                        ifelse(evalu==FALSE,TRUE,FALSE))
+    a <- sub[iter,]$assigned_20
+    b <- sub[iter+1,]$assigned_20
+    diff.assign20 <- ifelse(diff.assign20==TRUE,TRUE,
+                        ifelse(a!=b,TRUE,FALSE))
+    iter <- iter + 1 
+  }
+  return(list(diff.rank,diff.assign20,enough.classified))
+}
+
+
+build_het_df <- function(){
+  ids <- unique(cred.df$Locus.ID)
+  het.vec <- c()
+  for (id in ids){
+    l <- strsplit(id,split="_")[[1]]
+    if (l[[2]]!="1"){
+      het.vec <- append(l[[1]],het.vec)
+    }
+  }
+  het.vec <- het.vec %>% unique(.) # 84 heterogeneous signals 
+  out.df <- c()
+  for (het in het.vec){
+    l <- get_het_status(het)
+    build.df <- data.frame(Locus=het,Ranks.differ=l[[1]],
+                           Assign.differ=l[[2]],
+                           Enough.classified=l[[3]],stringsAsFactors = F)
+    out.df <- rbind(out.df,build.df)
+  }  
+  return(out.df)
+}
+
+```
+
+
+```{r}
+
+het.df <- build_het_df()
+het.df$genes <- map(het.df$Locus,function(hetloc){
+  filter(df,loc==hetloc)$symbol %>% unique(.) %>% paste0(.,collapse = ",")
+}) %>% as.character(.)
+
+sum(het.df$Enough.classified==TRUE)
+
+sub.df <- filter(het.df,Enough.classified==TRUE)
+
+sub.df$Assign.differ %>% sum(.) / length(sub.df$Assign.differ) # 40/57 (70%) 
+sub.df$Ranks.differ %>% sum(.) / length(sub.df$Ranks.differ) # 55/57 (96%) with differing rank orders 
+
+```
+
+There are 84 loci with allelic heterogeneity 
+57 have enough signals classified at the 0.2 threshold to enable comparison (i.e. two or more)
+Of these 57, 40 (70%) have different tissue classifications (heterogeneous assignments) 
+Moreover, 55 (96%) have different rank orders (tissue profiles) 
+
