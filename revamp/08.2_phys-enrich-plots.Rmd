@@ -30,7 +30,7 @@ plot.dir <- work.dir %&% "plots/"
 
 
 
-# Physiology (hard clustering) enrichment 
+# Plotting functions  
 
 
 ```{r}
@@ -57,52 +57,71 @@ phys_enrich_plot <- function(enrich.df,myname,nc=4){
 }
 
 
-
-```
-
-```{r}
+phys_enrich_plot_v2 <- function(enrich.df,myname,nc=5){
+  ggplot(data=enrich.df,aes(x=physiology,y=enrichment)) + 
+    geom_point(aes(size=counts,fill=-log(p,base=10)),shape=21) +
+    facet_wrap(~tissue,ncol=nc) + 
+    theme_bw() + 
+    scale_fill_gradient2(low=viridis(n=50)[48],high=viridis(n=50)[10],
+                         mid = viridis(n=50)[40],
+                         midpoint=-log(0.05,base=10),
+                         name=expression(-log10(p))) + 
+    xlab("Classified Tissue") + ylab("Enrichment") + 
+    ggtitle(myname) +
+    theme(axis.text.x=element_text(vjust=0.6,angle=30),
+          panel.grid.minor = element_blank(),
+          panel.grid.major.x=element_blank(),
+          strip.background =element_rect(fill="ghostwhite"),
+          strip.text = element_text(colour = magma(n=2)[1]))
+}
 
 mod_thresh <- function(enrich.df){
   enrich.df$threshold <- gsub("assigned_","0.",enrich.df$threshold)
   return(enrich.df)
 }
 
-df1 <- fread(work.dir %&% "analysis_files/phys94-enrich_weighted.txt") %>%
- mod_thresh(.)
-df1$physiology <- gsub("_"," ",df1$physiology)
-df1$threshold <- as.numeric(df1$threshold)
-
-count.df1 <- fread(work.dir%&%"analysis_files/classifier_counts.txt")
-names(count.df1) <- c("Threshold","adipose","islet",
-                      "liver","muscle","unclassified")
-
-df1$count <- map(1:dim(df1)[1],function(i){
-  row.df <- df1[i,]
-  count <- filter(count.df1,Threshold==row.df$threshold) %>% 
-    dplyr::select(.,one_of(as.character(unique(row.df$tissue)))) %>% as.integer(.)
-  if (row.df$tissue=="peripheral"){
-    count <- filter(count.df1,Threshold==row.df$threshold) %>% 
-      dplyr::select(.,one_of("adipose","liver","muscle")) %>% sum(.)  
-  }
-  return(count)
-}) %>% as.integer(.)
-
-plt1 <- phys_enrich_plot(df1,myname="Physiology enrichment for classifed loci (weighted)")
-
-ggsave(plot=plt1,filename = plot.dir %&% "enrichment-phys_weighted-94.png",width=8,height=8)
-ggsave(plot=plt1,filename = plot.dir %&% "enrichment-phys_weighted-94.pdf",width=8,height=8)
 
 ```
 
 
 ```{r}
 
-mod_thresh <- function(enrich.df){
-  enrich.df$threshold <- gsub("assigned_","0.",enrich.df$threshold)
-  return(enrich.df)
-}
 
-df2 <- fread(work.dir %&% "analysis_files/phys94-enrich_weighted_with-shared.txt") %>%
+
+#df1 <- fread(work.dir %&% "analysis_files/phys94-enrich_weighted.txt") %>%
+# mod_thresh(.)
+#df1$physiology <- gsub("_"," ",df1$physiology)
+#df1$threshold <- as.numeric(df1$threshold)
+
+#count.df1 <- fread(work.dir%&%"analysis_files/classifier_counts.txt")
+#names(count.df1) <- c("Threshold","adipose","islet",
+#                      "liver","muscle","unclassified")
+
+#df1$count <- map(1:dim(df1)[1],function(i){
+#  row.df <- df1[i,]
+#  count <- filter(count.df1,Threshold==row.df$threshold) %>% 
+#    dplyr::select(.,one_of(as.character(unique(row.df$tissue)))) %>% as.integer(.)
+#  if (row.df$tissue=="peripheral"){
+#    count <- filter(count.df1,Threshold==row.df$threshold) %>% 
+#      dplyr::select(.,one_of("adipose","liver","muscle")) %>% sum(.)  
+#  }
+#  return(count)
+#}) %>% as.integer(.)
+
+#plt1 <- phys_enrich_plot(df1,myname="Physiology enrichment for classifed loci (weighted)")
+
+#ggsave(plot=plt1,filename = plot.dir %&% "enrichment-phys_weighted-94.png",width=8,height=8)
+#ggsave(plot=plt1,filename = plot.dir %&% "enrichment-phys_weighted-94.pdf",width=8,height=8)
+
+```
+
+
+# Mahajan approach 
+
+```{r}
+
+
+df2 <- fread(work.dir %&% "analysis_files/phys82-enrich_weighted_with-shared.txt") %>%
  mod_thresh(.)
 df2$physiology <- gsub("_"," ",df2$physiology)
 df2$threshold <- as.numeric(df2$threshold)
@@ -124,41 +143,14 @@ df2$count <- map(1:dim(df2)[1],function(i){
 
 plt2 <- phys_enrich_plot(df2,myname="Physiology enrichment for classifed loci (weighted)")
 
-ggsave(plot=plt2,filename = plot.dir %&% "enrichment-phys_weighted-94_with-shared.png",width=8,height=8)
-ggsave(plot=plt2,filename = plot.dir %&% "enrichment-phys_weighted-94_with-shared.pdf",width=8,height=8)
+ggsave(plot=plt2,filename = plot.dir %&% "enrichment-phys_weighted-82_with-shared.png",width=8,height=8)
+ggsave(plot=plt2,filename = plot.dir %&% "enrichment-phys_weighted-82_with-shared.pdf",width=8,height=8)
 
 ```
 
 
 
-## Version 2 
-
-
-```{r}
-
-
-phys_enrich_plot_v2 <- function(enrich.df,myname,nc=5){
-  ggplot(data=enrich.df,aes(x=physiology,y=enrichment)) + 
-    geom_point(aes(size=counts,fill=-log(p,base=10)),shape=21) +
-    facet_wrap(~tissue,ncol=nc) + 
-    theme_bw() + 
-    scale_fill_gradient2(low=viridis(n=50)[48],high=viridis(n=50)[10],
-                         mid = viridis(n=50)[40],
-                         midpoint=-log(0.05,base=10),
-                         name=expression(-log10(p))) + 
-    xlab("Classified Tissue") + ylab("Enrichment") + 
-    ggtitle(myname) +
-    theme(axis.text.x=element_text(vjust=0.6,angle=30),
-          panel.grid.minor = element_blank(),
-          panel.grid.major.x=element_blank(),
-          strip.background =element_rect(fill="ghostwhite"),
-          strip.text = element_text(colour = magma(n=2)[1]))
-}
-
-
-
-```
-
+## Alternative method (differences in TOA scores between phys groups)
 
 ```{r}
 
@@ -180,7 +172,60 @@ df3$counts <- map(df3$physiology,function(p){
 
 
 plt3 <- phys_enrich_plot_v2(df3,myname="Physiology enrichment for classifed loci (weighted)")
-ggsave(plot=plt3,filename = plot.dir %&% "enrichment-phys_weighted-94-V2.png",width=12,height=3)
-ggsave(plot=plt3,filename = plot.dir %&% "enrichment-phys_weighted-94-V2.pdf",width=12,height=3)
+ggsave(plot=plt3,filename = plot.dir %&% "enrichment-phys_weighted-82-V2.png",width=12,height=3.5)
+ggsave(plot=plt3,filename = plot.dir %&% "enrichment-phys_weighted-82-V2.pdf",width=12,height=3.5)
+```
+
+
+# Udler approach 
+
+
+```{r}
+
+
+df4 <- fread(work.dir %&% "analysis_files/phys-enrich_weighted_with-shared_UDLER.txt") %>%
+ mod_thresh(.)
+df4$physiology <- gsub("_"," ",df4$physiology)
+df4$threshold <- as.numeric(df4$threshold)
+
+count.df4 <- fread(work.dir%&%"analysis_files/classifier_counts_with-shared.txt")
+names(count.df4) <- c("Threshold","adipose","islet",
+                      "liver","muscle","shared","unclassified")
+
+df4$count <- map(1:dim(df4)[1],function(i){
+  row.df <- df4[i,]
+  count <- filter(count.df4,Threshold==row.df$threshold) %>% 
+    dplyr::select(.,one_of(as.character(unique(row.df$tissue)))) %>% as.integer(.)
+  if (row.df$tissue=="peripheral"){
+    count <- filter(count.df4,Threshold==row.df$threshold) %>% 
+      dplyr::select(.,one_of("adipose","liver","muscle")) %>% sum(.)  
+  }
+  return(count)
+}) %>% as.integer(.)
+
+plt4 <- phys_enrich_plot(df4,myname="Physiology enrichment for classifed loci (weighted)")
+
+ggsave(plot=plt4,filename = plot.dir %&% "enrichment-phys_weighted_with-shared_UDLER.png",width=8,height=8)
+ggsave(plot=plt4,filename = plot.dir %&% "enrichment-phys_weighted_with-shared_UDLER.pdf",width=8,height=8)
+
+```
+
+
+```{r}
+
+phys.counts <- fread(work.dir %&% "analysis_files/physUDLER-ld-assigned.txt")$Physiology %>% 
+  table(.) %>% as.data.frame(.)
+names(phys.counts) <- c("phys","count")
+
+df5 <- fread(work.dir %&% "analysis_files/phys-enrich_weighted-V2_UDLER.txt") %>% mod_thresh(.)
+df5$physiology <- gsub("_"," ",df5$physiology)
+df5$counts <- map(df5$physiology,function(p){
+  filter(phys.counts,phys==p)$count
+}) %>% as.integer(.)
+
+
+plt5 <- phys_enrich_plot_v2(df5,myname="Physiology enrichment for classifed loci (weighted)")
+ggsave(plot=plt5,filename = plot.dir %&% "enrichment-phys_weighted-UDLER-V2.png",width=12,height=3)
+ggsave(plot=plt5,filename = plot.dir %&% "enrichment-phys_weighted-UDLER-V2.pdf",width=12,height=3)
 ```
 

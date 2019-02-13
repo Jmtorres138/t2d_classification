@@ -149,11 +149,32 @@ Fine-mapped to a single SNP
 ```{r}
 
 s.df <- a
+s.df$lead.snp <- map(s.df$Locus.ID,function(id){
+  filter(cred.df,CondID==id)$lead.rsid %>% unique(.)
+}) %>% as.character(.)
+
+write.table(x=s.df,file=analysis.dir%&%"shared-signals-120.txt",
+            sep="\t",quote=F,row.names=F)
 
 s1.df <- filter(s.df,num.snps==1)
-View(s1.df)
 
-s1.df$symbol
+View(s1.df)
+#s1.df$symbol
+
+
+tab1.df <- dplyr::select(s1.df,one_of("Locus.ID","lead.snp","symbol","islet",
+                                   "muscle","adipose","liver","sep.score")) %>% 
+  arrange(.,desc(islet))
+names(tab1.df)[c(1,8)] <- c("signal.ID","dissimilarity")
+tab1.df$islet <- tab1.df$islet %>% prettyNum(.,digits=2)
+tab1.df$adipose <- tab1.df$adipose %>% prettyNum(.,digits=2)
+tab1.df$muscle <- tab1.df$muscle %>% prettyNum(.,digits=2)
+tab1.df$liver <- tab1.df$liver %>% prettyNum(.,digits=2)
+tab1.df$dissimilarity <- tab1.df$dissimilarity %>% prettyNum(.,digits=2)
+ggsave(grid.table(tab1.df),filename = plot.dir %&% "shared-single.png",
+       height=5,width=10)
+ggsave(grid.table(tab1.df),filename = plot.dir %&% "shared-single.pdf",
+       height=5,width=10)
 
 ```
 
@@ -163,6 +184,21 @@ Fine-mapped to more than one variant, but one variant accounts for >50% of PPA
 
 s2.df <- filter(s.df,num.snps>1,max.ppa>0.5) # 23 signals, including lead signal at TCF7L2, and two signals at HNF4A
 
+tab2.df <- dplyr::select(s2.df,one_of("Locus.ID","lead.snp","symbol","islet",
+                                   "muscle","adipose","liver","sep.score")) %>% 
+  arrange(.,desc(islet))
+names(tab2.df)[c(1,8)] <- c("signal.ID","dissimilarity")
+tab2.df$islet <- tab2.df$islet %>% prettyNum(.,digits=2)
+tab2.df$adipose <- tab2.df$adipose %>% prettyNum(.,digits=2)
+tab2.df$muscle <- tab2.df$muscle %>% prettyNum(.,digits=2)
+tab2.df$liver <- tab2.df$liver %>% prettyNum(.,digits=2)
+tab2.df$dissimilarity <- tab2.df$dissimilarity %>% prettyNum(.,digits=2)
+
+ggsave(grid.table(tab2.df),filename = plot.dir %&% "shared-mult-maxppa50.png",
+       height=10,width=10)
+ggsave(grid.table(tab2.df),filename = plot.dir %&% "shared-mult-maxppa50.pdf",
+       height=10,width=10)
+
 ```
 
 Fine-mapped to more than one variant, but one variant accounts for >50% of PPA 
@@ -170,7 +206,20 @@ Fine-mapped to more than one variant, but one variant accounts for >50% of PPA
 ```{r}
 
 s3.df <- filter(s.df,num.snps>1,max.ppa<=0.5) # 88 signals 
+tab3.df <- dplyr::select(s3.df,one_of("Locus.ID","lead.snp","symbol","islet",
+                                   "muscle","adipose","liver","sep.score")) %>% 
+  arrange(.,desc(islet))
+names(tab3.df)[c(1,8)] <- c("signal.ID","dissimilarity")
+tab3.df$islet <- tab3.df$islet %>% prettyNum(.,digits=2)
+tab3.df$adipose <- tab3.df$adipose %>% prettyNum(.,digits=2)
+tab3.df$muscle <- tab3.df$muscle %>% prettyNum(.,digits=2)
+tab3.df$liver <- tab3.df$liver %>% prettyNum(.,digits=2)
+tab3.df$dissimilarity <- tab3.df$dissimilarity %>% prettyNum(.,digits=2)
 
+ggsave(grid.table(tab3.df),filename = plot.dir %&% "shared-mult-undermpp50.png",
+       height=40,width=10)
+ggsave(grid.table(tab3.df),filename = plot.dir %&% "shared-mult-undermpp50.pdf",
+       height=40,width=10)
 ```
 
 
@@ -245,8 +294,8 @@ l3 <- process_sig_snp(d[3,],ymax=0.3)
 
 p <- grid.arrange(l1[[1]],l2[[1]],l3[[1]],nrow=1)
 write.table(x=d,file=analysis.dir%&%"signal_tcf7l2_130_1.txt",sep="\t",quote=F,row.names=F)
-ggsave(plot=p,filename = plot.dir %&% "signal_tcf7l2_130_1.png",h=4,w=11)
-ggsave(plot=p,filename = plot.dir %&% "signal_tcf7l2_130_1.pdf",h=4,w=11)
+ggsave(plot=p,filename = plot.dir %&% "signal_tcf7l2_130_1.png",h=3.5,w=13)
+ggsave(plot=p,filename = plot.dir %&% "signal_tcf7l2_130_1.pdf",h=3.5,w=12.5)
 
 
 ```
@@ -266,8 +315,8 @@ l3 <- process_sig_snp(d[3,],ymax=0.3)
 
 p <- grid.arrange(l1[[1]],l2[[1]],l3[[1]],nrow=1)
 write.table(x=d,file=analysis.dir%&%"signal_kcnj11_135_1.txt",sep="\t",quote=F,row.names=F)
-ggsave(plot=p,filename = plot.dir %&% "signal_kcnj11_135_1.png",h=4,w=11)
-ggsave(plot=p,filename = plot.dir %&% "signal_kcnj11_135_1.pdf",h=4,w=11)
+ggsave(plot=p,filename = plot.dir %&% "signal_kcnj11_135_1.png",h=3.5,w=12)
+ggsave(plot=p,filename = plot.dir %&% "signal_kcnj11_135_1.pdf",h=3.5,w=12)
 
 
 ```
@@ -285,8 +334,8 @@ l2 <- process_sig_snp(d[2,],ymax=1)
 
 p <- grid.arrange(l1[[1]],l2[[1]],nrow=1)
 write.table(x=d,file=analysis.dir%&%"signal_gck_95_1.txt",sep="\t",quote=F,row.names=F)
-ggsave(plot=p,filename = plot.dir %&% "signal_gck_95_1.png",h=4,w=8)
-ggsave(plot=p,filename = plot.dir %&% "signal_gck_95_1.pdf",h=4,w=8)
+ggsave(plot=p,filename = plot.dir %&% "signal_gck_95_1.png",h=3.5,w=8)
+ggsave(plot=p,filename = plot.dir %&% "signal_gck_95_1.pdf",h=3.5,w=8)
 
 
 ```
@@ -307,12 +356,47 @@ l5 <- process_sig_snp(d[5,],ymax=0.3)
 
 p <- grid.arrange(l1[[1]],l2[[1]],l3[[1]],l4[[1]],l5[[1]],nrow=1)
 write.table(x=d,file=analysis.dir%&%"signal_gck_95_2.txt",sep="\t",quote=F,row.names=F)
-ggsave(plot=p,filename = plot.dir %&% "signal_gck_95_2.png",h=4,w=20)
-ggsave(plot=p,filename = plot.dir %&% "signal_gck_95_2.pdf",h=4,w=15)
+ggsave(plot=p,filename = plot.dir %&% "signal_gck_95_2.png",h=3.5,w=20)
+ggsave(plot=p,filename = plot.dir %&% "signal_gck_95_2.pdf",h=3.5,w=15)
 
 
 ```
 
 
+
+CCND2 primary signal 
+
+```{r}
+
+sig <- "146_1"
+
+d <- get_sig_df(sig)
+l1 <- process_sig_snp(d[1,],ymax=0.6)
+
+p <- grid.arrange(l1[[1]],nrow=1)
+write.table(x=d,file=analysis.dir%&%"signal_ccnd1_146_1.txt",sep="\t",quote=F,row.names=F)
+ggsave(plot=p,filename = plot.dir %&% "signal_ccnd1_146_1.png",h=3.5,w=5)
+ggsave(plot=p,filename = plot.dir %&% "signal_ccnd1_146_1.pdf",h=3.5,w=5)
+
+
+```
+
+
+BCL2A primary signal 
+
+```{r}
+
+sig <- "210_1"
+
+d <- get_sig_df(sig)
+l1 <- process_sig_snp(d[1,],ymax=0.6)
+
+p <- grid.arrange(l1[[1]],nrow=1)
+write.table(x=d,file=analysis.dir%&%"signal_bcl2a_120_1.txt",sep="\t",quote=F,row.names=F)
+ggsave(plot=p,filename = plot.dir %&% "signal_bcl2a_120_1.png",h=3.5,w=5)
+ggsave(plot=p,filename = plot.dir %&% "signal_bcl2a_120_1.pdf",h=3.5,w=5)
+
+
+```
 
 

@@ -114,7 +114,7 @@ build_enrich_df <- function(class.df,phys.df){
 
 df4 <- build_enrich_df(weighted.df,phys94.df)
 write.table(x=df4,file = write.dir %&% "analysis_files/" %&% 
-              "phys94-enrich_weighted_with-shared.txt",
+              "phys82-enrich_weighted_with-shared.txt",
             sep="\t",quote=F,row.names=F)
 
 
