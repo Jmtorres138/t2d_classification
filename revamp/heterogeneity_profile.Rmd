@@ -110,3 +110,39 @@ There are 84 loci with allelic heterogeneity
 Of these 57, 40 (70%) have different tissue classifications (heterogeneous assignments) 
 Moreover, 55 (96%) have different rank orders (tissue profiles) 
 
+
+# Plotting function 
+
+```{r}
+
+df$lead.rsid <- map(df$Locus.ID,function(id){
+  filter(cred.df,Locus.ID==id)$lead.rsid %>% unique(.)
+}) %>% as.character(.)
+df$symbol <- map(df$Locus.ID,function(id){
+  filter(cred.df,Locus.ID==id)$symbol %>% unique(.)
+}) %>% as.character(.)
+df$max.ppa <- map(df$Locus.ID,function(id){
+  filter(cred.df,Locus.ID==id)$PPA %>% max(.)
+}) %>% as.numeric(.)
+
+
+input.df <- filter(df,loc=="222")
+plot.df <- c()
+tiss.vec <- c("islet","muscle","adipose","liver","unclassified")
+for (i in 1:dim(input.df)[1]){
+  row.df <- input.df[i,]
+  toa.vec <- row.df %>% 
+    select(.,one_of("islet","muscle","adipose","liver","unclassified")) %>% as.numeric(.)
+  build.df <- data.frame(signal=row.df$lead.rsid,max.ppa=row.df$max.ppa,
+                         toa=toa.vec,tissue=tiss.vec,stringsAsFactors = FALSE)
+  plot.df <- rbind(plot.df,build.df)
+}
+
+p <- ggplot(data=plot.df,aes(x=signal,y=toa)) + 
+  geom_col(aes(fill=tissue),color="black")
+
+
+```
+
+
+GeomBar
