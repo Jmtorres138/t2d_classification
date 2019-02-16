@@ -161,7 +161,7 @@ het_plot <- function(locus.num){
   
   plot.df$maxppa50 <- plot.df$max.ppa>0.5 # ifelse((plot.df$max.ppa>0.5)==TRUE,1.5,1)
   #gene <- input.df$symbol %>% unique(.)
-  plot.df$gene <- input.df$symbol %>% unique(.)
+  plot.df$gene <- input.df$symbol %>% unique(.) %>% paste0(.,collapse="/")
   p <- ggplot(data=plot.df,aes(x=signal,y=toa)) + 
     geom_col(aes(fill=tissue,color=maxppa50),size=1) + 
     scale_fill_manual(values=c("grey","brown","red","gold1","olivedrab2")) + 
@@ -177,21 +177,38 @@ het_plot <- function(locus.num){
                                    face=rs.font),
           strip.text = element_text(size=12,face="italic"),
           strip.background = element_rect(fill="ghostwhite")) 
+  return(p)
 }
 
 ```
 
 
 
+Plot all 57 loci that can be analyzed for heterogeneity (see above) 
 
 ```{r}
-
+library("grid")
 library(gridExtra)
 
-a <- het_plot("222")
-b <- het_plot("146")
+loc.vec <- sub.df$Locus %>% unique(.) %>% as.integer(.) %>% sort(.) %>% as.character(.)
+plot.list <- list()
+for (i in 1:length(loc.vec)){
+  l <- loc.vec[i]
+  plt <- het_plot(l)
+  plot.list[[i]] <- plt
+}
 
-grid.arrange(a,b,nrow=1)
+#n <- length(plot.list)
+#nCol <- floor(sqrt(n))
+#do.call("grid.arrange", c(plot.list, ncol=nCol))
+#grid.arrange(grobs = plot.list, ncol = 2) ## display plot
+
+ggsave(file = plot.dir %&% "tiss_het_57.png", arrangeGrob(grobs = plot.list, ncol = 7),
+       width=20,height=20) 
+ggsave(file = plot.dir %&% "tiss_het_57.pdf", arrangeGrob(grobs = plot.list, ncol = 7),
+       width=20,height=20) 
+
+
 
 ```
 
