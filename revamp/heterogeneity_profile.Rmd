@@ -126,23 +126,68 @@ df$max.ppa <- map(df$Locus.ID,function(id){
 }) %>% as.numeric(.)
 
 
-input.df <- filter(df,loc=="222")
-plot.df <- c()
-tiss.vec <- c("islet","muscle","adipose","liver","unclassified")
-for (i in 1:dim(input.df)[1]){
-  row.df <- input.df[i,]
-  toa.vec <- row.df %>% 
-    select(.,one_of("islet","muscle","adipose","liver","unclassified")) %>% as.numeric(.)
-  build.df <- data.frame(signal=row.df$lead.rsid,max.ppa=row.df$max.ppa,
-                         toa=toa.vec,tissue=tiss.vec,stringsAsFactors = FALSE)
-  plot.df <- rbind(plot.df,build.df)
+```
+
+
+```{r}
+
+het_plot <- function(locus.num){
+  input.df <- filter(df,loc==locus.num)
+  plot.df <- c()
+  tiss.vec <- c("islet","muscle","adipose","liver","unclassified")
+  for (i in 1:dim(input.df)[1]){
+    row.df <- input.df[i,]
+    toa.vec <- row.df %>% 
+      select(.,one_of("islet","muscle","adipose","liver","unclassified")) %>% as.numeric(.)
+    build.df <- data.frame(signal=row.df$lead.rsid,max.ppa=row.df$max.ppa,
+                           toa=toa.vec,tissue=tiss.vec,stringsAsFactors = FALSE)
+    plot.df <- rbind(plot.df,build.df)
+  }
+  rs.vec <- (plot.df %>% filter(.,tissue=="islet") %>% arrange(.,desc(toa)))$signal
+  plot.df$signal <- factor(plot.df$signal,levels=rs.vec)
+  plot.df$tissue <- factor(plot.df$tissue,
+                           levels=c("unclassified","liver","muscle","adipose","islet"))
+  
+  plot.df$signum <-  map(plot.df$signal,function(rs){
+    (filter(df,lead.rsid==rs)$Locus.ID %>% strsplit(.,split="_"))[[1]][2]
+  }) %>% as.integer(.)
+  sub <- select(plot.df,one_of("signal","signum"))
+  sub <- sub[!duplicated(sub),]
+  sub$signal <- factor(sub$signal,levels=rs.vec)
+  
+  rs.font <- ifelse((map(rs.vec,function(rs){
+    filter(sub,signal==rs)$signum
+  }) %>% as.integer(.) )==1,"bold","plain")
+  
+  plot.df$maxppa50 <- plot.df$max.ppa>0.5 # ifelse((plot.df$max.ppa>0.5)==TRUE,1.5,1)
+  gene <- input.df$symbol %>% unique(.)
+  p <- ggplot(data=plot.df,aes(x=signal,y=toa)) + 
+    geom_col(aes(fill=tissue,color=maxppa50),size=1) + 
+    scale_fill_manual(values=c("grey","brown","red","gold1","olivedrab2")) + 
+    scale_y_continuous(breaks=seq(0,1,0.2)) + 
+    scale_color_manual(values = c("ghostwhite","black")) + 
+    coord_cartesian(ylim=c(0,1),expand = F) + 
+    ggtitle(gene) + 
+    theme_bw() + 
+    theme(axis.title = element_blank(),
+          legend.position = "none",
+          axis.text.x=element_text(angle=30,vjust=0.9,hjust=0.9,
+                                   face=rs.font) ) 
 }
-
-p <- ggplot(data=plot.df,aes(x=signal,y=toa)) + 
-  geom_col(aes(fill=tissue),color="black")
-
 
 ```
 
 
-GeomBar
+
+
+```{r}
+
+library(gridExtra)
+
+a <- het_plot("222")
+b <- het_plot("146")
+
+grid.arrange(a,b,nrow=1)
+
+```
+
