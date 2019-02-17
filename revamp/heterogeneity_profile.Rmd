@@ -174,8 +174,8 @@ het_plot <- function(locus.num){
     theme(axis.title = element_blank(),
           legend.position = "none",
           axis.text.x=element_text(angle=30,vjust=0.9,hjust=0.9,
-                                   face=rs.font,size=6),
-          axis.text.y=element_text(size=6),
+                                   face=rs.font,size=10),
+          axis.text.y=element_text(size=10),
           strip.text = element_text(size=15,face="italic"),
           strip.background = element_rect(fill="ghostwhite")) 
   return(p)
@@ -209,7 +209,137 @@ ggsave(file = plot.dir %&% "tiss_het_57.png", arrangeGrob(grobs = plot.list, nco
 ggsave(file = plot.dir %&% "tiss_het_57.pdf", arrangeGrob(grobs = plot.list, ncol = 7),
        width=20,height=20) 
 
+filter(df,loc %in% loc.vec) %>% dim(.) # 169 signals at these 57 loci 
+
+```
+
+
+# Looking for those loci with similar tissues profiles across signals 
+
+
+```{r}
+
+df57 <- sub.df
+df57$same.across <- map(df57$Locus,function(l){
+  vec <- filter(df,loc==l)$assigned_20 %>% unique(.) 
+  vec <- vec[vec!="unclassified"]
+  length(vec) == 1
+}) %>% as.logical(.)
+df57$same.NotShared <- map(df57$Locus,function(l){
+  vec <- filter(df,loc==l)$assigned_20 %>% unique(.) 
+  vec <- vec[vec!="unclassified"]  
+  ifelse((length(unique(vec))==1 & !("shared" %in% unique(vec))),TRUE,FALSE)
+}) %>% as.logical(.)
+
+
+
+loc.vec <- filter(df57,same.across==TRUE)$Locus %>% unique(.) %>% 
+  as.integer(.) %>% sort(.) %>% as.character(.)
+plot.list <- list()
+for (i in 1:length(loc.vec)){
+  l <- loc.vec[i]
+  plt <- het_plot(l)
+  plot.list[[i]] <- plt
+}
+
+ggsave(file = plot.dir %&% "tiss_het_19_same.png", arrangeGrob(grobs = plot.list, ncol = 10),
+       width=21,height=5) 
+ggsave(file = plot.dir %&% "tiss_het_19_same.pdf", arrangeGrob(grobs = plot.list, ncol = 10),
+       width=21,height=5) 
+
+filter(df,loc %in% loc.vec) %>% dim(.) # 43 signals at these 19 loci 
+
+```
+
+
+
+```{r}
+
+loc.vec <- filter(df57,same.NotShared==TRUE)$Locus %>% unique(.) %>% 
+  as.integer(.) %>% sort(.) %>% as.character(.)
+plot.list <- list()
+for (i in 1:length(loc.vec)){
+  l <- loc.vec[i]
+  plt <- het_plot(l)
+  plot.list[[i]] <- plt
+}
+
+ggsave(file = plot.dir %&% "tiss_het_10_sameNoShared.png", 
+       arrangeGrob(grobs = plot.list, ncol = 10),
+       width=21,height=3) 
+ggsave(file = plot.dir %&% "tiss_het_10_sameNoShared.pdf",
+       arrangeGrob(grobs = plot.list, ncol = 10),
+       width=21,height=3) 
+
+filter(df,loc %in% loc.vec) %>% dim(.) # 23 signals at these 10 loci 
 
 
 ```
+
+
+# Loci with heterogeneous tissue effects 
+
+```{r}
+
+df57$diff.across <- map(df57$Locus,function(l){
+  vec <- filter(df,loc==l)$assigned_20 %>% unique(.) 
+  vec <- vec[vec!="unclassified"]
+  length(vec) > 1
+}) %>% as.logical(.)
+df57$diff.NotShared <- map(df57$Locus,function(l){
+  vec <- filter(df,loc==l)$assigned_20 %>% unique(.)
+  vec <- vec[vec!="unclassified"]
+  vec <- vec[vec!="shared"]
+  ifelse(length(vec)>1,TRUE,FALSE)
+}) %>% as.logical(.)
+
+```
+
+
+```{r}
+
+
+loc.vec <- filter(df57,diff.across==TRUE)$Locus %>% unique(.) %>% 
+  as.integer(.) %>% sort(.) %>% as.character(.)
+plot.list <- list()
+for (i in 1:length(loc.vec)){
+  l <- loc.vec[i]
+  plt <- het_plot(l)
+  plot.list[[i]] <- plt
+}
+
+ggsave(file = plot.dir %&% "tiss_het_38_diff.png", arrangeGrob(grobs = plot.list, ncol = 8),
+       width=20,height=16) 
+ggsave(file = plot.dir %&% "tiss_het_38_diff.pdf", arrangeGrob(grobs = plot.list, ncol = 8),
+       width=20,height=16) 
+
+filter(df,loc %in% loc.vec) %>% dim(.) # 126 signals at these 40 loci 
+
+```
+
+
+
+```{r}
+
+
+loc.vec <- filter(df57,diff.NotShared==TRUE)$Locus %>% unique(.) %>% 
+  as.integer(.) %>% sort(.) %>% as.character(.)
+plot.list <- list()
+for (i in 1:length(loc.vec)){
+  l <- loc.vec[i]
+  plt <- het_plot(l)
+  plot.list[[i]] <- plt
+}
+
+ggsave(file = plot.dir %&% "tiss_het_15_diffNotShared.png", 
+       arrangeGrob(grobs = plot.list, ncol = 8),
+       width=21,height=6) 
+ggsave(file = plot.dir %&% "tiss_het_15_diffNotShared.pdf", 
+       arrangeGrob(grobs = plot.list, ncol = 8),
+       width=21,height=6) 
+
+filter(df,loc %in% loc.vec) %>% dim(.) # 56 signals at these 15 loci 
+
+```
+
 
