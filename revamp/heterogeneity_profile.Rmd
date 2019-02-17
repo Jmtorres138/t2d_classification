@@ -174,8 +174,9 @@ het_plot <- function(locus.num){
     theme(axis.title = element_blank(),
           legend.position = "none",
           axis.text.x=element_text(angle=30,vjust=0.9,hjust=0.9,
-                                   face=rs.font),
-          strip.text = element_text(size=12,face="italic"),
+                                   face=rs.font,size=6),
+          axis.text.y=element_text(size=6),
+          strip.text = element_text(size=15,face="italic"),
           strip.background = element_rect(fill="ghostwhite")) 
   return(p)
 }
