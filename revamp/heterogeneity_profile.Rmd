@@ -313,7 +313,7 @@ ggsave(file = plot.dir %&% "tiss_het_38_diff.png", arrangeGrob(grobs = plot.list
 ggsave(file = plot.dir %&% "tiss_het_38_diff.pdf", arrangeGrob(grobs = plot.list, ncol = 8),
        width=20,height=16) 
 
-filter(df,loc %in% loc.vec) %>% dim(.) # 126 signals at these 40 loci 
+filter(df,loc %in% loc.vec) %>% dim(.) # 126 signals at these 38 loci 
 
 ```
 
