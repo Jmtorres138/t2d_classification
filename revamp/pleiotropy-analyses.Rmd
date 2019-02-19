@@ -108,9 +108,10 @@ plt2 <- ggplot(data=df,aes(x=num.snps,y=sep.score)) +
   geom_smooth(method='lm',color=viridis(10)[2]) + 
   theme(panel.background = element_rect(fill="grey95") )
 
-plt2 <- ggplotRegression(lm(sep.score~num.snps,data=df))
+df$logsnps <- log(df$num.snps,base=10)
+plt2 <- ggplotRegression(lm(sep.score~logsnps,data=df))
 plt2 <- plt2 + geom_point(color="black",shape=21,alpha=0.6,fill=viridis(10)[4]) + 
-  xlab("Number of credible SNPs") +
+  xlab("Log10 of Number of 99% Credible SNPs") +
   ylab("Difference between two highest TOA scores") + 
   geom_smooth(method='lm',color=viridis(10)[2]) + 
   theme(panel.background = element_rect(fill="grey95"),
@@ -122,7 +123,7 @@ ggsave(plot=plt2,filename = plot.dir %&% "pleio_eda_2.pdf",width=5,height=4)
 plt2b <- ggplotRegression(lm(sep.score~num.snps,data=df))
 plt2b <- plt2b + 
   geom_point(color="black",shape=21,alpha=0.6,fill=viridis(10)[4]) + 
-  xlab("Number of credible SNPs") +
+  xlab("Number of 99% credible SNPs") +
   ylab("Difference between two highest TOA scores") + 
   coord_cartesian(xlim=c(0,500))  + 
   geom_smooth(method='lm',color=viridis(10)[2]) + 
@@ -142,11 +143,14 @@ Maximum PPA
 
 ```{r}
 
-plt3 <- ggplot(data=df,aes(x=max.ppa,y=sep.score)) + 
+plt3 <- ggplotRegression(lm(sep.score~max.ppa,data=df))
+plt3 <- plt3 + 
   geom_point(color="black",shape=21,alpha=0.6,fill=viridis(10)[4]) + 
   xlab("Maximum PPA") +
   ylab("Difference between two highest TOA scores") + 
-  geom_smooth(method='lm',color=viridis(10)[2])
+  geom_smooth(method='lm',color=viridis(10)[2]) + 
+  theme(panel.background = element_rect(fill="grey95"),
+        plot.title = element_text(size=9))
 ggsave(plot=plt3,filename = plot.dir %&% "pleio_eda_3.png",width=5,height=4)
 ggsave(plot=plt3,filename = plot.dir %&% "pleio_eda_3.pdf",width=5,height=4)
 
@@ -168,6 +172,158 @@ b <- filter(df,sep.score>0.10)
 t.test(a$max.ppa,b$max.ppa)
 
 ```
+
+
+Alternative plot according to bins 
+
+
+```{r}
+
+num_to_thresh <- function(ppa.vec,thr){
+  count <- 0
+  runsum <- 0
+  for (ppa in ppa.vec){
+    if (runsum < thr){
+      runsum <- runsum+ppa
+      count <- count + 1 
+    }
+  }
+  return(count)
+}
+
+df$num.snps10 <- map(df$Locus.ID,function(id){
+    sub <- filter(cred.df,CondID==id)
+    ppa.vec <- sub$PPA %>% sort(.,decreasing = T)
+    count <- 0
+    runsum <- 0
+    for (ppa in ppa.vec){
+      if (runsum < 0.1){
+        runsum <- runsum+ppa
+        count <- count + 1 
+      }
+    }
+    count
+}) %>% as.integer(.)
+df$num.snps50 <- map(df$Locus.ID,function(id){
+    sub <- filter(cred.df,CondID==id)
+    ppa.vec <- sub$PPA %>% sort(.,decreasing = T)
+    count <- 0
+    runsum <- 0
+    for (ppa in ppa.vec){
+      if (runsum < 0.5){
+        runsum <- runsum+ppa
+        count <- count + 1 
+      }
+    }
+    count
+}) %>% as.integer(.)
+df$num.snps80 <- map(df$Locus.ID,function(id){
+    sub <- filter(cred.df,CondID==id)
+    ppa.vec <- sub$PPA %>% sort(.,decreasing = T)
+    count <- 0
+    runsum <- 0
+    for (ppa in ppa.vec){
+      if (runsum < 0.8){
+        runsum <- runsum+ppa
+        count <- count + 1 
+      }
+    }
+    count
+}) %>% as.integer(.)
+
+df$logsnps10 <- log(df$num.snps10,base=10)
+df$logsnps50 <- log(df$num.snps50,base=10)
+df$logsnps80 <- log(df$num.snps80,base=10)
+
+
+```
+
+
+Alternative scheme for measuring sharing (ssds)
+
+
+```{r}
+
+df$ssd <- map(1:dim(df)[1],function(i){
+  vec <- df[i,] %>% select(.,one_of("islet","muscle","adipose","liver")) %>% as.numeric(.) %>% 
+    sort(.,decreasing = T)
+  d1 <- vec[1]-vec[2]; d2 <- vec[2]-vec[3]; d3 <- vec[3]-vec[4]
+  ssd <- (d1^2) + (d2^2) + (d3^2)
+}) %>% as.numeric(.)
+
+```
+
+
+
+```{r}
+
+plt4 <- ggplot(data=df,aes(x=ssd)) + 
+  geom_histogram(color="black",fill=viridis(100)[55]) + 
+  xlab("Sum of squared differences between scores") +
+  ylab("Count") + 
+  theme(panel.background = element_rect(fill="grey95") )
+ggsave(plot=plt4,filename = plot.dir %&% "pleio_eda_4.png",width=5,height=4)
+ggsave(plot=plt4,filename = plot.dir %&% "pleio_eda_4.pdf",width=5,height=4)
+
+plt5 <- ggplotRegression(lm(ssd~logsnps,data=df))
+plt5 <- plt5 + geom_point(color="black",shape=21,alpha=0.6,fill=viridis(10)[4]) + 
+  xlab("Log10 of Number of 99% Credible SNPs") +
+  ylab("Sum of squared differences between scores") + 
+  geom_smooth(method='lm',color=viridis(10)[2]) + 
+  theme(panel.background = element_rect(fill="grey95"),
+        plot.title = element_text(size=9))
+ggsave(plot=plt5,filename = plot.dir %&% "pleio_eda_5.png",width=5,height=4)
+ggsave(plot=plt5,filename = plot.dir %&% "pleio_eda_5.pdf",width=5,height=4)
+
+plt5b <- ggplotRegression(lm(ssd~logsnps10,data=df))
+plt5b <- plt5b + geom_point(color="black",shape=21,alpha=0.6,fill=viridis(10)[4]) + 
+  xlab("Log10 of Number of 10% Credible SNPs ") +
+  ylab("Sum of squared differences between scores") + 
+  geom_smooth(method='lm',color=viridis(10)[2]) + 
+  theme(panel.background = element_rect(fill="grey95"),
+        plot.title = element_text(size=9))
+ggsave(plot=plt5b,filename = plot.dir %&% "pleio_eda_5b.png",width=5,height=4)
+ggsave(plot=plt5b,filename = plot.dir %&% "pleio_eda_5b.pdf",width=5,height=4)
+
+plt5c <- ggplotRegression(lm(ssd~logsnps50,data=df))
+plt5c <- plt5c + geom_point(color="black",shape=21,alpha=0.6,fill=viridis(10)[4]) + 
+  xlab("Log10 of Number of 50% Credible SNPs ") +
+  ylab("Sum of squared differences between scores") + 
+  geom_smooth(method='lm',color=viridis(10)[2]) + 
+  theme(panel.background = element_rect(fill="grey95"),
+        plot.title = element_text(size=9))
+ggsave(plot=plt5c,filename = plot.dir %&% "pleio_eda_5c.png",width=5,height=4)
+ggsave(plot=plt5c,filename = plot.dir %&% "pleio_eda_5c.pdf",width=5,height=4)
+
+plt5d <- ggplotRegression(lm(ssd~logsnps80,data=df))
+plt5d <- plt5d + geom_point(color="black",shape=21,alpha=0.6,fill=viridis(10)[4]) + 
+  xlab("Log10 of Number of 80% Credible SNPs ") +
+  ylab("Sum of squared differences between scores") + 
+  geom_smooth(method='lm',color=viridis(10)[2]) + 
+  theme(panel.background = element_rect(fill="grey95"),
+        plot.title = element_text(size=9))
+ggsave(plot=plt5d,filename = plot.dir %&% "pleio_eda_5d.png",width=5,height=4)
+ggsave(plot=plt5d,filename = plot.dir %&% "pleio_eda_5d.pdf",width=5,height=4)
+
+
+plt6 <- ggplotRegression(lm(ssd~max.ppa,data=df))
+plt6 <- plt6 + 
+  geom_point(color="black",shape=21,alpha=0.6,fill=viridis(10)[4]) + 
+  xlab("Maximum PPA") +
+  ylab("Sum of squared differences between scores") + 
+  geom_smooth(method='lm',color=viridis(10)[2]) + 
+  theme(panel.background = element_rect(fill="grey95"),
+        plot.title = element_text(size=9))
+ggsave(plot=plt6,filename = plot.dir %&% "pleio_eda_6.png",width=5,height=4)
+ggsave(plot=plt6,filename = plot.dir %&% "pleio_eda_6.pdf",width=5,height=4)
+
+
+
+
+
+
+```
+
 
 
 
