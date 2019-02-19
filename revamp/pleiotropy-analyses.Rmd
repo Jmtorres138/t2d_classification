@@ -78,10 +78,26 @@ summary(df$sep.score)
 Number of SNPs 
 ```{r}
 
+ggplotRegression <- function (fit) {
+
+require(ggplot2)
+
+ggplot(fit$model, aes_string(x = names(fit$model)[2], y = names(fit$model)[1])) + 
+  geom_point() +
+  stat_smooth(method = "lm", col = "red") +
+  labs(title = paste("Adj R2 = ",signif(summary(fit)$adj.r.squared, 5),
+                     "Intercept =",signif(fit$coef[[1]],5 ),
+                     " Slope =",signif(fit$coef[[2]], 5),
+                     " P =",signif(summary(fit)$coef[2,4], 5)))
+}
+
+
+
 plt1 <- ggplot(data=df,aes(x=sep.score)) + 
-  geom_histogram(color="black",fill=viridis(10)[4]) + 
+  geom_histogram(color="black",fill=viridis(100)[45]) + 
   xlab("Difference between two highest TOA scores") +
-  ylab("Count")
+  ylab("Count") + 
+  theme(panel.background = element_rect(fill="grey95") )
 ggsave(plot=plt1,filename = plot.dir %&% "pleio_eda_1.png",width=5,height=4)
 ggsave(plot=plt1,filename = plot.dir %&% "pleio_eda_1.pdf",width=5,height=4)
 
@@ -89,16 +105,29 @@ plt2 <- ggplot(data=df,aes(x=num.snps,y=sep.score)) +
   geom_point(color="black",shape=21,alpha=0.6,fill=viridis(10)[4]) + 
   xlab("Number of credible SNPs") +
   ylab("Difference between two highest TOA scores") + 
-  geom_smooth(method='lm',color=viridis(10)[2])
+  geom_smooth(method='lm',color=viridis(10)[2]) + 
+  theme(panel.background = element_rect(fill="grey95") )
+
+plt2 <- ggplotRegression(lm(sep.score~num.snps,data=df))
+plt2 <- plt2 + geom_point(color="black",shape=21,alpha=0.6,fill=viridis(10)[4]) + 
+  xlab("Number of credible SNPs") +
+  ylab("Difference between two highest TOA scores") + 
+  geom_smooth(method='lm',color=viridis(10)[2]) + 
+  theme(panel.background = element_rect(fill="grey95"),
+        plot.title = element_text(size=9))
+
 ggsave(plot=plt2,filename = plot.dir %&% "pleio_eda_2.png",width=5,height=4)
 ggsave(plot=plt2,filename = plot.dir %&% "pleio_eda_2.pdf",width=5,height=4)
 
-plt2b <- ggplot(data=df,aes(x=num.snps,y=sep.score)) + 
+plt2b <- ggplotRegression(lm(sep.score~num.snps,data=df))
+plt2b <- plt2b + 
   geom_point(color="black",shape=21,alpha=0.6,fill=viridis(10)[4]) + 
   xlab("Number of credible SNPs") +
   ylab("Difference between two highest TOA scores") + 
   coord_cartesian(xlim=c(0,500))  + 
-  geom_smooth(method='lm',color=viridis(10)[2])
+  geom_smooth(method='lm',color=viridis(10)[2]) + 
+  theme(panel.background = element_rect(fill="grey95"),
+        plot.title = element_text(size=9))
 ggsave(plot=plt2b,filename = plot.dir %&% "pleio_eda_2b.png",width=5,height=4)
 ggsave(plot=plt2b,filename = plot.dir %&% "pleio_eda_2b.pdf",width=5,height=4)
 
