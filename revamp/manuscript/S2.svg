@@ -10,8 +10,8 @@
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    width="210mm"
-   height="297mm"
-   viewBox="0 0 744.09448819 1052.3622047"
+   height="140mm"
+   viewBox="0 0 744.09449 496.06299"
    id="svg3336"
    version="1.1"
    inkscape:version="0.91 r13725"
@@ -154,14 +154,14 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="2.0111328"
-     inkscape:cx="428.12207"
-     inkscape:cy="756.68253"
+     inkscape:zoom="1.3207065"
+     inkscape:cx="362.45689"
+     inkscape:cy="340.99592"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
-     inkscape:window-width="2560"
-     inkscape:window-height="1576"
+     inkscape:window-width="1920"
+     inkscape:window-height="1056"
      inkscape:window-x="0"
      inkscape:window-y="24"
      inkscape:window-maximized="1" />
@@ -180,7 +180,8 @@
   <g
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
-     id="layer1">
+     id="layer1"
+     transform="translate(0,-556.29921)">
     <g
        transform="matrix(0.64503415,0,0,-0.64503415,11.185304,-22.850772)"
        inkscape:label="pleio_eda_1"
@@ -12308,7 +12309,7 @@
          id="g10479" />
     </g>
     <g
-       transform="matrix(0.64958113,0,0,-0.64958113,254.50786,210.86929)"
+       transform="matrix(0.66440929,0,0,-0.66440929,249.16179,785.14773)"
        inkscape:label="pleio_eda_6"
        id="g15634">
       <g
@@ -18076,7 +18077,7 @@
          id="g18170" />
     </g>
     <g
-       transform="matrix(0.64641535,0,0,-0.64641535,11.185299,210.54808)"
+       transform="matrix(0.64641535,0,0,-0.64641535,11.185299,780.54808)"
        inkscape:label="pleio_eda_4"
        id="g23252">
       <g
@@ -24341,7 +24342,7 @@
          id="g26277" />
     </g>
     <g
-       transform="matrix(0.66574278,0,0,-0.66574278,496.54484,426.79618)"
+       transform="matrix(0.67500352,0,0,-0.67500352,493.74142,1009.2956)"
        inkscape:label="pleio_eda_5b"
        id="g31424">
       <g
@@ -30134,7 +30135,7 @@
          id="g33970" />
     </g>
     <g
-       transform="matrix(0.67293757,0,0,-0.67293757,494.11889,215.11841)"
+       transform="matrix(0.67293757,0,0,-0.67293757,494.11889,785.11841)"
        inkscape:label="pleio_eda_5"
        id="g35254">
       <g
@@ -35878,7 +35879,7 @@
          id="g37782" />
     </g>
     <g
-       transform="matrix(0.63788214,0,0,-0.63788214,254.24982,417.00363)"
+       transform="matrix(0.66936865,0,0,-0.66936865,247.71643,1006.9868)"
        inkscape:label="pleio_eda_5c"
        id="g42918">
       <g
@@ -41651,7 +41652,7 @@
          id="g45456" />
     </g>
     <g
-       transform="matrix(0.62872331,0,0,-0.62872331,20.081804,417.71174)"
+       transform="matrix(0.6643109,0,0,-0.6643109,7.2512338,1007.6927)"
        inkscape:label="pleio_eda_5d"
        id="g46736">
       <g
@@ -47375,5 +47376,77 @@
       <g
          id="g49256" />
     </g>
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="11.238834"
+       y="587.02576"
+       id="text43788"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan43790"
+         x="11.238834"
+         y="587.02576"
+         style="font-size:22.5px">A</tspan></text>
+    <text
+       sodipodi:linespacing="125%"
+       id="text14172"
+       y="587.02576"
+       x="252.88708"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       xml:space="preserve"><tspan
+         style="font-size:22.5px"
+         y="587.02576"
+         x="252.88708"
+         id="tspan14174"
+         sodipodi:role="line">B</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="496.40173"
+       y="587.02576"
+       id="text14176"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan14178"
+         x="496.40173"
+         y="587.02576"
+         style="font-size:22.5px">C</tspan></text>
+    <text
+       sodipodi:linespacing="125%"
+       id="text14180"
+       y="807.02576"
+       x="11.238834"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       xml:space="preserve"><tspan
+         style="font-size:22.5px"
+         y="807.02576"
+         x="11.238834"
+         id="tspan14182"
+         sodipodi:role="line">C</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="252.88708"
+       y="807.02576"
+       id="text14184"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan14186"
+         x="252.88708"
+         y="807.02576"
+         style="font-size:22.5px">D</tspan></text>
+    <text
+       sodipodi:linespacing="125%"
+       id="text14188"
+       y="807.02576"
+       x="496.40173"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       xml:space="preserve"><tspan
+         style="font-size:22.5px"
+         y="807.02576"
+         x="496.40173"
+         id="tspan14190"
+         sodipodi:role="line">E</tspan></text>
   </g>
 </svg>
