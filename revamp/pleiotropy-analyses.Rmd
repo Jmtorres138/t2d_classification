@@ -42,7 +42,7 @@ df <- fread(analysis.dir%&%"classified-loci_weighted_with-shared.txt")
 (dplyr::select(df,-contains("assigned_")) %>% arrange(.,desc(islet)) %>% filter(.,islet > 0.9))$symbol %>% unique(.)
 (dplyr::select(df,-contains("assigned_")) %>% arrange(.,desc(liver)) %>% filter(.,liver > 0.9))$symbol %>% unique(.)
 (dplyr::select(df,-contains("assigned_")) %>% arrange(.,desc(adipose)) %>% filter(.,adipose > 0.9))$symbol %>% unique(.)
-(dplyr::select(df,-contains("assigned_")) %>% arrange(.,desc(muscle)) %>% filter(.,muscle > 0.9))$symbol %>% unique(.)
+(dplyr::select(df,-contains("assigned_")) %>% arrange(.,desc(muscle)) %>% filter(.,muscle > 0.87))$symbol %>% unique(.)
 
 ```
 
@@ -245,7 +245,7 @@ Alternative scheme for measuring sharing (ssds)
 ```{r}
 
 df$ssd <- map(1:dim(df)[1],function(i){
-  vec <- df[i,] %>% select(.,one_of("islet","muscle","adipose","liver")) %>% as.numeric(.) %>% 
+  vec <- df[i,] %>% dplyr::select(.,one_of("islet","muscle","adipose","liver")) %>% as.numeric(.) %>% 
     sort(.,decreasing = T)
   d1 <- vec[1]-vec[2]; d2 <- vec[2]-vec[3]; d3 <- vec[3]-vec[4]
   ssd <- (d1^2) + (d2^2) + (d3^2)
@@ -333,10 +333,18 @@ Fine-mapped to a single SNP
 
 ```{r}
 
-s.df <- a
+divvy.df <- fread(analysis.dir%&%"annotation-divvy-weighted-unscaled.txt")
+
+s.df <- filter(df,sep.score<=0.10) # Note using difference between top two as measure for specificity, threshold used is 0.10, more directly interpretable than SSD 
 s.df$lead.snp <- map(s.df$Locus.ID,function(id){
   filter(cred.df,CondID==id)$lead.rsid %>% unique(.)
 }) %>% as.character(.)
+
+
+s.df$coding.score <- map(s.df$Locus.ID,function(id){
+  val <- filter(divvy.df,Locus.ID==id) %>% dplyr::select(.,contains("coding")) %>%
+    as.numeric(.) %>% sum(.)
+}) %>% as.numeric(.) 
 
 write.table(x=s.df,file=analysis.dir%&%"shared-signals-120.txt",
             sep="\t",quote=F,row.names=F)
@@ -344,22 +352,31 @@ write.table(x=s.df,file=analysis.dir%&%"shared-signals-120.txt",
 s1.df <- filter(s.df,num.snps==1)
 
 View(s1.df)
-#s1.df$symbol
 
 
-tab1.df <- dplyr::select(s1.df,one_of("Locus.ID","lead.snp","symbol","islet",
-                                   "muscle","adipose","liver","sep.score")) %>% 
-  arrange(.,desc(islet))
-names(tab1.df)[c(1,8)] <- c("signal.ID","dissimilarity")
-tab1.df$islet <- tab1.df$islet %>% prettyNum(.,digits=2)
-tab1.df$adipose <- tab1.df$adipose %>% prettyNum(.,digits=2)
-tab1.df$muscle <- tab1.df$muscle %>% prettyNum(.,digits=2)
-tab1.df$liver <- tab1.df$liver %>% prettyNum(.,digits=2)
-tab1.df$dissimilarity <- tab1.df$dissimilarity %>% prettyNum(.,digits=2)
-ggsave(grid.table(tab1.df),filename = plot.dir %&% "shared-single.png",
-       height=5,width=10)
-ggsave(grid.table(tab1.df),filename = plot.dir %&% "shared-single.pdf",
-       height=5,width=10)
+tab1.df <- dplyr::select(s1.df,one_of("lead.snp","symbol","num.snps","max.ppa",
+                                      "coding.score","sep.score","ssd",
+                                      "islet","muscle","adipose","liver","unclassified")) %>% 
+  arrange(.,desc(coding.score),desc(islet)) 
+
+names(tab1.df) <- c("Signal \n(i.e. lead SNP rsid","Gene Symbol", "Number of SNPs\nin 99% credible set",
+                    "Maximum credible set PPA", "Coding Score",
+                    "Dissimilarity\n(difference between top two TOA scores",
+                    "Sum of squared TOA score differences (SSD)",
+                    "Islet TOA score","Muscle TOA score","Adipose TOA score","Liver TOA score",
+                    "Unclassified TOA score")
+write.table(x=tab1.df,file="SuppTable_shared_tier1.csv",quote=F,sep=",",row.names=F)
+
+#names(tab1.df)[c(1,8)] <- c("signal.ID","dissimilarity")
+#tab1.df$islet <- tab1.df$islet %>% prettyNum(.,digits=2)
+#tab1.df$adipose <- tab1.df$adipose %>% prettyNum(.,digits=2)
+#tab1.df$muscle <- tab1.df$muscle %>% prettyNum(.,digits=2)
+#tab1.df$liver <- tab1.df$liver %>% prettyNum(.,digits=2)
+#tab1.df$dissimilarity <- tab1.df$dissimilarity %>% prettyNum(.,digits=2)
+#ggsave(grid.table(tab1.df),filename = plot.dir %&% "shared-single.png",
+#       height=5,width=10)
+#ggsave(grid.table(tab1.df),filename = plot.dir %&% "shared-single.pdf",
+#       height=5,width=10)
 
 ```
 
@@ -369,20 +386,33 @@ Fine-mapped to more than one variant, but one variant accounts for >50% of PPA
 
 s2.df <- filter(s.df,num.snps>1,max.ppa>0.5) # 23 signals, including lead signal at TCF7L2, and two signals at HNF4A
 
-tab2.df <- dplyr::select(s2.df,one_of("Locus.ID","lead.snp","symbol","islet",
-                                   "muscle","adipose","liver","sep.score")) %>% 
-  arrange(.,desc(islet))
-names(tab2.df)[c(1,8)] <- c("signal.ID","dissimilarity")
-tab2.df$islet <- tab2.df$islet %>% prettyNum(.,digits=2)
-tab2.df$adipose <- tab2.df$adipose %>% prettyNum(.,digits=2)
-tab2.df$muscle <- tab2.df$muscle %>% prettyNum(.,digits=2)
-tab2.df$liver <- tab2.df$liver %>% prettyNum(.,digits=2)
-tab2.df$dissimilarity <- tab2.df$dissimilarity %>% prettyNum(.,digits=2)
+tab2.df <- dplyr::select(s2.df,one_of("lead.snp","symbol","num.snps","max.ppa",
+                                      "coding.score","sep.score","ssd",
+                                      "islet","muscle","adipose","liver","unclassified")) %>% 
+  arrange(.,desc(coding.score),desc(islet)) 
 
-ggsave(grid.table(tab2.df),filename = plot.dir %&% "shared-mult-maxppa50.png",
-       height=10,width=10)
-ggsave(grid.table(tab2.df),filename = plot.dir %&% "shared-mult-maxppa50.pdf",
-       height=10,width=10)
+names(tab2.df) <- c("Signal \n(i.e. lead SNP rsid","Gene Symbol", "Number of SNPs\nin 99% credible set",
+                    "Maximum credible set PPA", "Coding Score",
+                    "Dissimilarity\n(difference between top two TOA scores",
+                    "Sum of squared TOA score differences (SSD)",
+                    "Islet TOA score","Muscle TOA score","Adipose TOA score","Liver TOA score",
+                    "Unclassified TOA score")
+write.table(x=tab2.df,file="SuppTable_shared_tier2.csv",quote=F,sep=",",row.names=F)
+
+#tab2.df <- dplyr::select(s2.df,one_of("Locus.ID","lead.snp","symbol","islet",
+#                                   "muscle","adipose","liver","sep.score")) %>% 
+#  arrange(.,desc(islet))
+#names(tab2.df)[c(1,8)] <- c("signal.ID","dissimilarity")
+#tab2.df$islet <- tab2.df$islet %>% prettyNum(.,digits=2)
+#tab2.df$adipose <- tab2.df$adipose %>% prettyNum(.,digits=2)
+#tab2.df$muscle <- tab2.df$muscle %>% prettyNum(.,digits=2)
+#tab2.df$liver <- tab2.df$liver %>% prettyNum(.,digits=2)
+#tab2.df$dissimilarity <- tab2.df$dissimilarity %>% prettyNum(.,digits=2)
+
+#ggsave(grid.table(tab2.df),filename = plot.dir %&% "shared-mult-maxppa50.png",
+#       height=10,width=10)
+#ggsave(grid.table(tab2.df),filename = plot.dir %&% "shared-mult-maxppa50.pdf",
+#       height=10,width=10)
 
 ```
 
@@ -391,20 +421,33 @@ Fine-mapped to more than one variant, but one variant accounts for >50% of PPA
 ```{r}
 
 s3.df <- filter(s.df,num.snps>1,max.ppa<=0.5) # 88 signals 
-tab3.df <- dplyr::select(s3.df,one_of("Locus.ID","lead.snp","symbol","islet",
-                                   "muscle","adipose","liver","sep.score")) %>% 
-  arrange(.,desc(islet))
-names(tab3.df)[c(1,8)] <- c("signal.ID","dissimilarity")
-tab3.df$islet <- tab3.df$islet %>% prettyNum(.,digits=2)
-tab3.df$adipose <- tab3.df$adipose %>% prettyNum(.,digits=2)
-tab3.df$muscle <- tab3.df$muscle %>% prettyNum(.,digits=2)
-tab3.df$liver <- tab3.df$liver %>% prettyNum(.,digits=2)
-tab3.df$dissimilarity <- tab3.df$dissimilarity %>% prettyNum(.,digits=2)
 
-ggsave(grid.table(tab3.df),filename = plot.dir %&% "shared-mult-undermpp50.png",
-       height=40,width=10)
-ggsave(grid.table(tab3.df),filename = plot.dir %&% "shared-mult-undermpp50.pdf",
-       height=40,width=10)
+tab3.df <- dplyr::select(s3.df,one_of("lead.snp","symbol","num.snps","max.ppa",
+                                      "coding.score","sep.score","ssd",
+                                      "islet","muscle","adipose","liver","unclassified")) %>% 
+  arrange(.,desc(coding.score),desc(islet)) 
+
+names(tab3.df) <- c("Signal \n(i.e. lead SNP rsid","Gene Symbol", "Number of SNPs\nin 99% credible set",
+                    "Maximum credible set PPA", "Coding Score",
+                    "Dissimilarity\n(difference between top two TOA scores",
+                    "Sum of squared TOA score differences (SSD)",
+                    "Islet TOA score","Muscle TOA score","Adipose TOA score","Liver TOA score",
+                    "Unclassified TOA score")
+write.table(x=tab3.df,file="SuppTable_shared_tier3.csv",quote=F,sep=",",row.names=F)
+
+#tab3.df <- dplyr::select(s3.df,one_of("Locus.ID","lead.snp","symbol","islet",
+#                                   "muscle","adipose","liver","sep.score")) %>% 
+#  arrange(.,desc(islet))
+#names(tab3.df)[c(1,8)] <- c("signal.ID","dissimilarity")
+#tab3.df$islet <- tab3.df$islet %>% prettyNum(.,digits=2)
+#tab3.df$adipose <- tab3.df$adipose %>% prettyNum(.,digits=2)
+#tab3.df$muscle <- tab3.df$muscle %>% prettyNum(.,digits=2)
+#tab3.df$liver <- tab3.df$liver %>% prettyNum(.,digits=2)
+#tab3.df$dissimilarity <- tab3.df$dissimilarity %>% prettyNum(.,digits=2)
+#ggsave(grid.table(tab3.df),filename = plot.dir %&% "shared-mult-undermpp50.png",
+#       height=40,width=10)
+#ggsave(grid.table(tab3.df),filename = plot.dir %&% "shared-mult-undermpp50.pdf",
+#       height=40,width=10)
 ```
 
 
