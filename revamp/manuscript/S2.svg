@@ -154,9 +154,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="1.2265546"
-     inkscape:cx="402.30428"
-     inkscape:cy="340.99592"
+     inkscape:zoom="1.6109514"
+     inkscape:cx="350.15038"
+     inkscape:cy="291.33583"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
@@ -47423,7 +47423,7 @@
          y="807.02576"
          x="11.238834"
          id="tspan14182"
-         sodipodi:role="line">C</tspan></text>
+         sodipodi:role="line">D</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
@@ -47435,7 +47435,7 @@
          id="tspan14186"
          x="252.88708"
          y="807.02576"
-         style="font-size:22.5px">D</tspan></text>
+         style="font-size:22.5px">E</tspan></text>
     <text
        sodipodi:linespacing="125%"
        id="text14188"
@@ -47447,6 +47447,6 @@
          y="807.02576"
          x="496.40173"
          id="tspan14190"
-         sodipodi:role="line">E</tspan></text>
+         sodipodi:role="line">F</tspan></text>
   </g>
 </svg>
