@@ -273,6 +273,8 @@ ggsave(file = plot.dir %&% "tiss_het_10_sameNoShared.pdf",
 
 filter(df,loc %in% loc.vec) %>% dim(.) # 23 signals at these 10 loci 
 
+df10 <- filter(df,loc%in%loc.vec)
+write.table(x=df10,file=analysis.dir%&%"het_10.txt",sep="\t",quote=F,row.names=F)
 
 ```
 
@@ -339,6 +341,9 @@ ggsave(file = plot.dir %&% "tiss_het_15_diffNotShared.pdf",
        width=21,height=6) 
 
 filter(df,loc %in% loc.vec) %>% dim(.) # 56 signals at these 15 loci 
+
+df15 <- filter(df,loc%in%loc.vec)
+write.table(x=df15,file=analysis.dir%&%"het_15.txt",sep="\t",quote=F,row.names=F)
 
 ```
 
