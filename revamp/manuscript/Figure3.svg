@@ -5923,11 +5923,11 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.79296627"
-     inkscape:cx="588.57978"
-     inkscape:cy="339.37349"
+     inkscape:zoom="0.73643645"
+     inkscape:cx="619.83453"
+     inkscape:cy="220.85787"
      inkscape:document-units="px"
-     inkscape:current-layer="g32065"
+     inkscape:current-layer="layer1"
      showgrid="false"
      inkscape:window-width="1920"
      inkscape:window-height="1056"
@@ -5943,7 +5943,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -20210,237 +20210,212 @@
       </g>
     </g>
     <g
-       id="g134346"
-       transform="translate(-80,334)">
-      <g
-         transform="matrix(0.64467655,0,0,-0.64467655,-96.173281,763.11126)"
-         id="g111600">
-        <text
-           id="text111602"
-           style="font-variant:normal;font-weight:normal;font-size:11px;font-family:Helvetica;-inkscape-font-specification:Helvetica;writing-mode:lr-tb;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none"
-           transform="matrix(1,0,0,-1,1333.53,208.76)">
-          <tspan
-             id="tspan111604"
-             sodipodi:role="line"
-             y="0"
-             x="0 7.3369999 12.837 18.337 20.778999 26.895 33.011002 39.126999 45.243 48.300999 55.021999 57.464001 62.964001 68.463997 74.580002">Assigned Tissue</tspan>
-        </text>
-      </g>
-      <g
-         id="g134288">
-        <g
-           id="g111614"
-           transform="matrix(0.61921661,0,0,-0.61921661,-64.883722,756.35217)">
-          <text
-             transform="matrix(1,0,0,-1,1340.03,191.09)"
-             style="font-variant:normal;font-weight:normal;font-size:5.40999985px;font-family:ZapfDingbats;-inkscape-font-specification:ZapfDingbats;writing-mode:lr-tb;fill:#fde725;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:0.70999998;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
-             id="text111616">
-            <tspan
-               x="0"
-               y="0"
-               id="tspan111618">●</tspan>
-          </text>
-        </g>
-        <g
-           id="g111698"
-           transform="matrix(0.61921661,0,0,-0.61921661,-64.883722,756.35217)">
-          <text
-             transform="matrix(1,0,0,-1,1356.29,189.74)"
-             style="font-variant:normal;font-weight:normal;font-size:9px;font-family:Helvetica;-inkscape-font-specification:Helvetica;writing-mode:lr-tb;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none"
-             id="text111700">
-            <tspan
-               x="0 6.0029998 11.007 13.005 18.009001 23.013 27.513 29.511 32.013"
-               y="0"
-               sodipodi:role="line"
-               id="tspan111702">Adiposity</tspan>
-          </text>
-        </g>
-      </g>
-      <g
-         transform="matrix(0.61921661,0,0,-0.61921661,-64.883722,753.86767)"
-         id="g111712">
-        <g
-           id="g134299">
-          <g
-             style="display:inline"
-             id="g111626">
-            <text
-               transform="matrix(1,0,0,-1,1340.03,173.81)"
-               style="font-variant:normal;font-weight:normal;font-size:5.40999985px;font-family:ZapfDingbats;-inkscape-font-specification:ZapfDingbats;writing-mode:lr-tb;fill:#bbde28;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:0.70999998;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
-               id="text111628">
-              <tspan
-                 x="0"
-                 y="0"
-                 id="tspan111630">●</tspan>
-            </text>
-          </g>
-          <text
-             transform="matrix(1,0,0,-1,1356.29,172.46)"
-             style="font-variant:normal;font-weight:normal;font-size:9px;font-family:Helvetica;-inkscape-font-specification:Helvetica;writing-mode:lr-tb;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none"
-             id="text111714">
-            <tspan
-               x="0 2.5020001"
-               y="0"
-               sodipodi:role="line"
-               id="tspan111716">IA</tspan>
-          </text>
-        </g>
-      </g>
-      <g
-         transform="translate(0,-6.1838989)"
-         id="g134306">
-        <g
-           id="g111638"
-           transform="matrix(0.61921661,0,0,-0.61921661,-64.883722,756.35217)">
-          <text
-             transform="matrix(1,0,0,-1,1340.03,156.53)"
-             style="font-variant:normal;font-weight:normal;font-size:5.40999985px;font-family:ZapfDingbats;-inkscape-font-specification:ZapfDingbats;writing-mode:lr-tb;fill:#5bc863;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:0.70999998;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
-             id="text111640">
-            <tspan
-               x="0"
-               y="0"
-               id="tspan111642">●</tspan>
-          </text>
-        </g>
-        <g
-           id="g111726"
-           transform="matrix(0.61921661,0,0,-0.61921661,-64.883722,756.35217)">
-          <text
-             transform="matrix(1,0,0,-1,1356.29,155.18)"
-             style="font-variant:normal;font-weight:normal;font-size:9px;font-family:Helvetica;-inkscape-font-specification:Helvetica;writing-mode:lr-tb;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none"
-             id="text111728">
-            <tspan
-               x="0 6.4980001 10.998 15.498 17.496 19.493999 24.497999 26.496 31.5 36.504002 44.000999 45.999001"
-               y="0"
-               sodipodi:role="line"
-               id="tspan111730">Dyslipidemia</tspan>
-          </text>
-        </g>
-      </g>
-      <g
-         transform="translate(0,-8.6990356)"
-         id="g134314">
-        <g
-           id="g111650"
-           transform="matrix(0.61921661,0,0,-0.61921661,-64.883722,756.35217)">
-          <text
-             transform="matrix(1,0,0,-1,1340.03,139.25)"
-             style="font-variant:normal;font-weight:normal;font-size:5.40999985px;font-family:ZapfDingbats;-inkscape-font-specification:ZapfDingbats;writing-mode:lr-tb;fill:#1e9b8a;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:0.70999998;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
-             id="text111652">
-            <tspan
-               x="0"
-               y="0"
-               id="tspan111654">●</tspan>
-          </text>
-        </g>
-        <g
-           id="g111740"
-           transform="matrix(0.61921661,0,0,-0.61921661,-64.883722,756.35217)">
-          <text
-             transform="matrix(1,0,0,-1,1356.29,137.9)"
-             style="font-variant:normal;font-weight:normal;font-size:9px;font-family:Helvetica;-inkscape-font-specification:Helvetica;writing-mode:lr-tb;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none"
-             id="text111742">
-            <tspan
-               x="0 2.5020001 8.5050001 13.761 16.263 22.266001 27.521999 32.021999 37.026001 44.522999 49.527 51.525002 56.528999 61.533001 64.035004 66.032997 71.037003"
-               y="0"
-               sodipodi:role="line"
-               id="tspan111744">IA−IS−combination</tspan>
-          </text>
-        </g>
-      </g>
-      <g
-         transform="translate(0,-11.791016)"
-         id="g134322">
-        <g
-           id="g111662"
-           transform="matrix(0.61921661,0,0,-0.61921661,-64.883722,756.35217)">
-          <text
-             transform="matrix(1,0,0,-1,1340.03,121.97)"
-             style="font-variant:normal;font-weight:normal;font-size:5.40999985px;font-family:ZapfDingbats;-inkscape-font-specification:ZapfDingbats;writing-mode:lr-tb;fill:#355e8d;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:0.70999998;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
-             id="text111664">
-            <tspan
-               x="0"
-               y="0"
-               id="tspan111666">●</tspan>
-          </text>
-        </g>
-        <g
-           id="g111754"
-           transform="matrix(0.61921661,0,0,-0.61921661,-64.883722,756.35217)">
-          <text
-             transform="matrix(1,0,0,-1,1356.29,120.62)"
-             style="font-variant:normal;font-weight:normal;font-size:9px;font-family:Helvetica;-inkscape-font-specification:Helvetica;writing-mode:lr-tb;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none"
-             id="text111756">
-            <tspan
-               x="0 2.5020001 8.5050001 13.761"
-               y="0"
-               sodipodi:role="line"
-               id="tspan111758">IS−1</tspan>
-          </text>
-        </g>
-      </g>
-      <g
-         transform="translate(0,-14.882965)"
-         id="g134330">
-        <g
-           id="g111674"
-           transform="matrix(0.61921661,0,0,-0.61921661,-64.883722,756.35217)">
-          <text
-             transform="matrix(1,0,0,-1,1340.03,104.69)"
-             style="font-variant:normal;font-weight:normal;font-size:5.40999985px;font-family:ZapfDingbats;-inkscape-font-specification:ZapfDingbats;writing-mode:lr-tb;fill:#471063;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:0.70999998;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
-             id="text111676">
-            <tspan
-               x="0"
-               y="0"
-               id="tspan111678">●</tspan>
-          </text>
-        </g>
-        <g
-           id="g111768"
-           transform="matrix(0.61921661,0,0,-0.61921661,-64.883722,756.35217)">
-          <text
-             transform="matrix(1,0,0,-1,1356.29,103.34)"
-             style="font-variant:normal;font-weight:normal;font-size:9px;font-family:Helvetica;-inkscape-font-specification:Helvetica;writing-mode:lr-tb;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none"
-             id="text111770">
-            <tspan
-               x="0 2.5020001 8.5050001 13.761"
-               y="0"
-               sodipodi:role="line"
-               id="tspan111772">IS−2</tspan>
-          </text>
-        </g>
-      </g>
-      <g
-         transform="translate(0,-18)"
-         id="g134338">
-        <g
-           id="g111686"
-           transform="matrix(0.61921661,0,0,-0.61921661,-64.883722,756.35217)">
-          <text
-             transform="matrix(1,0,0,-1,1340.03,87.41)"
-             style="font-variant:normal;font-weight:normal;font-size:5.40999985px;font-family:ZapfDingbats;-inkscape-font-specification:ZapfDingbats;writing-mode:lr-tb;fill:#f8f8ff;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:0.70999998;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
-             id="text111688">
-            <tspan
-               x="0"
-               y="0"
-               id="tspan111690">●</tspan>
-          </text>
-        </g>
-        <g
-           id="g111782"
-           transform="matrix(0.61921661,0,0,-0.61921661,-64.883722,756.35217)">
-          <text
-             transform="matrix(1,0,0,-1,1356.29,86.06)"
-             style="font-variant:normal;font-weight:normal;font-size:9px;font-family:Helvetica;-inkscape-font-specification:Helvetica;writing-mode:lr-tb;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none"
-             id="text111784">
-            <tspan
-               x="0 6.4980001 11.502 16.002001 18 23.004 27.504 32.004002 34.001999 36.504002 38.501999 43.506001"
-               y="0"
-               sodipodi:role="line"
-               id="tspan111786">Unclassified</tspan>
-          </text>
-        </g>
-      </g>
+       id="g111600"
+       transform="matrix(0.64467655,0,0,-0.64467655,-176.17328,1097.1113)">
+      <text
+         transform="matrix(1,0,0,-1,1333.53,208.76)"
+         style="font-variant:normal;font-weight:normal;font-size:11px;font-family:Helvetica;-inkscape-font-specification:Helvetica;writing-mode:lr-tb;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none"
+         id="text111602">
+        <tspan
+           x="0 7.3369999 12.837 18.337 20.778999 26.895 33.011002 39.126999 45.243 48.300999 55.021999 57.464001 62.964001 68.463997 74.580002"
+           y="0"
+           sodipodi:role="line"
+           id="tspan111604">Assigned Tissue</tspan>
+      </text>
+    </g>
+    <g
+       id="g111614"
+       transform="matrix(0.61921661,0,0,-0.61921661,-144.88372,1090.3522)">
+      <text
+         transform="matrix(1,0,0,-1,1340.03,191.09)"
+         style="font-variant:normal;font-weight:normal;font-size:5.40999985px;font-family:ZapfDingbats;-inkscape-font-specification:ZapfDingbats;writing-mode:lr-tb;fill:#fde725;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:0.70999998;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
+         id="text111616">
+        <tspan
+           x="0"
+           y="0"
+           id="tspan111618">●</tspan>
+      </text>
+    </g>
+    <g
+       id="g111698"
+       transform="matrix(0.61921661,0,0,-0.61921661,-150.88372,1090.3522)">
+      <text
+         transform="matrix(1,0,0,-1,1356.29,189.74)"
+         style="font-variant:normal;font-weight:normal;font-size:9px;font-family:Helvetica;-inkscape-font-specification:Helvetica;writing-mode:lr-tb;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none"
+         id="text111700">
+        <tspan
+           x="0 6.0029998 11.007 13.005 18.009001 23.013 27.513 29.511 32.013"
+           y="0"
+           sodipodi:role="line"
+           id="tspan111702"
+           style="font-size:8.0747188px">Adiposity</tspan>
+      </text>
+    </g>
+    <g
+       id="g111626"
+       style="display:inline"
+       transform="matrix(0.61921661,0,0,-0.61921661,-144.88372,1087.8677)">
+      <text
+         id="text111628"
+         style="font-variant:normal;font-weight:normal;font-size:5.40999985px;font-family:ZapfDingbats;-inkscape-font-specification:ZapfDingbats;writing-mode:lr-tb;fill:#bbde28;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:0.70999998;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
+         transform="matrix(1,0,0,-1,1340.03,173.81)">
+        <tspan
+           id="tspan111630"
+           y="0"
+           x="0">●</tspan>
+      </text>
+    </g>
+    <text
+       id="text111714"
+       style="font-variant:normal;font-weight:normal;font-size:5.57294941px;font-family:Helvetica;-inkscape-font-specification:Helvetica;writing-mode:lr-tb;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none"
+       x="688.95355"
+       y="981.07758">
+      <tspan
+         id="tspan111716"
+         sodipodi:role="line"
+         y="981.07758"
+         x="688.95355"
+         style="font-size:5px">Insulin Action</tspan>
+    </text>
+    <g
+       id="g111638"
+       transform="matrix(0.61921661,0,0,-0.61921661,-144.88372,1084.1683)">
+      <text
+         transform="matrix(1,0,0,-1,1340.03,156.53)"
+         style="font-variant:normal;font-weight:normal;font-size:5.40999985px;font-family:ZapfDingbats;-inkscape-font-specification:ZapfDingbats;writing-mode:lr-tb;fill:#5bc863;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:0.70999998;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
+         id="text111640">
+        <tspan
+           x="0"
+           y="0"
+           id="tspan111642">●</tspan>
+      </text>
+    </g>
+    <g
+       id="g111726"
+       transform="matrix(0.61921661,0,0,-0.61921661,-150.88372,1084.1683)">
+      <text
+         transform="matrix(1,0,0,-1,1356.29,155.18)"
+         style="font-variant:normal;font-weight:normal;font-size:9px;font-family:Helvetica;-inkscape-font-specification:Helvetica;writing-mode:lr-tb;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none"
+         id="text111728">
+        <tspan
+           x="0 6.4980001 10.998 15.498 17.496 19.493999 24.497999 26.496 31.5 36.504002 44.000999 45.999001"
+           y="0"
+           sodipodi:role="line"
+           id="tspan111730"
+           style="font-size:8.0747188px">Dyslipidemia</tspan>
+      </text>
+    </g>
+    <g
+       id="g111650"
+       transform="matrix(0.61921661,0,0,-0.61921661,-144.88372,1081.6531)">
+      <text
+         transform="matrix(1,0,0,-1,1340.03,139.25)"
+         style="font-variant:normal;font-weight:normal;font-size:5.40999985px;font-family:ZapfDingbats;-inkscape-font-specification:ZapfDingbats;writing-mode:lr-tb;fill:#1e9b8a;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:0.70999998;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
+         id="text111652">
+        <tspan
+           x="0"
+           y="0"
+           id="tspan111654">●</tspan>
+      </text>
+    </g>
+    <g
+       id="g111740"
+       transform="matrix(0.61921661,0,0,-0.61921661,-150.88372,1081.6531)">
+      <text
+         transform="matrix(1,0,0,-1,1356.29,137.9)"
+         style="font-variant:normal;font-weight:normal;font-size:9px;font-family:Helvetica;-inkscape-font-specification:Helvetica;writing-mode:lr-tb;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none"
+         id="text111742">
+        <tspan
+           sodipodi:role="line"
+           id="tspan111744"
+           x="0"
+           y="0"
+           style="font-size:8.0747188px">Combined (IA and IS)</tspan>
+      </text>
+    </g>
+    <g
+       id="g111662"
+       transform="matrix(0.61921661,0,0,-0.61921661,-144.88372,1078.5612)">
+      <text
+         transform="matrix(1,0,0,-1,1340.03,121.97)"
+         style="font-variant:normal;font-weight:normal;font-size:5.40999985px;font-family:ZapfDingbats;-inkscape-font-specification:ZapfDingbats;writing-mode:lr-tb;fill:#355e8d;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:0.70999998;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
+         id="text111664">
+        <tspan
+           x="0"
+           y="0"
+           id="tspan111666">●</tspan>
+      </text>
+    </g>
+    <g
+       id="g111754"
+       transform="matrix(0.61921661,0,0,-0.61921661,-150.88372,1078.5612)">
+      <text
+         transform="matrix(1,0,0,-1,1356.29,120.62)"
+         style="font-variant:normal;font-weight:normal;font-size:9px;font-family:Helvetica;-inkscape-font-specification:Helvetica;writing-mode:lr-tb;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none"
+         id="text111756">
+        <tspan
+           sodipodi:role="line"
+           id="tspan111758"
+           x="0"
+           y="0"
+           style="font-size:8.0747188px">Insulin Secretion (1)</tspan>
+      </text>
+    </g>
+    <g
+       id="g111674"
+       transform="matrix(0.61921661,0,0,-0.61921661,-144.88372,1075.4692)">
+      <text
+         transform="matrix(1,0,0,-1,1340.03,104.69)"
+         style="font-variant:normal;font-weight:normal;font-size:5.40999985px;font-family:ZapfDingbats;-inkscape-font-specification:ZapfDingbats;writing-mode:lr-tb;fill:#471063;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:0.70999998;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
+         id="text111676">
+        <tspan
+           x="0"
+           y="0"
+           id="tspan111678">●</tspan>
+      </text>
+    </g>
+    <g
+       id="g111768"
+       transform="matrix(0.61921661,0,0,-0.61921661,-150.88372,1075.4692)">
+      <text
+         transform="matrix(1,0,0,-1,1356.29,103.34)"
+         style="font-variant:normal;font-weight:normal;font-size:9px;font-family:Helvetica;-inkscape-font-specification:Helvetica;writing-mode:lr-tb;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none"
+         id="text111770">
+        <tspan
+           x="0"
+           y="0"
+           sodipodi:role="line"
+           id="tspan111772"
+           style="font-size:8.0747188px">Insulin Secretion (2)</tspan>
+      </text>
+    </g>
+    <g
+       id="g111686"
+       transform="matrix(0.61921661,0,0,-0.61921661,-144.88372,1072.3522)">
+      <text
+         transform="matrix(1,0,0,-1,1340.03,87.41)"
+         style="font-variant:normal;font-weight:normal;font-size:5.40999985px;font-family:ZapfDingbats;-inkscape-font-specification:ZapfDingbats;writing-mode:lr-tb;fill:#f8f8ff;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:0.70999998;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
+         id="text111688">
+        <tspan
+           x="0"
+           y="0"
+           id="tspan111690">●</tspan>
+      </text>
+    </g>
+    <g
+       id="g111782"
+       transform="matrix(0.61921661,0,0,-0.61921661,-150.88372,1072.3522)">
+      <text
+         transform="matrix(1,0,0,-1,1356.29,86.06)"
+         style="font-variant:normal;font-weight:normal;font-size:9px;font-family:Helvetica;-inkscape-font-specification:Helvetica;writing-mode:lr-tb;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none"
+         id="text111784">
+        <tspan
+           sodipodi:role="line"
+           id="tspan111786"
+           style="font-size:8.0747188px"
+           y="0"
+           x="0 6.4980001 11.502 16.002001 18 23.004 27.504 32.004002 34.001999 36.504002 38.501999 43.506001">Unclassified</tspan>
+      </text>
     </g>
     <g
        id="g111788"
@@ -30617,13 +30592,26 @@
       <text
          id="text141973"
          style="font-variant:normal;font-weight:normal;font-size:11px;font-family:Helvetica;-inkscape-font-specification:Helvetica;writing-mode:lr-tb;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none"
-         transform="matrix(1,0,0,-1,234.05,8.12)">
+         transform="scale(1,-1)"
+         x="215.84578"
+         y="-8.1199999">
         <tspan
            id="tspan141975"
            sodipodi:role="line"
-           y="0"
-           x="0 7.9419999 10.384 16.5 22 27.5 29.941999 33 35.442001 41.557999 47.674 50.731998 57.452999 59.895 65.394997 70.894997 77.011002">Classified Tissue</tspan>
+           x="215.84578"
+           y="-8.1199999">Physiology-assigned Set</tspan>
       </text>
     </g>
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:23.97999954px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="828.99213"
+       y="978.35718"
+       id="text73993"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan73995"
+         x="828.99213"
+         y="978.35718" /></text>
   </g>
 </svg>
