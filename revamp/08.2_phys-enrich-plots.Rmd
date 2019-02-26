@@ -84,38 +84,6 @@ mod_thresh <- function(enrich.df){
 ```
 
 
-```{r}
-
-
-
-#df1 <- fread(work.dir %&% "analysis_files/phys94-enrich_weighted.txt") %>%
-# mod_thresh(.)
-#df1$physiology <- gsub("_"," ",df1$physiology)
-#df1$threshold <- as.numeric(df1$threshold)
-
-#count.df1 <- fread(work.dir%&%"analysis_files/classifier_counts.txt")
-#names(count.df1) <- c("Threshold","adipose","islet",
-#                      "liver","muscle","unclassified")
-
-#df1$count <- map(1:dim(df1)[1],function(i){
-#  row.df <- df1[i,]
-#  count <- filter(count.df1,Threshold==row.df$threshold) %>% 
-#    dplyr::select(.,one_of(as.character(unique(row.df$tissue)))) %>% as.integer(.)
-#  if (row.df$tissue=="peripheral"){
-#    count <- filter(count.df1,Threshold==row.df$threshold) %>% 
-#      dplyr::select(.,one_of("adipose","liver","muscle")) %>% sum(.)  
-#  }
-#  return(count)
-#}) %>% as.integer(.)
-
-#plt1 <- phys_enrich_plot(df1,myname="Physiology enrichment for classifed loci (weighted)")
-
-#ggsave(plot=plt1,filename = plot.dir %&% "enrichment-phys_weighted-94.png",width=8,height=8)
-#ggsave(plot=plt1,filename = plot.dir %&% "enrichment-phys_weighted-94.pdf",width=8,height=8)
-
-```
-
-
 # Mahajan approach 
 
 ```{r}
@@ -143,8 +111,8 @@ df2$count <- map(1:dim(df2)[1],function(i){
 
 plt2 <- phys_enrich_plot(df2,myname="Physiology enrichment for classifed loci (weighted)")
 
-ggsave(plot=plt2,filename = plot.dir %&% "enrichment-phys_weighted-82_with-shared.png",width=8,height=8)
-ggsave(plot=plt2,filename = plot.dir %&% "enrichment-phys_weighted-82_with-shared.pdf",width=8,height=8)
+ggsave(plot=plt2,filename = plot.dir %&% "enrichment-phys_weighted-82_with-shared.png",width=12,height=8)
+ggsave(plot=plt2,filename = plot.dir %&% "enrichment-phys_weighted-82_with-shared.pdf",width=12,height=8)
 
 ```
 
