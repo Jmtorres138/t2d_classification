@@ -173,8 +173,8 @@ df4$count <- map(1:dim(df4)[1],function(i){
 
 plt4 <- phys_enrich_plot(df4,myname="Physiology enrichment for classifed loci (weighted)")
 
-ggsave(plot=plt4,filename = plot.dir %&% "enrichment-phys_weighted_with-shared_UDLER.png",width=8,height=8)
-ggsave(plot=plt4,filename = plot.dir %&% "enrichment-phys_weighted_with-shared_UDLER.pdf",width=8,height=8)
+ggsave(plot=plt4,filename = plot.dir %&% "enrichment-phys_weighted_with-shared_UDLER.png",width=12,height=8)
+ggsave(plot=plt4,filename = plot.dir %&% "enrichment-phys_weighted_with-shared_UDLER.pdf",width=12,height=8)
 
 ```
 
