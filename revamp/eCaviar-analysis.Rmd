@@ -1,0 +1,201 @@
+---
+title: "eCaviar-analysis.Rmd"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+
+serv.dir <- "/home/jason/science/servers/FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "revamp/"
+write.dir <- work.dir %&%  "analysis_files/"
+plot.dir <- work.dir %&% "plots/"
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+class.df <- fread(work.dir %&% "analysis_files/classified-loci_weighted_with-shared.txt")
+
+# eCaviar colocalization results 
+coloc.dir <- serv.dir %&% "datasets/diamante_hrc/eCAVIAR/"
+coloc.islet <- fread("cat " %&% coloc.dir %&% "EUR_full_eqtls_coloc.txt.gz" %&% " | zmore")
+coloc.islet$Tissue <- "Islet"
+coloc.gtex <- fread("cat " %&% coloc.dir %&% "EUR_significant_eqtls_coloc.txt.gz" %&% " | zmore")
+sub1 <- dplyr::select(coloc.islet,one_of("Locus","SNP_ID","Tissue",
+                                         "Gene","gene_name","gwas_z",
+                                         "eqtl_z","CLPP"))
+sub2 <- dplyr::select(coloc.gtex,one_of("Locus","SNP_ID","Tissue",
+                                         "Gene","gene_name","gwas_z",
+                                         "eqtl_z","CLPP"))
+coloc.df <- rbind(sub1,sub2)
+write.table(x=coloc.df,file=write.dir%&%"coloc.txt",sep="\t",quote=F,row.names=F)
+
+```
+
+
+```{r}
+
+coloc.df$SNPID <- map(coloc.df$SNP_ID,function(id){
+  gsub("_",":","chr" %&% id)
+}) %>% as.character(.)
+
+```
+
+# Append colocalization
+```{r}
+
+class.df$maxppa.snp <- map(class.df$Locus.ID,function(id){
+  (filter(cred.df,CondID==id) %>% arrange(.,desc(PPA)))$SNPID[1]
+}) %>% as.character(.)
+class.df$max.ppa <- map(class.df$Locus.ID,function(id){
+  (filter(cred.df,CondID==id) %>% arrange(.,desc(PPA)))$PPA[1]
+}) %>% as.numeric(.)
+
+class.df$ntiss.clpp01 <- map(class.df$Locus.ID,function(id){
+  snp <- filter(class.df,Locus.ID==id)$maxppa.snp
+  filter(coloc.df,SNPID==snp,CLPP>=0.01)$Tissue %>% unique(.) %>% length(.)
+}) %>% as.integer(.)
+class.df$ngene.clpp01 <- map(class.df$Locus.ID,function(id){
+  snp <- filter(class.df,Locus.ID==id)$maxppa.snp
+  filter(coloc.df,SNPID==snp,CLPP>=0.01)$gene_name %>% unique(.) %>% length(.)
+}) %>% as.integer(.)
+
+class.df$ntiss.clpp10 <- map(class.df$Locus.ID,function(id){
+  snp <- filter(class.df,Locus.ID==id)$maxppa.snp
+  filter(coloc.df,SNPID==snp,CLPP>=0.10)$Tissue %>% unique(.) %>% length(.)
+}) %>% as.integer(.)
+class.df$ngene.clpp10 <- map(class.df$Locus.ID,function(id){
+  snp <- filter(class.df,Locus.ID==id)$maxppa.snp
+  filter(coloc.df,SNPID==snp,CLPP>=0.10)$gene_name %>% unique(.) %>% length(.)
+}) %>% as.integer(.)
+
+class.df$ntiss.clpp50 <- map(class.df$Locus.ID,function(id){
+  snp <- filter(class.df,Locus.ID==id)$maxppa.snp
+  filter(coloc.df,SNPID==snp,CLPP>=0.50)$Tissue %>% unique(.) %>% length(.)
+}) %>% as.integer(.)
+class.df$ngene.clpp50 <- map(class.df$Locus.ID,function(id){
+  snp <- filter(class.df,Locus.ID==id)$maxppa.snp
+  filter(coloc.df,SNPID==snp,CLPP>=0.50)$gene_name %>% unique(.) %>% length(.)
+}) %>% as.integer(.)
+
+
+class.df$tiss.clpp50 <- map(class.df$Locus.ID,function(id){
+  snp <- filter(class.df,Locus.ID==id)$maxppa.snp
+  filter(coloc.df,SNPID==snp,CLPP>=0.50)$Tissue %>% unique(.)  %>% paste0(.,collapse=",")
+}) %>% as.character(.)
+class.df$gene.clpp50 <- map(class.df$Locus.ID,function(id){
+  snp <- filter(class.df,Locus.ID==id)$maxppa.snp
+  filter(coloc.df,SNPID==snp,CLPP>=0.50)$gene_name %>% unique(.)  %>% paste0(.,collapse=",")
+}) %>% as.character(.)
+
+```
+
+
+```{r}
+
+sub.df <- filter(class.df,ntiss.clpp10>0)
+
+fit1 <- aov(ntiss.clpp10 ~ assigned_20, data=sub.df)
+boxplot(sub.df$ntiss.clpp10~sub.df$assigned_20)
+
+fit2 <- aov(ngene.clpp10 ~ assigned_20, data=sub.df)
+boxplot(sub.df$ngene.clpp10~sub.df$assigned_20)
+
+```
+
+
+
+```{r}
+
+class.df2 <- arrange(class.df,desc(ntiss.clpp50)) %>% dplyr::select(.,-contains("01")) %>% filter(.,ntiss.clpp50>0,max.ppa>0.5)
+
+class.df2$lead.snp <- map(class.df2$Locus.ID,function(id){
+  filter(cred.df,CondID==id)$lead.rsid %>% unique(.)
+}) %>% as.character(.)
+ 
+tab.df <- dplyr::select(class.df2,one_of("Locus.ID","lead.snp","symbol",
+                                         "islet","muscle","adipose","liver",
+                                         "assigned_20","maxppa.snp","max.ppa",
+                                         "ntiss.clpp50","ngene.clpp50"))
+tab.df$islet <- tab.df$islet %>% prettyNum(digits=2)
+tab.df$muscle <- tab.df$muscle %>% prettyNum(digits=2)
+tab.df$adipose <- tab.df$adipose %>% prettyNum(digits=2)
+tab.df$liver <- tab.df$liver %>% prettyNum(digits=2)
+tab.df$max.ppa <- tab.df$max.ppa %>% prettyNum(digits=2)
+
+ggsave(plot=gridExtra::grid.table(tab.df),filename = plot.dir %&% "coloc_tab.pdf", height = 20, width=20)
+```
+
+
+```{r}
+
+
+filter(coloc.df,Locus==tab.df$Locus.ID[6],
+       SNPID==tab.df$maxppa.snp[6],CLPP>=0.5) # CAMK1D 
+filter(coloc.df,Locus==tab.df$Locus.ID[7],
+       SNPID==tab.df$maxppa.snp[7],CLPP>=0.5) # ANK1 
+filter(coloc.df,Locus==tab.df$Locus.ID[12],
+       SNPID==tab.df$maxppa.snp[12],CLPP>=0.5) # GLI2, maybe INHBB in adipose visceral omentum?? 
+filter(coloc.df,Locus==tab.df$Locus.ID[19],
+       SNPID==tab.df$maxppa.snp[19],CLPP>=0.5) # CCND2 
+filter(coloc.df,Locus==tab.df$Locus.ID[16],
+       SNPID==tab.df$maxppa.snp[16],CLPP>=0.5) # CCND2 
+filter(coloc.df,Locus==tab.df$Locus.ID[9],
+       SNPID==tab.df$maxppa.snp[9],CLPP>=0.5) # PROX1 should be islet but no colocalization  
+
+filter(coloc.df,Locus==tab.df$Locus.ID[5],
+       SNPID==tab.df$maxppa.snp[5],CLPP>=0.5) # CLUAP to underscore the nonsense of eQTL colocalization 
+
+
+```
+
+
+
+# Evaluate colocalization plot (all w/ CLPP >= 0.01)
+
+```{r}
+
+coloc01.df <- filter(coloc.df,CLPP>=0.01)
+
+pb <- txtProgressBar(min=0,max=dim(coloc01.df)[1],style=3)
+coloc01.df$PPA <- map(1:dim(coloc01.df)[1],function(i){
+  setTxtProgressBar(pb,i)
+  snp <- coloc01.df$SNPID[i]
+  loc <- coloc01.df$Locus[i]
+  filter(cred.df,CondID==loc,SNPID==snp)$PPA[1]
+}) %>% as.numeric(.)
+
+coloc01.df$is.lead <- map(1:dim(coloc01.df)[1],function(i){
+  setTxtProgressBar(pb,i)
+  snp <- coloc01.df$SNPID[i]
+  loc <- coloc01.df$Locus[i]
+  lead <- filter(cred.df,CondID==loc)$IndexSNP %>% unique(.)
+  snp==lead
+}) %>% as.logical(.)
+
+
+```
+
+
+```{r}
+
+cor.test(coloc01.df$PPA,coloc01.df$CLPP)
+fit <- lm(coloc01.df$CLPP~coloc01.df$PPA)
+fit %>% summary(.)
+
+plt <- ggplot(data=coloc01.df,aes(x=PPA,y=CLPP)) + 
+  geom_point(color="dodgerblue4",alpha=0.4) + 
+  geom_smooth(method='lm',formula=y~x)
+ggsave(filename = plot.dir %&% "clpp_ppa_plot.png",height = 3,width = 3)
+ggsave(filename = plot.dir %&% "clpp_ppa_plot.pdf",height = 3,width = 3)
+
+```
+
