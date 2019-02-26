@@ -359,13 +359,13 @@ tab1.df <- dplyr::select(s1.df,one_of("lead.snp","symbol","num.snps","max.ppa",
                                       "islet","muscle","adipose","liver","unclassified")) %>% 
   arrange(.,desc(coding.score),desc(islet)) 
 
-names(tab1.df) <- c("Signal \n(i.e. lead SNP rsid","Gene Symbol", "Number of SNPs\nin 99% credible set",
+names(tab1.df) <- c("Signal (i.e. lead SNP rsid)","Gene Symbol", "Number of SNPs in 99% credible set",
                     "Maximum credible set PPA", "Coding Score",
-                    "Dissimilarity\n(difference between top two TOA scores",
+                    "Dissimilarity (difference between top two TOA scores)",
                     "Sum of squared TOA score differences (SSD)",
                     "Islet TOA score","Muscle TOA score","Adipose TOA score","Liver TOA score",
                     "Unclassified TOA score")
-write.table(x=tab1.df,file="SuppTable_shared_tier1.csv",quote=F,sep=",",row.names=F)
+write.table(x=tab1.df,file=analysis.dir%&%"SuppTable_shared_tier1.csv",quote=F,sep=",",row.names=F)
 
 #names(tab1.df)[c(1,8)] <- c("signal.ID","dissimilarity")
 #tab1.df$islet <- tab1.df$islet %>% prettyNum(.,digits=2)
@@ -391,13 +391,13 @@ tab2.df <- dplyr::select(s2.df,one_of("lead.snp","symbol","num.snps","max.ppa",
                                       "islet","muscle","adipose","liver","unclassified")) %>% 
   arrange(.,desc(coding.score),desc(islet)) 
 
-names(tab2.df) <- c("Signal \n(i.e. lead SNP rsid","Gene Symbol", "Number of SNPs\nin 99% credible set",
+names(tab2.df) <- c("Signal (i.e. lead SNP rsid)","Gene Symbol", "Number of SNPs in 99% credible set",
                     "Maximum credible set PPA", "Coding Score",
-                    "Dissimilarity\n(difference between top two TOA scores",
+                    "Dissimilarity (difference between top two TOA scores)",
                     "Sum of squared TOA score differences (SSD)",
                     "Islet TOA score","Muscle TOA score","Adipose TOA score","Liver TOA score",
                     "Unclassified TOA score")
-write.table(x=tab2.df,file="SuppTable_shared_tier2.csv",quote=F,sep=",",row.names=F)
+write.table(x=tab2.df,file=analysis.dir%&%"SuppTable_shared_tier2.csv",quote=F,sep=",",row.names=F)
 
 #tab2.df <- dplyr::select(s2.df,one_of("Locus.ID","lead.snp","symbol","islet",
 #                                   "muscle","adipose","liver","sep.score")) %>% 
@@ -427,13 +427,13 @@ tab3.df <- dplyr::select(s3.df,one_of("lead.snp","symbol","num.snps","max.ppa",
                                       "islet","muscle","adipose","liver","unclassified")) %>% 
   arrange(.,desc(coding.score),desc(islet)) 
 
-names(tab3.df) <- c("Signal \n(i.e. lead SNP rsid","Gene Symbol", "Number of SNPs\nin 99% credible set",
+names(tab3.df) <- c("Signal (i.e. lead SNP rsid)","Gene Symbol", "Number of SNPs in 99% credible set",
                     "Maximum credible set PPA", "Coding Score",
-                    "Dissimilarity\n(difference between top two TOA scores",
+                    "Dissimilarity (difference between top two TOA scores)",
                     "Sum of squared TOA score differences (SSD)",
                     "Islet TOA score","Muscle TOA score","Adipose TOA score","Liver TOA score",
                     "Unclassified TOA score")
-write.table(x=tab3.df,file="SuppTable_shared_tier3.csv",quote=F,sep=",",row.names=F)
+write.table(x=tab3.df,file=analysis.dir%&%"SuppTable_shared_tier3.csv",quote=F,sep=",",row.names=F)
 
 #tab3.df <- dplyr::select(s3.df,one_of("Locus.ID","lead.snp","symbol","islet",
 #                                   "muscle","adipose","liver","sep.score")) %>% 
@@ -528,6 +528,18 @@ ggsave(plot=p,filename = plot.dir %&% "signal_tcf7l2_130_1.pdf",h=3.5,w=12.5)
 
 ```
 
+ANK1 Muscle signal 
+
+
+```{r}
+
+sig <- "106_3"
+d <- get_sig_df(sig)
+
+```
+
+
+
 
 KCNJ11 lead signal 
 
@@ -535,17 +547,39 @@ KCNJ11 lead signal
 
 sig <- "135_1"
 
-d <- get_sig_df(sig)
+d <- get_sig_df(sig) # just doing the top 10 snps in credible set
 l1 <- process_sig_snp(d[1,],ymax=0.3)
 l2 <- process_sig_snp(d[2,],ymax=0.3)
 l3 <- process_sig_snp(d[3,],ymax=0.3)
+l4 <- process_sig_snp(d[4,],ymax=0.3)
+l5 <- process_sig_snp(d[5,],ymax=0.3)
+l6 <- process_sig_snp(d[6,],ymax=0.3)
+l7 <- process_sig_snp(d[7,],ymax=0.3)
+l8 <- process_sig_snp(d[8,],ymax=0.3)
+l9 <- process_sig_snp(d[9,],ymax=0.3)
+l10 <- process_sig_snp(d[10,],ymax=0.3)
 
+p <- grid.arrange(l1[[1]],l2[[1]],l3[[1]],
+                  l4[[1]],l5[[1]],l6[[1]],
+                  l7[[1]],l8[[1]],l9[[1]],
+                  l10[[1]],nrow=2,ncol=5)
+write.table(x=d,file=analysis.dir%&%"signal_ank1_106_3.txt",sep="\t",quote=F,row.names=F)
+ggsave(plot=p,filename = plot.dir %&% "signal_ank1_106_3.png",h=7,w=20)
+ggsave(plot=p,filename = plot.dir %&% "signal_ank1_106_3.pdf",h=7,w=20)
 
-p <- grid.arrange(l1[[1]],l2[[1]],l3[[1]],nrow=1)
-write.table(x=d,file=analysis.dir%&%"signal_kcnj11_135_1.txt",sep="\t",quote=F,row.names=F)
-ggsave(plot=p,filename = plot.dir %&% "signal_kcnj11_135_1.png",h=3.5,w=12)
-ggsave(plot=p,filename = plot.dir %&% "signal_kcnj11_135_1.pdf",h=3.5,w=12)
-
+sub <- dplyr::select(d[1:10,],one_of("SNPID","ppa"))
+sub$chr <- map(sub$SNPID,function(s){
+  strsplit(x=s,split=":")[[1]][1]
+}) %>% as.character(.)
+sub$pos0 <- map(sub$SNPID,function(s){
+  as.integer(strsplit(x=s,split=":")[[1]][2]) - 1
+}) %>% as.integer(.)
+sub$pos <- map(sub$SNPID,function(s){
+  as.integer(strsplit(x=s,split=":")[[1]][2]) - 1
+}) %>% as.integer(.)
+sub$ppa <- prettyNum(sub$ppa,digits=2)
+sub$name <- "ANK1(PPA=" %&% sub$ppa %&% ")"
+bed.df <- dplyr::select(sub,one_of("chr","pos0","pos","name"))
 
 ```
 
