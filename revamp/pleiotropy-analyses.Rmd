@@ -581,6 +581,8 @@ sub$ppa <- prettyNum(sub$ppa,digits=2)
 sub$name <- "ANK1(PPA=" %&% sub$ppa %&% ")"
 bed.df <- dplyr::select(sub,one_of("chr","pos0","pos","name"))
 
+write.table(x=d,file=analysis.dir%&%"ANK1_106_3_deep-dive.txt",sep="\t",quote=F,row.names=F)
+
 ```
 
 GCK lead signal 
