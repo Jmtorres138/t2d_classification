@@ -96,6 +96,18 @@ class.df$gene.clpp50 <- map(class.df$Locus.ID,function(id){
   filter(coloc.df,SNPID==snp,CLPP>=0.50)$gene_name %>% unique(.)  %>% paste0(.,collapse=",")
 }) %>% as.character(.)
 
+t2d.tissues <- c("Adipose_Subcutaneous","Islet","Liver","Muscle_Skeletal")
+
+class.df$t2d.relevant.tiss50 <- map(1:dim(class.df)[1],function(i){
+  vec <- (class.df$tiss.clpp50[i] %>% strsplit(.,split=","))[[1]]
+  any(vec %in% t2d.tissues)
+}) %>% as.logical(.)
+
+class.df$multi.t2d.relevant.tiss50 <- map(1:dim(class.df)[1],function(i){
+  vec <- (class.df$tiss.clpp50[i] %>% strsplit(.,split=","))[[1]]
+  sum(vec %in% t2d.tissues) > 1
+}) %>% as.logical(.)
+
 ```
 
 
@@ -135,13 +147,69 @@ ggsave(plot=gridExtra::grid.table(tab.df),filename = plot.dir %&% "coloc_tab.pdf
 ```
 
 
+
+# Look up summary numbers
+
+```{r}
+
+class.df$ntiss.clpp10[class.df$ntiss.clpp10>0] %>% length(.)
+class.df$ntiss.clpp10[class.df$ntiss.clpp10>0] %>% median(.)
+class.df$ntiss.clpp10[class.df$ntiss.clpp10>0] %>% max(.)
+
+class.df$ngene.clpp10[class.df$ngene.clpp10>0] %>% length(.)
+class.df$ngene.clpp10[class.df$ngene.clpp10>0] %>% median(.)
+class.df$ngene.clpp10[class.df$ngene.clpp10>0] %>% max(.)
+
+class.df$ntiss.clpp50[class.df$ntiss.clpp50>0] %>% length(.)
+class.df$ntiss.clpp50[class.df$ntiss.clpp50>0] %>% median(.)
+class.df$ntiss.clpp50[class.df$ntiss.clpp50>0] %>% max(.)
+class.df$t2d.relevant.tiss50 %>% sum(.) # 12
+class.df$multi.t2d.relevant.tiss50 %>% sum(.) # 4
+
+
+class.df$ngene.clpp50[class.df$ngene.clpp50>0] %>% length(.)
+class.df$ngene.clpp50[class.df$ngene.clpp50>0] %>% median(.)
+class.df$ngene.clpp50[class.df$ngene.clpp50>0] %>% max(.)
+
+dim(class.df2)
+
+# We looked for eQTL colocalization for max ppa SNP (within (1Mb)) using eCAVIAR to yield CLPP values 
+# 81 / 380 signals had at least one significant colocalization at CLPP>=0.1
+# median number of colocalized tissues in these 81 signals is 2 and max number is 27
+# median number of colocalized genes in these 81 signals is also 2 and max number is 16
+
+# 23 / 380 signals had at least one significant colocalization at CLPP>=0.5
+# median number of colocalized tissues in these 23 signals is 2 and max number is 17 
+# median number of colocalized genes in these 23 signals is also 2 and max number is 7 
+# OF these 23 signals, 12 are colocalized with T2D relevant tissues 
+# 4 of the 12 involve multiple T2D relevant tissues 
+#  Look up some interesting examples from here 
+filter(class.df,multi.t2d.relevant.tiss50==TRUE) %>% View(.)
+
+
+# 19/23 CLPP>=0.5 signals have max ppa > 0.5
+
+```
+
+
+
+```{r}
+
+
+
+
+```
+
+
+
+
 ```{r}
 
 
 filter(coloc.df,Locus==tab.df$Locus.ID[6],
        SNPID==tab.df$maxppa.snp[6],CLPP>=0.5) # CAMK1D 
 filter(coloc.df,Locus==tab.df$Locus.ID[7],
-       SNPID==tab.df$maxppa.snp[7],CLPP>=0.5) # ANK1 
+       SNPID==tab.df$maxppa.snp[7],CLPP>=0.5) # ANK1 !!!! Plot this 
 filter(coloc.df,Locus==tab.df$Locus.ID[12],
        SNPID==tab.df$maxppa.snp[12],CLPP>=0.5) # GLI2, maybe INHBB in adipose visceral omentum?? 
 filter(coloc.df,Locus==tab.df$Locus.ID[19],
