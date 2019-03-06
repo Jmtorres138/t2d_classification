@@ -21,6 +21,8 @@ serv0.dir <- "/home/jason/science/servers/FUSE/"
 serv.dir <- "/home/jason/science/servers/FUSE5/"
 proj.dir <- serv.dir %&% "projects/t2d_classification/"
 write.dir <- proj.dir %&% "revamp/"
+plot.dir <- write.dir %&% "plots/"
+
 
 bed.dir <- serv0.dir %&% "reference/chromatin_segmentation/varshney_2016/chromatin_states/" 
 
@@ -45,7 +47,6 @@ coding <- c("coding")
 
 ```
 
-
 ```{r}
 
 tiss.vec <- c("Islets","Adipose","SkeletalMuscle","Liver")
@@ -60,6 +61,47 @@ mus.df$V4 <- mus.df$V4 %>% gsub("/","_",.)
 liv.df$V4 <- liv.df$V4 %>% gsub("/","_",.)
 
 ```
+
+
+```{r}
+
+build_annotation_count_df <- function(tiss.df){
+  df.list <- list(isl.df,adi.df,mus.df,liv.df)
+  tiss.vec <- c("Islet","Adipose","Muscle","Liver")
+  annot.list <- list(strong.enhancers,weak.enhancers,strong.promoter,
+                     weak.promoter,flank.promoter,strong.gene.transcription,
+                     weak.gene.transcription,genic.enhancer)
+  name.vec <- c("Strong Enhancer","Weak Enhancer","Strong Promoter",
+                "Weak Promoter","Flank Promoter","Strong Transcription",
+                "Weak Transcription","Genic Enhancer")  
+  out.df <- c()
+  pb <- txtProgressBar(min=0,max=length(df.list),style=3)
+  for (i in 1:length(df.list)){
+    setTxtProgressBar(pb,i)
+    df <- df.list[[i]]
+    tot <- dim(df)[1]
+    tiss <- tiss.vec[i]
+    for (e in 1:length(annot.list)){
+      annot <- name.vec[e]
+      a.vec <- annot.list[[e]]
+      sub <- filter(df,V4 %in% a.vec)
+      count <- dim(sub)[1]
+      prop <- count/tot
+      build.df <- data.frame(Tissue=tiss,Annotation=annot,Count=count,
+                             Proportion=prop,stringsAsFactors = F)
+      out.df <- rbind(out.df,build.df)
+    }
+  }
+  
+  return(out.df)
+}
+
+count.df <- build_annotation_count_df()
+write.table(x=count.df,file=write.dir %&%
+              "analysis_files/annot_count.txt",sep="\t",quote=F,row.names=F)
+```
+
+
 
 
 ```{r}
@@ -84,17 +126,15 @@ get_median_nearest_distances <- function(gr1,gr2){
 
 ```{r}
 
-
-
-build_dist_df <- function(){
-  se.gr <- filter(isl.df,V4 %in% strong.enhancers) %>% convert_to_gr(.) 
-  we.gr <- filter(isl.df,V4 %in% weak.enhancers) %>% convert_to_gr(.) 
-  sp.gr <- filter(isl.df,V4 %in% strong.promoter) %>% convert_to_gr(.) 
-  wp.gr <- filter(isl.df,V4 %in% weak.promoter) %>% convert_to_gr(.) 
-  fp.gr <-  filter(isl.df,V4 %in% flank.promoter) %>% convert_to_gr(.) 
-  st.gr <- filter(isl.df,V4 %in% strong.gene.transcription) %>% convert_to_gr(.)
-  wt.gr <- filter(isl.df,V4 %in% weak.gene.transcription) %>% convert_to_gr(.)
-  ge.gr <- filter(isl.df,V4 %in% genic.enhancer) %>% convert_to_gr(.) 
+build_dist_df <- function(tiss.df){
+  se.gr <- filter(tiss.df,V4 %in% strong.enhancers) %>% convert_to_gr(.) 
+  we.gr <- filter(tiss.df,V4 %in% weak.enhancers) %>% convert_to_gr(.) 
+  sp.gr <- filter(tiss.df,V4 %in% strong.promoter) %>% convert_to_gr(.) 
+  wp.gr <- filter(tiss.df,V4 %in% weak.promoter) %>% convert_to_gr(.) 
+  fp.gr <-  filter(tiss.df,V4 %in% flank.promoter) %>% convert_to_gr(.) 
+  st.gr <- filter(tiss.df,V4 %in% strong.gene.transcription) %>% convert_to_gr(.)
+  wt.gr <- filter(tiss.df,V4 %in% weak.gene.transcription) %>% convert_to_gr(.)
+  ge.gr <- filter(tiss.df,V4 %in% genic.enhancer) %>% convert_to_gr(.) 
   
   gr.list <- list(se.gr,we.gr,sp.gr,wp.gr,fp.gr,st.gr,wt.gr,ge.gr)
   name.vec <- c("Strong Enhancer","Weak Enhancer","Strong Promoter",
@@ -114,6 +154,8 @@ build_dist_df <- function(){
       out.df <- rbind(out.df,build.df)
     }
   }  
+  out.df$mean.dist.K <- (out.df$mean.dist/1000) %>% round(.,digits=1)
+  out.df$median.dist.K <- (out.df$median.dist/1000) %>% round(.,digits=1)
   return(out.df)
 }
 
@@ -121,30 +163,75 @@ build_dist_df <- function(){
 ```
 
 
+```{r}
+
+median_tile_plot <- function(dist.df,omit.vec=c("Genic Enhancer","Flank Promoter")){
+  p <- ggplot(filter(dist.df,!(ref.annot%in%omit.vec),!(query.annot%in%omit.vec)),
+               aes(ref.annot, query.annot)) +
+    geom_tile(aes(fill = median.dist.K), color = "white") +
+    geom_text(aes(label=median.dist.K)) + 
+    scale_fill_gradientn(colours=rev(viridis(100)[1:92])) +
+    theme(legend.title = element_text(size = 10),
+          legend.text = element_text(size = 12),
+          plot.title = element_text(size=16),
+          axis.title=element_blank(),
+          axis.text.x = element_text(angle = 30, hjust = 1)) +
+    labs(fill = "Median distance\nto nearest (Kb)")  
+  return(p)
+}
 
 
+mean_tile_plot <- function(dist.df,omit.vec=c("Genic Enhancer","Flank Promoter")){
+  p <- ggplot(filter(dist.df,!(ref.annot%in%omit.vec),!(query.annot%in%omit.vec)),
+               aes(ref.annot, query.annot)) +
+    geom_tile(aes(fill = mean.dist.K), color = "white") +
+    geom_text(aes(label=mean.dist.K)) + 
+    scale_fill_gradientn(colours=rev(viridis(100)[1:92])) +
+    theme(legend.title = element_text(size = 10),
+          legend.text = element_text(size = 12),
+          plot.title = element_text(size=16),
+          axis.title=element_blank(),
+          axis.text.x = element_text(angle = 30, hjust = 1)) +
+    labs(fill = "Mean distance\nto nearest (Kb)")  
+  return(p)
+}
+
+
+```
 
 
 ```{r}
 
-dist.df <- build_dist_df()
+library("grid")
+library("gridExtra")
 
-dist.df$mean.dist.K <- (dist.df$mean.dist/1000) %>% round(.,digits=1)
-dist.df$median.dist.K <- (dist.df$median.dist/1000) %>% round(.,digits=1)
-omit.vec <- c("Genic Enhancer","Flank Promoter")
-p2 <- ggplot(filter(dist.df,!(ref.annot%in%omit.vec),!(query.annot%in%omit.vec)),
-             aes(ref.annot, query.annot)) +
-  geom_tile(aes(fill = median.dist.K), color = "white") +
-  geom_text(aes(label=median.dist.K)) + 
-  scale_fill_gradientn(colours=rev(viridis(100)[1:92])) +
-  ylab("Query") +
-  xlab("Reference") +
-  theme(legend.title = element_text(size = 10),
-        legend.text = element_text(size = 12),
-        plot.title = element_text(size=16),
-        axis.title=element_blank(),
-        axis.text.x = element_text(angle = 30, hjust = 1)) +
-  labs(fill = "Median distance\nto nearest (Kb)")
+
+save_composite_plots <- function(){
+  df.list <- list(isl.df,adi.df,mus.df,liv.df)
+  tiss.vec <- c("Islet","Adipose","Muscle","Liver")
+  for (i in 1:length(tiss.vec)){
+    tiss <- tiss.vec[i]
+    dist.df <- build_dist_df(df.list[[i]])
+    write.table(x=dist.df,file=write.dir %&% "analysis_files/annot_dists_" %&% 
+                  tiss %&% ".txt",sep="\t",quote=F,row.names=F)
+    plot.df <- filter(count.df,Tissue==tiss) %>% arrange(.,desc(Count))
+    plot.df$Proportion <- prettyNum(plot.df$Proportion,digits=2)
+    plot.df$Percentage <- as.character(as.numeric(plot.df$Proportion) * 100 ) %&% "%"
+    plot.df$Annotation <- factor(plot.df$Annotation,levels=plot.df$Annotation)
+    p1 <- ggplot(data=plot.df,aes(x=Annotation,y=Count/1000)) +
+      geom_bar(stat="identity",color="black",fill=viridis(10)[2]) + 
+      geom_text(aes(x=Annotation,y=(Count/1000)+5,label=Percentage)) +  
+      theme(axis.text.x = element_text(angle=30,vjust=0.7)) + 
+      ylab("Count (K)")
+    p2 <- mean_tile_plot(dist.df)
+    p3 <- median_tile_plot(dist.df)
+    p <- arrangeGrob(p1,p2,p3,ncol = 1)
+    ggsave(plot=p,filename = plot.dir %&% "annot_counts_" %&% tiss %&% ".png",
+           height = 10,width=5)
+    ggsave(plot=p,filename = plot.dir %&% "annot_counts_" %&% tiss %&% ".pdf",
+         height = 10,width=5)
+  }
+}
 
 ```
 
@@ -152,23 +239,7 @@ p2 <- ggplot(filter(dist.df,!(ref.annot%in%omit.vec),!(query.annot%in%omit.vec))
 
 ```{r}
 
-data(VADeaths)
-p <- hist3D(x = 1:5, y = 1:4, z = VADeaths,
-        bty = "g", phi = 20,  theta = -60,
-        xlab = "", ylab = "", zlab = "", main = "VADeaths",
-        col = "#0072B2", border = "black", shade = 0.8,
-        ticktype = "detailed", space = 0.15, d = 2, cex.axis = 1e-9)
-# Use text3D to label x axis
-text3D(x = 1:5, y = rep(0.5, 5), z = rep(3, 5),
-       labels = rownames(VADeaths),
-       add = TRUE, adj = 0)
-# Use text3D to label y axis
- text3D(x = rep(1, 4),   y = 1:4, z = rep(0, 4),
-       labels  = colnames(VADeaths),
-       add = TRUE, adj = 1)
-install.packages("plot3D")
-library("plot3D")
-p <- hist3D(x=dist.df$ref.annot,y=dist.df$query.annot,z=dist.df)
+save_composite_plots()
 
 
 ```
