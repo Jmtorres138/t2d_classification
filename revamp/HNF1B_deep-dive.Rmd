@@ -15,7 +15,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library("tidyverse")
 library("viridis")
 library("data.table")
-#library("gridExtra")
+library("gridExtra")
 
 serv.dir <- "/home/jason/science/servers/FUSE5/"
 proj.dir <- serv.dir %&% "projects/t2d_classification/"
@@ -25,7 +25,8 @@ plot.dir <- work.dir %&% "plots/"
 
 an.df <- fread(analysis.dir%&%"annotation-divvy-weighted-unscaled.txt")
 anall.df <- fread(analysis.dir%&%"annotation-divvy-weighted-unscaled_allSNPs.txt")
-
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+class.df <- fread(work.dir %&% "analysis_files/classified-loci_weighted_with-shared.txt")
 
 ```
 
@@ -184,4 +185,31 @@ ggsave(plot=p,filename = plot.dir %&% "signal_hnf1b_198_3.pdf",h=3,w=15.75)
 
 
 ```
+
+
+
+# ANK1 Lead Signal 
+
+
+```{r}
+
+sig <- "106_1"
+
+d <- get_sig_df(sig) %>% arrange(.,desc(ppa))
+bed.df <- d_to_bed(d,name.prefix="ANK1(1:PPA=")
+write.table(x=bed.df,file=analysis.dir%&%"ank1_1.bed",
+            quote=F,sep="\t",row.names = F,col.names = F)
+l1 <- process_sig_snp(d[1,],ymax=1)
+#l2 <- process_sig_snp(d[2,],ymax=1)
+#l3 <- process_sig_snp(d[3,],ymax=1)
+#l4 <- process_sig_snp(d[4,],ymax=1)
+
+
+p <- grid.arrange(l1[[1]],nrow=1) # ,l2[[1]],l3[[1]],l4[[1]]
+write.table(x=d,file=analysis.dir%&%"signal_ank1_1.txt",sep="\t",quote=F,row.names=F)
+ggsave(plot=p,filename = plot.dir %&% "signal_ank1_1.png",h=3,w=2.5)
+ggsave(plot=p,filename = plot.dir %&% "signal_ank1_1.pdf",h=3,w=2.5)
+
+```
+
 
