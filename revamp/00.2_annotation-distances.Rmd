@@ -1,0 +1,178 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+library("GenomicRanges")
+
+serv0.dir <- "/home/jason/science/servers/FUSE/"
+serv.dir <- "/home/jason/science/servers/FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+write.dir <- proj.dir %&% "revamp/"
+
+bed.dir <- serv0.dir %&% "reference/chromatin_segmentation/varshney_2016/chromatin_states/" 
+
+
+```
+
+
+```{r}
+
+strong.enhancers <- c("9_Active_enhancer_1","10_Active_enhancer_2")
+weak.enhancers <- c("11_Weak_enhancer")
+repressed.regions <- c("16_Repressed_polycomb", "17_Weak_repressed_polycomb")
+strong.promoter <- c("1_Active_TSS")
+weak.promoter <- c("2_Weak_TSS")
+flank.promoter <- c("3_Flanking_TSS")
+strong.gene.transcription <- c("5_Strong_transcription")
+weak.gene.transcription <- c("6_Weak_transcription")
+bivalent.tss <- c("14_Bivalent_poised_TSS")
+genic.enhancer <- c("8_Genic_enhancer")
+low.signal <- c("18_Quiescent_low_signal")
+coding <- c("coding")
+
+```
+
+
+```{r}
+
+tiss.vec <- c("Islets","Adipose","SkeletalMuscle","Liver")
+isl.df <- fread("cat " %&% bed.dir %&% "Islets.chromatinStates.bed.gz | zmore",sep="\t")
+adi.df <- fread("cat " %&% bed.dir %&% "Adipose.chromatinStates.bed.gz | zmore",sep="\t")
+mus.df <- fread("cat " %&% bed.dir %&% "SkeletalMuscle.chromatinStates.bed.gz | zmore",sep="\t")
+liv.df <- fread("cat " %&% bed.dir %&% "Liver.chromatinStates.bed.gz | zmore",sep="\t")
+
+isl.df$V4 <- isl.df$V4 %>% gsub("/","_",.)
+adi.df$V4 <- adi.df$V4 %>% gsub("/","_",.)
+mus.df$V4 <- mus.df$V4 %>% gsub("/","_",.)
+liv.df$V4 <- liv.df$V4 %>% gsub("/","_",.)
+
+```
+
+
+```{r}
+
+convert_to_gr <- function(df){
+  gr <- GRanges(seqnames=df$V1,IRanges(start=df$V2,end=df$V3)) %>% reduce(.)
+}
+
+get_mean_nearest_distances <- function(gr1,gr2){
+  d <- (distanceToNearest(gr1,gr2) %>% as.data.frame(.))$distance %>% mean(.)
+  d <- (distanceToNearest(gr2,gr1) %>% as.data.frame(.))$distance %>% mean(.) 
+}
+
+get_median_nearest_distances <- function(gr1,gr2){
+  d <- (distanceToNearest(gr1,gr2) %>% as.data.frame(.))$distance %>% median(.)
+  d <- (distanceToNearest(gr2,gr1) %>% as.data.frame(.))$distance %>% median(.) 
+}
+
+```
+
+
+
+```{r}
+
+
+
+build_dist_df <- function(){
+  se.gr <- filter(isl.df,V4 %in% strong.enhancers) %>% convert_to_gr(.) 
+  we.gr <- filter(isl.df,V4 %in% weak.enhancers) %>% convert_to_gr(.) 
+  sp.gr <- filter(isl.df,V4 %in% strong.promoter) %>% convert_to_gr(.) 
+  wp.gr <- filter(isl.df,V4 %in% weak.promoter) %>% convert_to_gr(.) 
+  fp.gr <-  filter(isl.df,V4 %in% flank.promoter) %>% convert_to_gr(.) 
+  st.gr <- filter(isl.df,V4 %in% strong.gene.transcription) %>% convert_to_gr(.)
+  wt.gr <- filter(isl.df,V4 %in% weak.gene.transcription) %>% convert_to_gr(.)
+  ge.gr <- filter(isl.df,V4 %in% genic.enhancer) %>% convert_to_gr(.) 
+  
+  gr.list <- list(se.gr,we.gr,sp.gr,wp.gr,fp.gr,st.gr,wt.gr,ge.gr)
+  name.vec <- c("Strong Enhancer","Weak Enhancer","Strong Promoter",
+                "Weak Promoter","Flank Promoter","Strong Transcription",
+                "Weak Transcription","Genic Enhancer")
+  pb <- txtProgressBar(min=0,max=length(name.vec),style=3)
+  out.df <- c()
+  for (i in 1:length(name.vec)){
+    setTxtProgressBar(pb,i)
+    for (e in 1:length(name.vec)){
+      ref.annot <- name.vec[i]
+      query.annot <- name.vec[e]
+      mean.dist <- get_mean_nearest_distances(gr.list[[i]],gr.list[[e]])
+      median.dist <- get_median_nearest_distances(gr.list[[i]],gr.list[[e]])
+      build.df <- data.frame(ref.annot,query.annot,mean.dist,median.dist,
+                             stringsAsFactors = FALSE)
+      out.df <- rbind(out.df,build.df)
+    }
+  }  
+  return(out.df)
+}
+
+
+```
+
+
+
+
+
+
+```{r}
+
+dist.df <- build_dist_df()
+
+dist.df$mean.dist.K <- (dist.df$mean.dist/1000) %>% round(.,digits=1)
+dist.df$median.dist.K <- (dist.df$median.dist/1000) %>% round(.,digits=1)
+omit.vec <- c("Genic Enhancer","Flank Promoter")
+p2 <- ggplot(filter(dist.df,!(ref.annot%in%omit.vec),!(query.annot%in%omit.vec)),
+             aes(ref.annot, query.annot)) +
+  geom_tile(aes(fill = median.dist.K), color = "white") +
+  geom_text(aes(label=median.dist.K)) + 
+  scale_fill_gradientn(colours=rev(viridis(100)[1:92])) +
+  ylab("Query") +
+  xlab("Reference") +
+  theme(legend.title = element_text(size = 10),
+        legend.text = element_text(size = 12),
+        plot.title = element_text(size=16),
+        axis.title=element_blank(),
+        axis.text.x = element_text(angle = 30, hjust = 1)) +
+  labs(fill = "Median distance\nto nearest (Kb)")
+
+```
+
+
+
+```{r}
+
+data(VADeaths)
+p <- hist3D(x = 1:5, y = 1:4, z = VADeaths,
+        bty = "g", phi = 20,  theta = -60,
+        xlab = "", ylab = "", zlab = "", main = "VADeaths",
+        col = "#0072B2", border = "black", shade = 0.8,
+        ticktype = "detailed", space = 0.15, d = 2, cex.axis = 1e-9)
+# Use text3D to label x axis
+text3D(x = 1:5, y = rep(0.5, 5), z = rep(3, 5),
+       labels = rownames(VADeaths),
+       add = TRUE, adj = 0)
+# Use text3D to label y axis
+ text3D(x = rep(1, 4),   y = 1:4, z = rep(0, 4),
+       labels  = colnames(VADeaths),
+       add = TRUE, adj = 1)
+install.packages("plot3D")
+library("plot3D")
+p <- hist3D(x=dist.df$ref.annot,y=dist.df$query.annot,z=dist.df)
+
+
+```
+
+
+
+
