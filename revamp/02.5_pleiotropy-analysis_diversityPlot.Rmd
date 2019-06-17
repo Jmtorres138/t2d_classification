@@ -181,7 +181,8 @@ ggsave(plot=p1,filename = plot.dir %&%
 p2 <- scatpie(filter(df,unclassified<0.10))
 ggsave(plot=p2,filename = plot.dir %&%
          "scatterpie_filtUnclass.png",width=9,height=9)
-
+ggsave(plot=p2,filename = plot.dir %&%
+         "scatterpie_filtUnclass.pdf",width=9,height=9)
 
 spec.df <- filter(df,unclassified<0.10) %>% 
   filter(.,adipose>=0.9 | liver>=0.9 | muscle>=0.9 |islet >= 0.9)
@@ -190,11 +191,17 @@ p3 <- scatpie_sub(filter(df,unclassified<0.10),
 ggsave(plot=p3,filename = plot.dir %&%
          "scatterpie_filtUnclass_tiss-spec.png",
        width=9,height=9)
+ggsave(plot=p3,filename = plot.dir %&%
+         "scatterpie_filtUnclass_tiss-spec.pdf",
+       width=9,height=9)
 
 p4 <- scatpie_sub(filter(df,unclassified<0.10),s1.df,
                   lab=TRUE,lnum=10)
 ggsave(plot=p4,filename = plot.dir %&%
          "scatterpie_filtUnclass_shared-tier1.png",
+       width=9,height=9)
+ggsave(plot=p4,filename = plot.dir %&%
+         "scatterpie_filtUnclass_shared-tier1.pdf",
        width=9,height=9)
 
 p5 <- scatpie_sub(filter(df,unclassified<0.10),s2.df,
@@ -202,12 +209,17 @@ p5 <- scatpie_sub(filter(df,unclassified<0.10),s2.df,
 ggsave(plot=p5,filename = plot.dir %&%
          "scatterpie_filtUnclass_shared-tier2.png",
        width=9,height=9)
+ggsave(plot=p5,filename = plot.dir %&%
+         "scatterpie_filtUnclass_shared-tier2.pdf",
+       width=9,height=9)
 
 p6 <- scatpie_sub(filter(df,unclassified<0.10),s3.df,
                   lab=TRUE,lnum=5)
 ggsave(plot=p6,filename = plot.dir %&%
          "scatterpie_filtUnclass_shared-tier3.png",
        width=9,height=9)
-
+ggsave(plot=p6,filename = plot.dir %&%
+         "scatterpie_filtUnclass_shared-tier3.pdf",
+       width=9,height=9)
 ```
 
