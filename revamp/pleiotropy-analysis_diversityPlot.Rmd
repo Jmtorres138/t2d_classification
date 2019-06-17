@@ -1,0 +1,213 @@
+---
+title: "pleiotropy-analyses_part2.Rmd"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup 
+
+# Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+library("tidyverse")
+library("GenomicRanges")
+library("viridis")
+library("data.table")
+library("RColorBrewer")
+library("gridExtra")
+
+
+serv.dir <- "/home/jason/science/servers/FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "revamp/"
+
+analysis.dir <- work.dir %&% "analysis_files/"
+plot.dir <- work.dir %&% "plots/"
+
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+cred.df$Locus.ID <- cred.df$CondID
+divvy.df <- fread(analysis.dir%&%"annotation-divvy-weighted-unscaled.txt")
+df <- fread(analysis.dir%&%"classified-loci_weighted_with-shared.txt")
+
+```
+
+
+```{r}
+
+df$sep.score <- map(1:dim(df)[1],function(i){
+  vec <- df[i,2:6] %>% sort(.,decreasing=TRUE) %>% as.numeric(.)
+  vec[1] - vec[2]
+}) %>% as.numeric(.)
+df$share.score <- 1-df$sep.score
+
+df$num.snps <- map(1:dim(df)[1],function(i){
+  id <- df[i,]$Locus.ID
+  dim(filter(cred.df,CondID==id))[1]
+}) %>% as.integer(.)
+
+df$max.ppa <- map(df$Locus.ID,function(id){
+  filter(cred.df,CondID==id)$PPA %>% max(.)
+}) %>% as.numeric(.)
+
+df$ssd <- map(1:dim(df)[1],function(i){
+  vec <- df[i,] %>% dplyr::select(.,one_of("islet","muscle","adipose","liver")) %>% as.numeric(.) %>% 
+    sort(.,decreasing = T)
+  d1 <- vec[1]-vec[2]; d2 <- vec[2]-vec[3]; d3 <- vec[3]-vec[4]
+  ssd <- (d1^2) + (d2^2) + (d3^2)
+}) %>% as.numeric(.)
+
+
+df$coding.score <- map(df$Locus.ID,function(id){
+  val <- filter(divvy.df,Locus.ID==id) %>% dplyr::select(.,contains("coding")) %>%
+    as.numeric(.) %>% sum(.)
+}) %>% as.numeric(.) 
+df$lead.snp <- map(df$Locus.ID,function(id){
+  filter(cred.df,CondID==id)$lead.rsid %>% unique(.)
+}) %>% as.character(.)
+df$logsnps <- log(df$num.snps,base=10)
+df$log2snps <- log(df$num.snps,base=2)
+
+```
+
+
+```{r}
+
+df$diversity <- 1 - df$ssd
+
+p <- ggplot(data=df,aes(x=log2snps,y=max.ppa,
+                        size=coding.score,fill=ssd)) + 
+  geom_point(shape=21,alpha=0.9) + 
+  scale_fill_viridis(direction=-1,option="C") + theme_bw()
+
+ggsave(plot=p,filename = plot.dir %&% "test.png",width=10,height=4)
+
+```
+
+
+# Scatterpie 
+
+
+```{r}
+library("scatterpie")
+col.vec=c("gold1","olivedrab2","brown","red","grey")
+#filter(df,unclassified<0.1)
+scatpie <- function(df){
+  p <- ggplot() + 
+    geom_scatterpie(data=df,
+                    aes(y=log(ssd+0.001,base=2),x=log2snps,
+                        group=Locus.ID,r=max.ppa/3.5,
+                        size=coding.score),
+                        cols=c("islet","muscle","adipose",
+                        "liver","unclassified")) + 
+    scale_fill_manual(values=col.vec,name="Tissue") + 
+    scale_size_continuous(range = c(0.1,1),limits=c(0,1),
+                          name="Coding score") +
+    coord_equal() + theme_bw() + 
+    xlab("log2(number of SNPs)") + 
+    ylab("log2(sum of square distance between TOA scores)") 
+  p <- p + geom_scatterpie_legend(df$max.ppa/3.5,x=9,y=-9)  
+  return(p)
+}
+```
+
+
+```{r}
+
+library("ggrepel")
+
+scatpie_sub <- function(df,sub.df,lab=TRUE,lnum=5){
+  p <- ggplot() + 
+    geom_scatterpie(data=df,alpha=0.1,size=0.01,
+                    aes(y=log(ssd+0.001,base=2),x=log2snps,
+                        group=Locus.ID,r=max.ppa/3.5),
+                        cols=c("islet","muscle","adipose",
+                        "liver","unclassified")) + 
+    scale_fill_manual(values=col.vec,name="Tissue") + 
+    coord_equal() + theme_bw() + 
+    xlab("log2(number of SNPs)") + 
+    ylab("log2(sum of square distance between TOA scores)") +
+    
+    geom_scatterpie(data=sub.df,
+                    aes(y=log(ssd+0.001,base=2),x=log2snps,
+                        group=Locus.ID,r=max.ppa/3.5,
+                        size=coding.score),
+                        cols=c("islet","muscle","adipose",
+                        "liver","unclassified")) + 
+    scale_fill_manual(values=col.vec,name="Tissue") + 
+    scale_size_continuous(range = c(0.1,1),limits=c(0,1),
+                          name="Coding score") +
+    coord_equal() + theme_bw() + 
+    xlab("log2(number of SNPs)") + 
+    ylab("log2(sum of square distance between TOA scores)") 
+  
+  
+  if (lab==TRUE){
+    lab.df <- arrange(sub.df,desc(max.ppa))[1:lnum,]
+    lab.df$lab <- lab.df$symbol %&% " (" %&% lab.df$lead.snp %&%
+      ")"
+    p <- p + geom_label_repel(data=lab.df,
+                              aes(y=log(ssd+0.001,base=2),
+                                  x=log2snps,label=lab),
+                              label.size = 0.5,
+                              size=2.5,
+                              nudge_x=0,
+                              nudge_y=-1.5)    
+  }
+  p <- p + geom_scatterpie_legend(df$max.ppa/3.5,x=9,y=-9)  
+  return(p)
+}
+
+
+```
+
+
+
+```{r}
+
+s.df <- filter(df,sep.score<=0.10)
+s1.df <- filter(s.df,num.snps==1)
+s2.df <- filter(s.df,num.snps>1,max.ppa>0.5) # 23 signals, including lead signal at TCF7L2, and two signals at HNF4A
+s3.df <- filter(s.df,num.snps>1,max.ppa<=0.5) # 88 signals 
+
+
+p1 <- scatpie(df)
+ggsave(plot=p1,filename = plot.dir %&%
+         "scatterpie_all.png",width=9,height=9)
+p2 <- scatpie(filter(df,unclassified<0.10))
+ggsave(plot=p2,filename = plot.dir %&%
+         "scatterpie_filtUnclass.png",width=9,height=9)
+
+
+spec.df <- filter(df,unclassified<0.10) %>% 
+  filter(.,adipose>=0.9 | liver>=0.9 | muscle>=0.9 |islet >= 0.9)
+p3 <- scatpie_sub(filter(df,unclassified<0.10),
+                  spec.df,lab=TRUE,lnum=10)
+ggsave(plot=p3,filename = plot.dir %&%
+         "scatterpie_filtUnclass_tiss-spec.png",
+       width=9,height=9)
+
+p4 <- scatpie_sub(filter(df,unclassified<0.10),s1.df,
+                  lab=TRUE,lnum=10)
+ggsave(plot=p4,filename = plot.dir %&%
+         "scatterpie_filtUnclass_shared-tier1.png",
+       width=9,height=9)
+
+p5 <- scatpie_sub(filter(df,unclassified<0.10),s2.df,
+                  lab=TRUE,lnum=5)
+ggsave(plot=p5,filename = plot.dir %&%
+         "scatterpie_filtUnclass_shared-tier2.png",
+       width=9,height=9)
+
+p6 <- scatpie_sub(filter(df,unclassified<0.10),s3.df,
+                  lab=TRUE,lnum=5)
+ggsave(plot=p6,filename = plot.dir %&%
+         "scatterpie_filtUnclass_shared-tier3.png",
+       width=9,height=9)
+
+```
+

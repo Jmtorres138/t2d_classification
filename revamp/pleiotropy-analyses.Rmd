@@ -39,10 +39,14 @@ df <- fread(analysis.dir%&%"classified-loci_weighted_with-shared.txt")
 
 ```{r}
 
-(dplyr::select(df,-contains("assigned_")) %>% arrange(.,desc(islet)) %>% filter(.,islet > 0.9))$symbol %>% unique(.)
-(dplyr::select(df,-contains("assigned_")) %>% arrange(.,desc(liver)) %>% filter(.,liver > 0.9))$symbol %>% unique(.)
-(dplyr::select(df,-contains("assigned_")) %>% arrange(.,desc(adipose)) %>% filter(.,adipose > 0.9))$symbol %>% unique(.)
-(dplyr::select(df,-contains("assigned_")) %>% arrange(.,desc(muscle)) %>% filter(.,muscle > 0.87))$symbol %>% unique(.)
+(dplyr::select(df,-contains("assigned_")) %>% arrange(.,desc(islet)) %>% 
+   filter(.,islet > 0.9))$symbol %>% unique(.)
+(dplyr::select(df,-contains("assigned_")) %>% arrange(.,desc(liver)) %>%
+    filter(.,liver > 0.9))$symbol %>% unique(.)
+(dplyr::select(df,-contains("assigned_")) %>% arrange(.,desc(adipose)) %>% 
+    filter(.,adipose > 0.9))$symbol %>% unique(.)
+(dplyr::select(df,-contains("assigned_")) %>% arrange(.,desc(muscle)) %>% 
+    filter(.,muscle > 0.87))$symbol %>% unique(.)
 
 ```
 
@@ -367,17 +371,6 @@ names(tab1.df) <- c("Signal (i.e. lead SNP rsid)","Gene Symbol", "Number of SNPs
                     "Unclassified TOA score")
 write.table(x=tab1.df,file=analysis.dir%&%"SuppTable_shared_tier1.csv",quote=F,sep=",",row.names=F)
 
-#names(tab1.df)[c(1,8)] <- c("signal.ID","dissimilarity")
-#tab1.df$islet <- tab1.df$islet %>% prettyNum(.,digits=2)
-#tab1.df$adipose <- tab1.df$adipose %>% prettyNum(.,digits=2)
-#tab1.df$muscle <- tab1.df$muscle %>% prettyNum(.,digits=2)
-#tab1.df$liver <- tab1.df$liver %>% prettyNum(.,digits=2)
-#tab1.df$dissimilarity <- tab1.df$dissimilarity %>% prettyNum(.,digits=2)
-#ggsave(grid.table(tab1.df),filename = plot.dir %&% "shared-single.png",
-#       height=5,width=10)
-#ggsave(grid.table(tab1.df),filename = plot.dir %&% "shared-single.pdf",
-#       height=5,width=10)
-
 ```
 
 Fine-mapped to more than one variant, but one variant accounts for >50% of PPA 
@@ -399,20 +392,6 @@ names(tab2.df) <- c("Signal (i.e. lead SNP rsid)","Gene Symbol", "Number of SNPs
                     "Unclassified TOA score")
 write.table(x=tab2.df,file=analysis.dir%&%"SuppTable_shared_tier2.csv",quote=F,sep=",",row.names=F)
 
-#tab2.df <- dplyr::select(s2.df,one_of("Locus.ID","lead.snp","symbol","islet",
-#                                   "muscle","adipose","liver","sep.score")) %>% 
-#  arrange(.,desc(islet))
-#names(tab2.df)[c(1,8)] <- c("signal.ID","dissimilarity")
-#tab2.df$islet <- tab2.df$islet %>% prettyNum(.,digits=2)
-#tab2.df$adipose <- tab2.df$adipose %>% prettyNum(.,digits=2)
-#tab2.df$muscle <- tab2.df$muscle %>% prettyNum(.,digits=2)
-#tab2.df$liver <- tab2.df$liver %>% prettyNum(.,digits=2)
-#tab2.df$dissimilarity <- tab2.df$dissimilarity %>% prettyNum(.,digits=2)
-
-#ggsave(grid.table(tab2.df),filename = plot.dir %&% "shared-mult-maxppa50.png",
-#       height=10,width=10)
-#ggsave(grid.table(tab2.df),filename = plot.dir %&% "shared-mult-maxppa50.pdf",
-#       height=10,width=10)
 
 ```
 
@@ -435,24 +414,13 @@ names(tab3.df) <- c("Signal (i.e. lead SNP rsid)","Gene Symbol", "Number of SNPs
                     "Unclassified TOA score")
 write.table(x=tab3.df,file=analysis.dir%&%"SuppTable_shared_tier3.csv",quote=F,sep=",",row.names=F)
 
-#tab3.df <- dplyr::select(s3.df,one_of("Locus.ID","lead.snp","symbol","islet",
-#                                   "muscle","adipose","liver","sep.score")) %>% 
-#  arrange(.,desc(islet))
-#names(tab3.df)[c(1,8)] <- c("signal.ID","dissimilarity")
-#tab3.df$islet <- tab3.df$islet %>% prettyNum(.,digits=2)
-#tab3.df$adipose <- tab3.df$adipose %>% prettyNum(.,digits=2)
-#tab3.df$muscle <- tab3.df$muscle %>% prettyNum(.,digits=2)
-#tab3.df$liver <- tab3.df$liver %>% prettyNum(.,digits=2)
-#tab3.df$dissimilarity <- tab3.df$dissimilarity %>% prettyNum(.,digits=2)
-#ggsave(grid.table(tab3.df),filename = plot.dir %&% "shared-mult-undermpp50.png",
-#       height=40,width=10)
-#ggsave(grid.table(tab3.df),filename = plot.dir %&% "shared-mult-undermpp50.pdf",
-#       height=40,width=10)
+
 ```
 
 
 
-## Deep dive into a given signal 
+
+# Deep dive into a given signal 
 
 
 ```{r}
