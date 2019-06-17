@@ -37,7 +37,6 @@ cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
 
 ```{r}
 
-#unweighted.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-unweighted-unscaled.txt") 
 weighted.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-weighted-unscaled.txt")
 names(weighted.df) <- c("Locus.ID","Islet","Muscle","Adipose","Liver","Unclassified")
 
@@ -102,20 +101,22 @@ reformat_ppa_df <- function(ppa.df,cred.df){
 
 ```{r}
 
-ppa_plot <- function(ppa.df,col.vec=c("olivedrab2","red","gold1","brown","grey"),
-                     rankby="Islet",number=NULL,leg=TRUE){
+ppa_plot <- function(ppa.df,col.vec,lev.vec,rankby,number=NULL,leg=TRUE,text.col="black"){
   rank.by <- stringToQuoser(rankby)
   append.df <- ppa.df
   append.df$PlotID <- map(ppa.df$Locus.ID,function(loc.id){
     sub <- filter(cred.df,CondID==loc.id) %>% dplyr::select(.,one_of("symbol","lead.rsid")) 
     sub <- sub[!duplicated(sub),]
-    sub$symbol %&% " (" %&% sub$lead.rsid %&% ")"
-    #loc.id %&% ": " %&% (filter(cred.df,CondID==loc.id)$symbol%>%unique(.))
+    #sub$symbol %&% " (" %&% sub$lead.rsid %&% ")"
+    #paste0(sub$lead.rsid,"\n(",sub$symbol, ")")
+    sub$lead.rsid
   }) %>% as.character(.)
   
   format.df <- reformat_ppa_df(ppa.df,cred.df)
   format.df <- append_rslead(format.df)
-  PlotID <- paste0(format.df$Symbol," (",format.df$lead.rsid, ")")
+  #PlotID <- paste0(format.df$Symbol," (",format.df$lead.rsid, ")")
+  #PlotID <- paste0(format.df$lead.rsid,"\n(",format.df$Symbol, ")")
+  PlotID <- format.df$lead.rsid
   plot.df <- cbind(PlotID,format.df)
 
   
@@ -132,30 +133,47 @@ ppa_plot <- function(ppa.df,col.vec=c("olivedrab2","red","gold1","brown","grey")
     keep.ids <- arrange(append.df,desc(!!rank.by))$PlotID[1:number]
     plot.df <- filter(plot.df,PlotID %in% keep.ids)
   }
+
+  plot.df$Annotation <- factor(plot.df$Annotation,levels=lev.vec)
   
   plt <- ggplot(data=plot.df,aes(x=PlotID,
                                  y=Proportion,fill=Annotation)) + 
             geom_bar(stat="identity",color="black",size=0.2) + 
+            geom_text(aes(x=PlotID,label=Symbol),y=0.2,color=text.col) + 
             scale_y_continuous(breaks=seq(0,1,0.2)) + 
             xlab("Signal") + 
             coord_flip() + 
-            #scale_y_reverse() + 
             scale_fill_manual(values=col.vec) +
             ggtitle(rankby)
   if(leg==FALSE){
     plt <- plt + theme(legend.position = "none")
   }
   plt <- plt + 
-    theme(axis.text = element_text(size=13))
+    theme(axis.text = element_text(size=16))
   return(plt)
 }
 
-all_tissues_plot <- function(ppa.df,number=NULL,col.vec=c("olivedrab2","red","gold1","brown","grey")){
-  plt1 <- ppa_plot(ppa.df,col.vec,rankby="Islet",number,leg=FALSE)
-  plt2 <- ppa_plot(ppa.df,col.vec,rankby="Muscle",number,leg=FALSE)
-  plt3 <- ppa_plot(ppa.df,col.vec,rankby="Adipose",number,leg=FALSE)
-  plt4 <- ppa_plot(ppa.df,col.vec,rankby="Liver",number,leg=FALSE)
-  plt5 <- ppa_plot(ppa.df,col.vec,rankby="Unclassified",number,leg=TRUE)  
+all_tissues_plot <- function(ppa.df,number=NULL){
+  plt1 <- ppa_plot(ppa.df,col.vec=c("grey","gold1","firebrick1","brown","olivedrab2"),
+                     lev.vec = c("Unclassified","Adipose","Muscle","Liver","Islet"),
+                     rankby="Islet",number,leg=FALSE)
+  
+  plt2 <- ppa_plot(ppa.df,col.vec=c("grey","gold1","olivedrab2","brown","firebrick1"),
+                     lev.vec = c("Unclassified","Adipose","Islet","Liver","Muscle"),
+                     rankby="Muscle",number,leg=FALSE,text.col="black")
+  
+  plt3 <- ppa_plot(ppa.df,col.vec=c("grey","olivedrab2","firebrick1","brown","gold1"),
+                     lev.vec = c("Unclassified","Islet","Muscle","Liver","Adipose"),
+                     rankby="Adipose",number,leg=FALSE)
+  
+  plt4 <- ppa_plot(ppa.df,col.vec=c("grey","olivedrab2","firebrick1","gold1","brown"),
+                     lev.vec = c("Unclassified","Islet","Muscle","Adipose","Liver"),
+                     rankby="Liver",number,leg=FALSE,text.col="ghostwhite")
+  
+  plt5 <- ppa_plot(ppa.df,col.vec=c("olivedrab2","firebrick1","brown","gold1","grey"),
+                     lev.vec = c("Islet","Muscle","Liver","Adipose","Unclassified"),
+                     rankby="Unclassified",number,leg=FALSE)
+  
   grob <- arrangeGrob(plt1,plt2,plt3,plt4,plt5,nrow=1)
 }
 
@@ -189,12 +207,12 @@ keep.vec <- filter(df,max.ppa >= 0.50)$Locus.ID %>% unique(.)
 
 
 grob1 <- all_tissues_plot(weighted.df,number=20)
-ggsave(plot=grob1,filename=plot.dir%&%"stacked_barplots_full-weighted.png",width=25,height=8.5)
-ggsave(plot=grob1,filename=plot.dir%&%"stacked_barplots_full-weighted.pdf",width=25,height=8.5)
+ggsave(plot=grob1,filename=plot.dir%&%"stacked_barplots_full-weighted.png",width=22,height=8)
+ggsave(plot=grob1,filename=plot.dir%&%"stacked_barplots_full-weighted.pdf",width=22,height=8)
 
 grob5 <- all_tissues_plot(filter(weighted.df,Locus.ID%in%keep.vec),number=20)
-ggsave(plot=grob5,filename=plot.dir%&%"stacked_barplots_maxppa50-weighted.png",width=25,height=8.5)
-ggsave(plot=grob5,filename=plot.dir%&%"stacked_barplots_maxppa50-weighted.pdf",width=25,height=8.5)
+ggsave(plot=grob5,filename=plot.dir%&%"stacked_barplots_maxppa50-weighted.png",width=25,height=11.5)
+ggsave(plot=grob5,filename=plot.dir%&%"stacked_barplots_maxppa50-weighted.pdf",width=25,height=11.5)
 
 ```
 
