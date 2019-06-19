@@ -348,3 +348,30 @@ write.table(x=df15,file=analysis.dir%&%"het_15.txt",sep="\t",quote=F,row.names=F
 ```
 
 
+# test for significant differences 
+
+```{r}
+
+df2 <- fread(analysis.dir %&% "pleio_table.txt")
+
+same.loci <- filter(df57,same.NotShared==TRUE)$Locus %>% unique(.)
+diff.loci <- filter(df57,diff.NotShared==TRUE)$Locus %>% unique(.)
+
+same.signals <- filter(df,loc%in%same.loci)$Locus.ID %>% unique(.)
+diff.signals <- filter(df,loc%in%diff.loci)$Locus.ID %>% unique(.)
+
+same.ssd <- filter(df2,Locus.ID%in%same.signals)$ssd
+diff.ssd <- filter(df2,Locus.ID%in%diff.signals)$ssd
+
+wilcox.test(same.ssd,diff.ssd)
+#Wilcoxon rank sum test with continuity correction
+#data:  same.ssd and diff.ssd
+#W = 724, p-value = 0.3909
+#alternative hypothesis: true location shift is not equal to 0
+
+#No doesn't seem to be the case that there is difference is ssd among the signals at these sets of loci 
+
+```
+
+
+
