@@ -55,33 +55,139 @@ make_maxppa_df <- function(){
 
 
 
-```{r}
-#library("plotly")
-#library("heatmaply")
-#heatmaply((mat.df), k_row = 1, k_col = 1,height=1000,width=500)
-#browseURL(plot.dir %&% "phys-heatmap.png")
-```
+
 
 
 ```{r}
 
+library("plotly")
+library("heatmaply")
 
 maxppa.df <- make_maxppa_df()
 weighted.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-weighted-unscaled.txt")
 w.df <- weighted.df
 phys94.df <- fread(work.dir %&% "analysis_files/phys94-ld-assigned.txt")
 physfull.df <- inner_join(phys94.df,w.df,by="Locus.ID") %>% filter(.,assigned.r2>=0.3,other<=0.50)
-mat <- dplyr::select(physfull.df,one_of("islet","adipose","muscle","liver")) %>%
+mat <- dplyr::select(physfull.df,one_of("islet","adipose","muscle",
+                                        "liver")) %>%
   as.matrix(.)
-row.names(mat) <- physfull.df$Physiology
+
+name.vec <- map(1:dim(physfull.df)[1],function(i){
+  sub <- physfull.df[i,]
+  p <- sub$Physiology
+  p <- ifelse(p=="IA","Insulin-Action",p)
+  p <- ifelse(p=="IS-1","Insulin-Secretion-1",p)
+  p <- ifelse(p=="IS-2","Insulin-Secretion-2",p)
+  p %&% "_" %&% sub$symbol
+}) %>% as.character(.)
+
+row.names(mat) <- name.vec
 mat.df <- as.data.frame(mat)
+
+
+```
+
+
+```{r}
+
+#heatmaply((mat.df), k_row = 1, k_col = 1,fontsize_row=3,plot_method = "ggplot")
+```
+
+
+
+
+```{r}
+
+physfull.df <- arrange(physfull.df,Physiology)
+
 ```
 
 ```{r}
 
-png("test.png")
-heatmap.2(mat,scale="column",col=viridis(20))
-dev.off()
+library("plyr")
+library("scales")
 
 ```
+
+
+```{r}
+
+physfull.df <- inner_join(phys94.df,w.df,by="Locus.ID") %>% filter(.,assigned.r2>=0.3,other<=0.50)
+
+plot.df <- dplyr::select(physfull.df,
+             one_of("Physiology","symbol","islet","adipose",
+                                "muscle","liver"))
+plot.df$Name <-  map(1:dim(plot.df)[1],function(i){
+  sub <- plot.df[i,]
+  p <- sub$Physiology
+  p <- ifelse(p=="IA","Insulin-Action",p)
+  p <- ifelse(p=="IS-1","Insulin-Secretion-1",p)
+  p <- ifelse(p=="IS-2","Insulin-Secretion-2",p)
+  p %&% " (" %&% sub$symbol %&% ")"
+}) %>% as.character(.)
+
+plot.df <- dplyr::select(plot.df,-one_of("Physiology","symbol"))
+
+plot.df$Name <- as.factor(plot.df$Name)
+plot.df <- melt(plot.df)
+p <- ggplot(plot.df, aes(variable, Name)) + 
+  geom_tile(aes(fill = value),colour = "ghostwhite") + 
+  scale_fill_gradientn(colors=c(viridis(100)[10:20],
+                       viridis(100)[30:100])) + 
+  theme(axis.text.x = element_text(size=9,angle=30,
+                                   vjust = 0.5),
+        axis.text.y = element_text(size=6,
+                                   color=c(rep(viridis(10)[3],3),
+                                           rep("black",3),
+                                           rep(viridis(10)[3],21),
+                                           rep("black",11),
+                                           rep(viridis(10)[3],5),
+                                           rep("black",20)))) + 
+  xlab("Tissue-of-action Score") 
+
+ggsave(plot=p,filename = plot.dir %&% "phys-tile.png",
+       height=6,width=5)
+
+
+
+```
+
+
+
+```{r}
+
+phys.df2 <- fread(work.dir %&% "analysis_files/physUDLER-ld-assigned.txt")
+physfull.df2 <- inner_join(phys.df2,w.df,by="Locus.ID") %>% filter(.,assigned.r2>=0.3,other<=0.50)
+
+plot.df2 <- dplyr::select(physfull.df2,
+             one_of("Physiology","symbol","islet","adipose",
+                                "muscle","liver"))
+plot.df2$Name <-  map(1:dim(plot.df2)[1],function(i){
+  sub <- plot.df2[i,]
+  p <- sub$Physiology
+  p %&% " (" %&% sub$symbol %&% ")"
+}) %>% as.character(.)
+
+plot.df2 <- dplyr::select(plot.df2,-one_of("Physiology","symbol"))
+
+plot.df2$Name <- as.factor(plot.df2$Name)
+plot.df2 <- melt(plot.df2)
+p2 <- ggplot(plot.df2, aes(variable, Name)) + 
+  geom_tile(aes(fill = value),colour = "ghostwhite") + 
+  scale_fill_gradientn(colors=c(viridis(100)[10:20],
+                       viridis(100)[30:100])) + 
+  theme(axis.text.x = element_text(size=9,angle=30,
+                                   vjust = 0.5),
+        axis.text.y = element_text(size=6,
+                                   color=c(rep(viridis(10)[3],23),
+                                           rep("black",18),
+                                           rep(viridis(10)[3],3),
+                                           rep("black",5),
+                                           rep(viridis(10)[3],4)))) + 
+  xlab("Tissue-of-action Score") 
+
+ggsave(plot=p2,filename = plot.dir %&% "phys-tile_Udler.png",
+       height=6,width=5)
+```
+
 

@@ -426,6 +426,30 @@ ggsave(plt1,filename = plot.dir%&%"all-pca-plots.pdf",width=20,height=5.5)
 ```
 
 
+# Trying out alternative heatmap as suggested by Mark 
+
+```{r}
+
+physfull.df <- inner_join(phys94.df,w.df,by="Locus.ID") %>% filter(.,assigned.r2>=0.3,other<=0.50)
+mat <- dplyr::select(physfull.df,one_of("islet","adipose","muscle","liver")) %>%
+  as.matrix(.)
+row.names(mat) <- physfull.df$Physiology
+heatmap(mat,scale="column",col=viridis(20))
+
+png(plot.dir %&% "phys-heatmap.png")
+heatmap(mat,scale="column",col=viridis(20))
+dev.off()
+
+mat.df <- as.data.frame(mat)
+
+library("plotly")
+library("heatmaply")
+
+heatmaply((mat.df), k_row = 6, k_col = 4,
+          file=plot.dir %&% "phys-heatmap.png")
+
+
+```
 
 # Udler 
 
