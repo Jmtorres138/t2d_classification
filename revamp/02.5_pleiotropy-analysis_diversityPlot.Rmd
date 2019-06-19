@@ -85,6 +85,8 @@ p <- ggplot(data=df,aes(x=log2snps,y=max.ppa,
   scale_fill_viridis(direction=-1,option="C") + theme_bw()
 
 ggsave(plot=p,filename = plot.dir %&% "test.png",width=10,height=4)
+write.table(x=df,file=analysis.dir %&% "pleio_table.txt",
+            sep="\t",quote=F,row.names=F)
 
 ```
 
