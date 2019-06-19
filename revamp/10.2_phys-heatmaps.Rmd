@@ -1,0 +1,87 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+library("Homo.sapiens")
+
+fuse.path <- "/home/jason/science/servers/"
+serv.dir <- fuse.path %&% "FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+methA.dir <- proj.dir %&% "method_A/"
+work.dir <- proj.dir %&% "revamp/"
+analysis.dir <- work.dir %&% "analysis_files/"
+plot.dir <- work.dir %&% "plots/"
+
+
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+
+class.df1 <- fread(analysis.dir %&% "classified-loci_weighted.txt")
+class.df2 <- fread(analysis.dir %&% "classified-loci_weighted_with-shared.txt")
+
+```
+
+
+```{r}
+
+make_maxppa_df <- function(){
+  id.vec <- cred.df$CondID %>% unique(.)
+  pb <- txtProgressBar(min=0,max=length(id.vec),style=3)
+  ppa.vec <- c() 
+  for (i in 1:length(id.vec)){
+    setTxtProgressBar(pb,i)
+    id <- id.vec[i]
+    ppa <- (filter(cred.df,CondID==id) %>% arrange(.,desc(PPA)))$PPA[1]
+    ppa.vec <- append(ppa.vec,ppa)
+  } 
+  out.df <- data.frame(Locus.ID=id.vec,maxppa=ppa.vec,stringsAsFactors = FALSE)
+  return(out.df)
+}
+
+
+```
+
+
+
+```{r}
+#library("plotly")
+#library("heatmaply")
+#heatmaply((mat.df), k_row = 1, k_col = 1,height=1000,width=500)
+#browseURL(plot.dir %&% "phys-heatmap.png")
+```
+
+
+```{r}
+
+
+maxppa.df <- make_maxppa_df()
+weighted.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-weighted-unscaled.txt")
+w.df <- weighted.df
+phys94.df <- fread(work.dir %&% "analysis_files/phys94-ld-assigned.txt")
+physfull.df <- inner_join(phys94.df,w.df,by="Locus.ID") %>% filter(.,assigned.r2>=0.3,other<=0.50)
+mat <- dplyr::select(physfull.df,one_of("islet","adipose","muscle","liver")) %>%
+  as.matrix(.)
+row.names(mat) <- physfull.df$Physiology
+mat.df <- as.data.frame(mat)
+```
+
+```{r}
+
+png("test.png")
+heatmap.2(mat,scale="column",col=viridis(20))
+dev.off()
+
+```
+
