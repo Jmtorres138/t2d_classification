@@ -130,19 +130,74 @@ plot.df <- dplyr::select(plot.df,-one_of("Physiology","symbol"))
 
 plot.df$Name <- as.factor(plot.df$Name)
 plot.df <- melt(plot.df)
+
+plot.df$Name <- factor(plot.df$Name,levels=c("Adiposity (FTO)",
+                                             "Adiposity (NFAT5)",
+                     "Adiposity (POC5)","Dyslipidemia (GCKR)",
+                     "Dyslipidemia (TM6SF2)",
+                     "Dyslipidemia (TOMM40-APOE)",
+                     "Insulin-Action (ANKRD55)",
+                     "Insulin-Action (BPTF)","Insulin-Action (CMIP)",
+                     "Insulin-Action (FAM13A)","Insulin-Action (GRB14-COBLL1)","Insulin-Action (HNF4A)","Insulin-Action (KIF9)",
+                     "Insulin-Action (MACF1)","Insulin-Action (PEPD)",
+                     "Insulin-Action (PPARG)","Insulin-Action (VEGFA)",
+                     "IA-IS-combination (CEP68)",
+                     "IA-IS-combination (FAM63A)","IA-IS-combination (GIPR)","IA-IS-combination (HNF1A)",
+                     "IA-IS-combination (HNF1B)",
+                     "IA-IS-combination (HNF4A)",
+                     "IA-IS-combination (MLX)",
+                     "IA-IS-combination (MPHOSPH9)",
+                     "IA-IS-combination (MTMR3-ASCC2)",
+                     "IA-IS-combination (PAM)","IA-IS-combination (PLEKHA1)","IA-IS-combination (PNPLA3)","IA-IS-combination (PRC1)",
+                     "IA-IS-combination (PTPN9)",
+                     "IA-IS-combination (RREB1)",
+                     "IA-IS-combination (SPRY2)",
+                     "IA-IS-combination (TLE1)",
+                     "IA-IS-combination (TMEM154)",
+                     "IA-IS-combination (WFS1)",
+                     "IA-IS-combination (ZMIZ1)",
+                     "IA-IS-combination (ZZEF1)",
+                     "Insulin-Secretion-2 (ADAMTS9)",
+                     "Insulin-Secretion-2 (ANK1)",
+                     "Insulin-Secretion-2 (ANKH)",
+                     "Insulin-Secretion-2 (C2CD4A-B)",
+                     "Insulin-Secretion-2 (CCND2)",
+                     "Insulin-Secretion-2 (CDKAL1)",
+                     "Insulin-Secretion-2 (CDKN2A-B)",
+                     "Insulin-Secretion-2 (CENTD2-ARAP1)",
+                     "Insulin-Secretion-2 (GLIS3)",
+                     "Insulin-Secretion-2 (GPSM1)",
+                     "Insulin-Secretion-2 (HHEX-IDE)",
+                     "Insulin-Secretion-2 (HMG20A)",
+                     "Insulin-Secretion-2 (JAZF1)",
+                     "Insulin-Secretion-2 (KCNQ1)",
+                     "Insulin-Secretion-2 (KLHDC5)",
+                     "Insulin-Secretion-2 (PROX1)",
+                     "Insulin-Secretion-2 (RREB1)",
+                     "Insulin-Secretion-2 (THADA)",
+                     "Insulin-Secretion-2 (ZBED3)",
+                     "Insulin-Secretion-1 (ADCY5)",
+                     "Insulin-Secretion-1 (GCK)",
+                     "Insulin-Secretion-1 (MTNR1B)",
+                     "Insulin-Secretion-1 (SLC30A8)",
+                     "Insulin-Secretion-1 (TCF7L2)"))
+
+#colors=c(viridis(100)[10:50],viridis(100)[60:100])
 p <- ggplot(plot.df, aes(variable, Name)) + 
   geom_tile(aes(fill = value),colour = "ghostwhite") + 
-  scale_fill_gradientn(colors=c(viridis(100)[10:20],
-                       viridis(100)[30:100])) + 
+  scale_fill_gradientn(colors=c(viridis(100)[1:15],
+                                viridis(100)[30:45],
+                                viridis(100)[60:75],
+                                viridis(100)[85:100])) + 
   theme(axis.text.x = element_text(size=9,angle=30,
                                    vjust = 0.5),
         axis.text.y = element_text(size=6,
                                    color=c(rep(viridis(10)[3],3),
                                            rep("black",3),
-                                           rep(viridis(10)[3],21),
-                                           rep("black",11),
-                                           rep(viridis(10)[3],5),
-                                           rep("black",20)))) + 
+                                           rep(viridis(10)[3],11),
+                                           rep("black",21),
+                                           rep(viridis(10)[3],19),
+                                           rep("black",6)))) + 
   xlab("Tissue-of-action Score") 
 
 ggsave(plot=p,filename = plot.dir %&% "phys-tile.png",
