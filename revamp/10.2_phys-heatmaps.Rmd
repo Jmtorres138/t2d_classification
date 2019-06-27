@@ -184,7 +184,7 @@ plot.df$Name <- factor(plot.df$Name,levels=c("Adiposity (FTO)",
 
 #colors=c(viridis(100)[10:50],viridis(100)[60:100])
 p <- ggplot(plot.df, aes(variable, Name)) + 
-  geom_tile(aes(fill = value),colour = "ghostwhite") + 
+  geom_tile(aes(fill = value),colour = "black") + 
   scale_fill_gradientn(colors=c(viridis(100)[1:15],
                                 viridis(100)[30:45],
                                 viridis(100)[60:75],
@@ -202,7 +202,8 @@ p <- ggplot(plot.df, aes(variable, Name)) +
 
 ggsave(plot=p,filename = plot.dir %&% "phys-tile.png",
        height=6,width=5)
-
+ggsave(plot=p,filename = plot.dir %&% "phys-tile.pdf",
+       height=6,width=5)
 
 
 ```
