@@ -22,29 +22,24 @@ keep.vec <- keep.df$Locus.ID_inCREDS
 
 block.df <- fread(work.dir %&% "multi_results/results_blocks.txt")
 
-
-
+ens.df <- fread(serv.dir %&% "datasets/Ensembl_HumanGenes_GRCh37-p13.txt",
+                sep="\t")
+ens.df <- dplyr::select(ens.df,one_of("Gene stable ID",
+                                      "Chromosome/scaffold name",
+                                      "Gene name","Gene start (bp)"))
+ens.df <- ens.df[!duplicated(ens.df),]
 
 #Read data files
 
-
-
 block.df <- fread(work.dir %&%"multi_results/results_blocks.txt",sep="\t")
 fcred.df <- fread(work.dir %&%"multi_results/results_func-cred-sets.txt",sep="\t")
-
-
-
-
 
 
 TPM.merged.ranks <- readRDS(proj.dir%&%"input_data/TPM.merged.ranks.rds")
 TPMs.tissues.rank.matrix <- readRDS(proj.dir%&%"input_data/TPMs.tissues.rank.matrix.rds")
 
 
-
-
 # Functions
-
 
 enrichment <- function(geneset, perms){
   #geneset_ens <- TPM.merged.ranks[TPM.merged.ranks$Symbol %in% geneset, "Gene"]
@@ -210,10 +205,6 @@ weighted.df$assigned_50 <- gsub("other","unclassified",weighted.df$assigned_50)
 weighted.df$assigned_80 <- gsub("other","unclassified",weighted.df$assigned_80)
 
 
-
-
-
-
 build_complete_df <- function(group.df,iter){
   thresh.vec <- c(0,0.2,0.5,0.8)
   out.df <- c()
@@ -241,6 +232,52 @@ build_complete_df <- function(group.df,iter){
 }
 
 
+find_specified_nearest_gene <- function(indexsnp,nearest.rank){
+  vec <- strsplit(indexsnp,split=":")[[1]]
+  pos <- vec[2] %>% as.integer(.)
+  c <- strsplit(vec[1],split="chr")[[1]][2]
+  e.df <- filter(ens.df,`Chromosome/scaffold name`==c)
+  e.df$absdist <- abs(e.df$`Gene start (bp)` - pos )
+  e.df <- arrange(e.df,absdist)
+  e.df$`Gene name`[nearest.rank]
+}
+
+build_complete_df_extendedGenes <- function(group.df,iter,nearest.rank){
+  thresh.vec <- c(0,0.2,0.5,0.8)
+  out.df <- c()
+  for (t in thresh.vec){
+    print(t)
+    var <- ifelse(t==0,"assigned_00",
+                  ifelse(t==0.2,"assigned_20",
+                         ifelse(t==0.5,"assigned_50",
+                                ifelse(t=0.80,"assigned_80"))))
+    sub <- dplyr::select(group.df,one_of(var,"Locus.ID"))
+    sub$indexsnp <- map(sub$Locus.ID,function(id){
+      filter(cred.df,CondID==id)$IndexSNP %>% unique(.)
+    }) %>% as.character(.)
+    names(sub)[1] <- "assigned"
+    gene <- c()
+    for (i in 1:dim(sub)[1]){
+      gene <- append(gene,
+                     find_specified_nearest_gene(sub$indexsnp[i],nearest.rank))
+    }
+    sub$gene <- gene
+    islet.genes <- filter(sub,assigned=="islet")$gene %>% unique(.)
+    muscle.genes <-  filter(sub,assigned=="muscle")$gene %>% unique(.)
+    liver.genes <-  filter(sub,assigned=="liver")$gene %>% unique(.)
+    adipose.genes <-  filter(sub,assigned=="adipose")$gene %>% unique(.)
+    shared.genes <-  filter(sub,assigned=="shared")$gene %>% unique(.)
+    unclassified.genes <-  filter(sub,assigned=="unclassified")$gene %>% unique(.)
+    
+    plot.df <- build_plot_df(islet.genes,muscle.genes,
+                             liver.genes,adipose.genes,shared.genes,unclassified.genes,iter)
+    plot.df$threshold <- t
+    out.df <- rbind(out.df,plot.df)
+  }
+  return(out.df)
+}
+
+
 annot.prof.df <- fread(proj.dir %&% "revamp/analysis_files/annotation-divvy-weighted-unscaled.txt")
 
 annot.prof.df$coding <- annot.prof.df$coding_islet + annot.prof.df$coding_adipose +
@@ -252,7 +289,14 @@ zero.vec <- filter(annot.prof.df,coding==0)$Locus.ID %>% unique(.)
 p10.vec <- filter(annot.prof.df,coding<=0.1)$Locus.ID %>% unique(.)
 
 
+#df4 <- build_complete_df(filter(weighted.df,Locus.ID %in% p10.vec),iter=10000)
+#write.table(x=df4,file=work.dir2%&%"analysis_files/coexpress-enrich_weighted_p10Coding_with-shared.txt",
+#            sep="\t",row.names=F,quote=F)
 
-df4 <- build_complete_df(filter(weighted.df,Locus.ID %in% p10.vec),iter=10000)
-write.table(x=df4,file=work.dir2%&%"analysis_files/coexpress-enrich_weighted_p10Coding_with-shared.txt",
+df2nd <- build_complete_df_extendedGenes(filter(weighted.df,Locus.ID %in% p10.vec),iter=10000,nearest.rank = 2)
+write.table(x=df2nd,file=work.dir2%&%"analysis_files/coexpress-enrich_weighted_p10Coding_with-shared_2ndNearest.txt",
+            sep="\t",row.names=F,quote=F)
+
+df3rd <- build_complete_df_extendedGenes(filter(weighted.df,Locus.ID %in% p10.vec),iter=10000,nearest.rank = 3)
+write.table(x=df3rd,file=work.dir2%&%"analysis_files/coexpress-enrich_weighted_p10Coding_with-shared_3rdNearest.txt",
             sep="\t",row.names=F,quote=F)
