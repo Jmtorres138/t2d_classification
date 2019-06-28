@@ -7,6 +7,7 @@ library("tidyverse")
 library("GenomicRanges")
 library("viridis")
 library("data.table")
+library("rtracklayer")
 
 library("plyr")
 
@@ -22,12 +23,17 @@ keep.vec <- keep.df$Locus.ID_inCREDS
 
 block.df <- fread(work.dir %&% "multi_results/results_blocks.txt")
 
-ens.df <- fread(serv.dir %&% "datasets/Ensembl_HumanGenes_GRCh37-p13.txt",
-                sep="\t")
-ens.df <- dplyr::select(ens.df,one_of("Gene stable ID",
-                                      "Chromosome/scaffold name",
-                                      "Gene name","Gene start (bp)"))
-ens.df <- ens.df[!duplicated(ens.df),]
+#ens.df <- fread(serv.dir %&% "datasets/Ensembl_HumanGenes_GRCh37-p13.txt",
+#                sep="\t")
+#ens.df <- dplyr::select(ens.df,one_of("Gene stable ID",
+#                                      "Chromosome/scaffold name",
+#                                      "Gene name","Gene start (bp)"))
+#ens.df <- ens.df[!duplicated(ens.df),]
+
+gtf <- rtracklayer::import(serv.dir %&% "datasets/gencode.v30lift37.annotation.gtf.gz")
+gtf.df<-as.data.frame(gtf) %>% filter(.,type=="gene",gene_type=="protein_coding")
+
+
 
 #Read data files
 
@@ -76,6 +82,7 @@ enrichment <- function(geneset, perms){
 
   pb <- txtProgressBar(min = 1, max = perms, style = 3)
   for (i in 1:perms){
+    print(i)
     setTxtProgressBar(pb, i)
     gene_set <- random.geneList.ens[[i]]
     gene_set <- gene_set[!is.na(gene_set)] # remove NAs
@@ -157,7 +164,8 @@ build_plot_df <- function(islet.genes,muscle.genes,
     enrich.share.df <- data.frame(tissue=NA,perm.pvalue=NA,
                                 count=NA,log_pval=NA,enrich.factor=NA)
   }
-  if(length(unclassified.genes)>2){
+#  if(length(unclassified.genes)>2){
+  if(sum(unclassified.genes %in% TPM.merged.ranks$Symbol)>2){
     enrich.unclass.df <- enrichment(unclassified.genes, iter)
   } else{
     enrich.unclass.df <- data.frame(tissue=NA,perm.pvalue=NA,
@@ -235,11 +243,16 @@ build_complete_df <- function(group.df,iter){
 find_specified_nearest_gene <- function(indexsnp,nearest.rank){
   vec <- strsplit(indexsnp,split=":")[[1]]
   pos <- vec[2] %>% as.integer(.)
-  c <- strsplit(vec[1],split="chr")[[1]][2]
-  e.df <- filter(ens.df,`Chromosome/scaffold name`==c)
-  e.df$absdist <- abs(e.df$`Gene start (bp)` - pos )
-  e.df <- arrange(e.df,absdist)
-  e.df$`Gene name`[nearest.rank]
+  c <- vec[1]  #strsplit(vec[1],split="chr")[[1]][2]
+  g.df <- filter(gtf.df,seqnames==c)
+  g.df$absdist <- abs(g.df$start - pos )
+  g.df <- arrange(g.df,absdist)
+  g.df$gene_name[nearest.rank]
+  
+  #e.df <- filter(ens.df,`Chromosome/scaffold name`==c)
+  #e.df$absdist <- abs(e.df$`Gene start (bp)` - pos )
+  #e.df <- arrange(e.df,absdist)
+  #e.df$`Gene name`[nearest.rank]
 }
 
 build_complete_df_extendedGenes <- function(group.df,iter,nearest.rank){
