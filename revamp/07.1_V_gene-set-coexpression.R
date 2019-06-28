@@ -63,11 +63,13 @@ enrichment <- function(geneset, perms){
   # create null bg genes for creating null gene_sets
   random.bg.ens <- sapply(TPM.merged.ranks_geneset, function(x){
     up <- x-150
+    up <- ifelse(up<0,0,up) # manual fix in the case that up is negative (JMT)
     down <- x+150
     sample_from <- TPM.merged.ranks[up:down, "Gene"]
     sample_from2 <- setdiff(sample_from, geneset_ens)
   }, simplify=FALSE)
-
+  
+  
   # Create random gene sets using ranks + and - 100
   random.geneList.ens <- list()
 
@@ -295,7 +297,6 @@ annot.prof.df <- fread(proj.dir %&% "revamp/analysis_files/annotation-divvy-weig
 
 annot.prof.df$coding <- annot.prof.df$coding_islet + annot.prof.df$coding_adipose +
   annot.prof.df$coding_muscle + annot.prof.df$coding_liver
-
 
 
 zero.vec <- filter(annot.prof.df,coding==0)$Locus.ID %>% unique(.)
