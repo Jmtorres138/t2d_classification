@@ -84,7 +84,7 @@ enrichment <- function(geneset, perms){
 
   pb <- txtProgressBar(min = 1, max = perms, style = 3)
   for (i in 1:perms){
-    print(i)
+    #print(i)
     setTxtProgressBar(pb, i)
     gene_set <- random.geneList.ens[[i]]
     gene_set <- gene_set[!is.na(gene_set)] # remove NAs
