@@ -69,6 +69,23 @@ stringToQuoser <- function(varName) {
   wrapr::let(c(VARNAME = varName), quo(VARNAME))
 }
 
+append_het_status <- function(ppa.df,df){
+  het.status <- c()
+  ids <- map(ppa.df$Locus.ID,function(s){
+    strsplit(s,split="_")[[1]][1]
+  }) %>% as.character(.)
+  dup <- duplicated(ids)
+  het.loci <- ids[dup] %>% unique(.)
+  for (i in 1:dim(df)[1]){
+    row.df <- df[i,]
+    vec <- (as.character(row.df$Locus.ID) %>% strsplit(.,split="_"))[[1]]
+    val <- ifelse(vec[1] %in% het.loci,"("%&%vec[2]%&%")","")
+    het.status <- append(het.status,val)
+  }
+  return(cbind(df,het.status))
+}
+
+
 reformat_ppa_df <- function(ppa.df,cred.df){
   format.df <- c() 
   pb <- txtProgressBar(min=0,max=dim(ppa.df)[1],style=3)
@@ -107,39 +124,37 @@ ppa_plot <- function(ppa.df,col.vec,lev.vec,rankby,number=NULL,leg=TRUE,text.col
   append.df$PlotID <- map(ppa.df$Locus.ID,function(loc.id){
     sub <- filter(cred.df,CondID==loc.id) %>% dplyr::select(.,one_of("symbol","lead.rsid")) 
     sub <- sub[!duplicated(sub),]
-    #sub$symbol %&% " (" %&% sub$lead.rsid %&% ")"
-    #paste0(sub$lead.rsid,"\n(",sub$symbol, ")")
     sub$lead.rsid
   }) %>% as.character(.)
   
   format.df <- reformat_ppa_df(ppa.df,cred.df)
   format.df <- append_rslead(format.df)
-  #PlotID <- paste0(format.df$Symbol," (",format.df$lead.rsid, ")")
-  #PlotID <- paste0(format.df$lead.rsid,"\n(",format.df$Symbol, ")")
   PlotID <- format.df$lead.rsid
   plot.df <- cbind(PlotID,format.df)
 
-  
-  #ranklevs <- arrange(append.df,(!!rank.by))$PlotID
-  ranklevs <- arrange(append.df,(!!rank.by))$PlotID
+  ranklevs <- dplyr::arrange(append.df,!!rank.by)$PlotID
 
   plot.df$PlotID <- factor(plot.df$PlotID,levels=ranklevs)
-  
+
 
   plot.df$PlotID <- factor(plot.df$PlotID, 
                            levels=levels(plot.df$PlotID))
   
   if(is.null(number)==FALSE){
-    keep.ids <- arrange(append.df,desc(!!rank.by))$PlotID[1:number]
+    keep.ids <- dplyr::arrange(append.df,desc(!!rank.by))$PlotID[1:number]
     plot.df <- filter(plot.df,PlotID %in% keep.ids)
   }
 
   plot.df$Annotation <- factor(plot.df$Annotation,levels=lev.vec)
   
+  plot.df <- append_het_status(ppa.df,plot.df)
+
+
+  
   plt <- ggplot(data=plot.df,aes(x=PlotID,
                                  y=Proportion,fill=Annotation)) + 
             geom_bar(stat="identity",color="black",size=0.2) + 
-            geom_text(aes(x=PlotID,label=Symbol),y=0.2,color=text.col) + 
+            geom_text(aes(x=PlotID,label=Symbol%&%" "%&%het.status),y=0.2,color=text.col) + 
             scale_y_continuous(breaks=seq(0,1,0.2)) + 
             xlab("Signal") + 
             coord_flip() + 
@@ -217,13 +232,18 @@ ggsave(plot=grob5,filename=plot.dir%&%"stacked_barplots_maxppa50-weighted.pdf",w
 ```
 
 
-# Evaluate data frame 
+# Save Data frame 
 
 
 ```{r}
 
-d <- filter(weighted.df,Locus.ID%in%keep.vec)
-
+save.df <- append_rslead(weighted.df)
+save.df <- append_het_status(weighted.df,save.df)
+save.df$symbol <- map(save.df$Locus.ID,function(loc.id){
+  filter(cred.df,CondID==loc.id)$symbol %>% unique(.)
+}) %>% as.character(.)
+save.df <- dplyr::select(save.df,one_of("Locus.ID","lead.rsid","symbol"))
+write.table(x=save.df,file=analysis.dir%&%"SigLookup.df",sep="\t",quote=F,row.names=F)
 ```
 
 
