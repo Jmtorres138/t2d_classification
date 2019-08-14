@@ -242,7 +242,7 @@ save.df <- append_het_status(weighted.df,save.df)
 save.df$symbol <- map(save.df$Locus.ID,function(loc.id){
   filter(cred.df,CondID==loc.id)$symbol %>% unique(.)
 }) %>% as.character(.)
-save.df <- dplyr::select(save.df,one_of("Locus.ID","lead.rsid","symbol"))
+save.df <- dplyr::select(save.df,one_of("Locus.ID","lead.rsid","symbol","het.status"))
 write.table(x=save.df,file=analysis.dir%&%"SigLookup.df",sep="\t",quote=F,row.names=F)
 ```
 
