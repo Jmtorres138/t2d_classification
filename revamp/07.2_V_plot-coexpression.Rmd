@@ -188,3 +188,16 @@ p <- plot_enrich_alt2(sub.df) + facet_wrap(~Type+threshold) +
 ggsave(plot=p,filename = plot.dir %&% "coexpress-enrich_weighted-noCoding-fourtiss_with-shared_full.png",width=9,height=3)
 
 ```
+
+
+
+## Manually inspecting values 
+
+```{r}
+
+filter(plot.df1,geneset=="islet",threshold=="0.8") %>% arrange(.,desc(enrich.factor)) %>% View(.)
+
+
+```
+
+
