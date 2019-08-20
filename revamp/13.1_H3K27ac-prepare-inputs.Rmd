@@ -1,0 +1,98 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+
+serv.dir <- "/home/jason/science/servers/FUSE5/"
+serv.dir0 <- "/home/jason/science/servers/FUSE/"
+
+
+work.dir <- serv.dir %&% "projects/t2d_classification/revamp/"
+file.dir <- work.dir %&% "analysis_files/"
+out.dir1 <- file.dir %&% "enrich_H3K27ac/"
+out.dir2 <- file.dir %&% "LDhub/"
+
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+toa.df <- fread(file.dir %&% "classified-loci_weighted_with-shared.txt")
+gwas.df <- fread(serv.dir0 %&% "reference/gwas/diamante-ukbb_hrc/EU.2017JulyRel.Summary.txt") %>% filter(.,SNPID %in% cred.df$SNPID)
+gwas.df2 <- fread("cat " %&% serv.dir %&% "datasets/diamante_hrc/European.HRC.T2D.summary.March2018AMah.txt.gz" %&% " | zmore") #%>% filter(.,SNP %in% cred.df$SNPID)
+gwas.df2$SNPID <- "chr" %&% gwas.df2$SNP
+gwas.df2 <- filter(gwas.df2,SNPID %in% cred.df$SNPID)
+
+```
+
+
+Functions 
+
+```{r}
+
+stringToQuoser <- function(varName) {
+  wrapr::let(c(VARNAME = varName), quo(VARNAME))
+}
+
+make_bed_file <- function(sig.vec,save.name){
+  # Takes vector of signal ids (e.g. "1_1"), looks up max PPA variant with SNP info and converts to a proper 0-based bed file 
+  out.df <- c() 
+  for (i in 1:length(sig.vec)){
+    sig <- sig.vec[i]
+    sub <- (filter(cred.df,CondID==sig) %>% arrange(desc(PPA)))[1,]
+    build.df <- data.frame("chrom"=sub$CHR,"pos1"=sub$POS-1,"pos2"=sub$POS-1,"name"=sub$SNPID,stringsAsFactors = F)
+    out.df <- rbind(out.df,build.df)
+  }
+  write.table(x=out.df,file=save.name,sep="\t",quote=F,row.names=F,col.names=F)
+}
+
+make_ldhub_file <- function(sig.vec,save.name){
+  out.df <- c() 
+  for (i in 1:length(sig.vec)){
+    sig <- sig.vec[i]
+    sub <- (filter(cred.df,CondID==sig) %>% arrange(desc(PPA)))[1,]
+    sub2 <- filter(gwas.df,SNPID==sub$SNPID)
+    sub3 <- filter(gwas.df2,SNPID==sub$SNPID)
+    Ncases <- sub2$NCASE; Ncontrols <- sub2$NCONTROL
+    Ne <-  (4 * Ncases * Ncontrols/(Ncases + Ncontrols)) %>% ceiling(.)
+    build.df <- data.frame(snpid=sub$lead.rsid,A1=sub3$EA,A2=sub3$NEA,Zscore=sub2$Z,N=Ne,`P.value`=sub2$PVAL,stringsAsFactors = F)
+    out.df <- rbind(out.df,build.df)
+  }
+  write.table(x=out.df,file=save.name,sep="\t",quote=F,row.names=F,col.names=c("snpid","A1","A2","Zscore","N","P-value")) 
+}
+
+
+generate_all_files <- function(){
+  tiss.vec <- c("islet","liver","muscle","adipose")
+  t.vec <- c("assigned_00","assigned_20","assigned_50","assigned_80")
+  for (tiss in tiss.vec){
+    for (t in t.vec){
+      print("Tissue: " %&% tiss %&% "; Threshold: " %&% strsplit(t,split="_")[[1]][2])
+      cname <- (t %>% stringToQuoser(.))
+      sig.vec <- dplyr::filter(toa.df,!!cname==tiss)$Locus.ID
+      save.name1 <- out.dir1 %&% "thresh" %&% strsplit(t,split="_")[[1]][2] %&% "_" %&% tiss %&% ".bed" 
+      save.name2 <- out.dir2 %&% "thresh" %&% strsplit(t,split="_")[[1]][2] %&% "_" %&% tiss %&% ".ldhub.txt"      
+      make_bed_file(sig.vec,save.name1)
+      make_ldhub_file(sig.vec,save.name2)
+    }
+  }
+}
+
+```
+
+
+```{r}
+
+generate_all_files()
+
+```
+
