@@ -16,7 +16,6 @@ knitr::opts_chunk$set(echo = TRUE)
 library("tidyverse")
 library("data.table")
 library("Homo.sapiens")
-library("")
 
 serv.dir1 <- "/home/jason/science/servers/FUSE/" 
 serv.dir2 <- "/home/jason/science/servers/FUSE5/" 
