@@ -22,7 +22,7 @@ serv.dir0 <- "/home/jason/science/servers/FUSE/"
 
 work.dir <- serv.dir %&% "projects/t2d_classification/revamp/"
 file.dir <- work.dir %&% "analysis_files/"
-out.dir1 <- file.dir %&% "enrich_H3K27ac/"
+out.dir1 <- work.dir %&% "enrichment_files/enrich_H3K27ac/"
 out.dir2 <- file.dir %&% "LDhub/"
 
 cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
@@ -72,15 +72,16 @@ make_ldhub_file <- function(sig.vec,save.name){
 
 
 generate_all_files <- function(){
-  tiss.vec <- c("islet","liver","muscle","adipose")
+  tiss.vec <- c("islet","liver","muscle","adipose","unclassified","shared")
   t.vec <- c("assigned_00","assigned_20","assigned_50","assigned_80")
   for (tiss in tiss.vec){
     for (t in t.vec){
-      print("Tissue: " %&% tiss %&% "; Threshold: " %&% strsplit(t,split="_")[[1]][2])
+      tstring <- strsplit(t,split="_")[[1]][2]
+      print("Tissue: " %&% tiss %&% "; Threshold: " %&% tstring)
       cname <- (t %>% stringToQuoser(.))
       sig.vec <- dplyr::filter(toa.df,!!cname==tiss)$Locus.ID
-      save.name1 <- out.dir1 %&% "thresh" %&% strsplit(t,split="_")[[1]][2] %&% "_" %&% tiss %&% ".bed" 
-      save.name2 <- out.dir2 %&% "thresh" %&% strsplit(t,split="_")[[1]][2] %&% "_" %&% tiss %&% ".ldhub.txt"      
+      save.name1 <- out.dir1 %&% "thresh" %&% tstring %&% "/" %&% "thresh" %&% tstring %&% "_" %&% tiss %&% ".bed" 
+      save.name2 <- out.dir2 %&% "thresh" %&% tstring %&% "_" %&% tiss %&% ".ldhub.txt"      
       make_bed_file(sig.vec,save.name1)
       make_ldhub_file(sig.vec,save.name2)
     }
