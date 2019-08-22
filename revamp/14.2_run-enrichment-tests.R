@@ -7,13 +7,12 @@
 "%&%" <- function(a,b) paste0(a,b)
 
 library("rlang")
-library("dplyr")
-library("purrr")
 library("wrapr")
+library("tidyverse")
 library("data.table")
 
-serv.dir1 <- "/well/got2d/jason/"
-serv.dir2 <- "/well/mccarthy/users/jason/"
+serv.dir1 <- "/well/got2d/jason/" #"/home/jason/science/servers/FUSE/"#
+serv.dir2 <- "/well/mccarthy/users/jason/" # "/home/jason/science/servers/FUSE5/" #
 proj.dir <- serv.dir2 %&% "projects/t2d_classification/"
 work.dir <- proj.dir %&% "revamp/"
 out.dir <- work.dir %&% "enrichment_files/eqtls/"
@@ -32,9 +31,9 @@ insp.exon.spec <- fread(out.dir %&%"inspExon-specific-esnps.txt",header=F)$V1
 insp.gene.spec <- fread(out.dir %&% "inspGene-specific-esnps.txt",header=F)$V1
 mvdb.spec <- fread(out.dir %&% "mvdbExon-specific-esnps.txt",header=F)$V1
 
-#rare.snps <- fread("cat " %&% out.dir %&% "bin_rare.txt.gz" %&% " | zmore",header=F)$V1
-#low.snps <- fread("cat " %&% out.dir %&% "bin_low.txt.gz"  %&% " | zmore", header=F)$V1
-#high.snps <- fread("cat " %&% out.dir %&% "bin_high.txt.gz" %&% " | zmore",header=F)$V1
+rare.snps <- fread("cat " %&% out.dir %&% "bin_rare.txt.gz" %&% " | zmore",header=F)$V1
+low.snps <- fread("cat " %&% out.dir %&% "bin_low.txt.gz"  %&% " | zmore", header=F)$V1
+high.snps <- fread("cat " %&% out.dir %&% "bin_high.txt.gz" %&% " | zmore",header=F)$V1
 
 maf.df <- fread(out.dir %&% "leadSNP_maf.txt")
 names(maf.df) <- c("SNP","MAF")
@@ -126,21 +125,34 @@ get_build_df <- function(tissue,threshold){
   for (i in 1:length(eqtl.list)){
     eqtl.vec = eqtl.list[[i]]
     ename = eqtl.names[i]
-    print(eqtl.vec)
-    print(ename)
-    #df1 <- enrich_test_sampGWAS(query.vec,eqtl.vec,iter=1000)
-    #df2 <- enrich_test_snpsnap(query.vec,eqtl.vec)
-    #names(df2) <- c("observed_snpsnap","enrichment_snpsnap","pvalue_snpsnap","num_sigs","num_missing")
-    #df <- data.frame("tissue_toa"=tissue,tissue_eqtl=ename,"threshold"=threshold,stringsAsFactors=F)
-    #build.df <- cbind(df,df1,df2)
-    #out.df <- rbind(out.df,build.df)
+    print("eQTL set: " %&% ename)
+    df2 <- enrich_test_snpsnap(query.vec,eqtl.vec)
+    names(df2) <- c("observed_snpsnap","enrichment_snpsnap","pvalue_snpsnap","num_sigs","num_missing")
+    df1 <- enrich_test_sampGWAS(query.vec,eqtl.vec,iter=1000)
+    df <- data.frame("tissue_toa"=tissue,tissue_eqtl=ename,"threshold"=threshold,stringsAsFactors=F)
+    build.df <- cbind(df,df1,df2)
+    out.df <- rbind(out.df,build.df)
   }
-  #return(out.df)
+  return(out.df)
+}
+
+build_enrich_df <- function(){
+  out.df <- c()
+  tiss.vec <- c("islet","liver","muscle","adipose","shared","unclassified")
+  thresh.vec <- c("00","20","50","80")
+  out.df <- c()
+  for (tiss in tiss.vec){
+    for (thresh in thresh.vec){
+      print("TOA: " %&% tiss %&% "; Threshold: " %&% thresh)
+      build.df <- get_build_df(tiss,thresh)
+      out.df <- rbind(out.df,build.df)
+    }
+  }
+  return(out.df)
 }
 
 
 # RUN
 
-test <- get_build_df("liver","00")
-test
-str(test)
+enrich.df <- build_enrich_df()
+write.table(x=enrich.df,file="eqtl_enrichment.txt",sep="\t",quote=F,row.names=F)
