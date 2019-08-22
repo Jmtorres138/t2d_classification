@@ -1,17 +1,19 @@
 
-# Setup  
+# Setup
 
-#Script for performing eQTL enrichment test using two different approaches for generating null snp sets: 1) SNPsnap using CEU 1K Genomes reference and 2) MAF-based sampling from HRC-imputed GWAS data frame 
+#Script for performing eQTL enrichment test using two different approaches for generating null snp sets: 1) SNPsnap using CEU 1K Genomes reference and 2) MAF-based sampling from HRC-imputed GWAS data frame
 
 
 "%&%" <- function(a,b) paste0(a,b)
 
-library("tidyverse")
+library("rlang")
+library("dplyr")
+library("purrr")
+library("wrapr")
 library("data.table")
-library("Homo.sapiens")
 
-serv.dir1 <- "/home/jason/science/servers/FUSE/" 
-serv.dir2 <- "/home/jason/science/servers/FUSE5/" 
+serv.dir1 <- "/well/got2d/jason/"
+serv.dir2 <- "/well/mccarthy/users/jason/"
 proj.dir <- serv.dir2 %&% "projects/t2d_classification/"
 work.dir <- proj.dir %&% "revamp/"
 out.dir <- work.dir %&% "enrichment_files/eqtls/"
@@ -19,7 +21,7 @@ out.dir <- work.dir %&% "enrichment_files/eqtls/"
 toa.df <- fread(work.dir %&% "analysis_files/classified-loci_weighted_with-shared.txt")
 cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
 
-snpsnap.df <- fread(out.dir %&% "SNPsnap_oneK_5_20_20_50_rsq5/matched_snps.txt") # Note that only 359/380 (94%) signals were matched with SNPSNAP 
+snpsnap.df <- fread(out.dir %&% "SNPsnap_oneK_5_20_20_50_rsq5/matched_snps.txt") # Note that only 359/380 (94%) signals were matched with SNPSNAP
 
 
 isl.spec <- fread(out.dir %&% "islet-specific-esnps.txt",header=F)$V1
@@ -30,9 +32,9 @@ insp.exon.spec <- fread(out.dir %&%"inspExon-specific-esnps.txt",header=F)$V1
 insp.gene.spec <- fread(out.dir %&% "inspGene-specific-esnps.txt",header=F)$V1
 mvdb.spec <- fread(out.dir %&% "mvdbExon-specific-esnps.txt",header=F)$V1
 
-rare.snps <- fread("cat " %&% out.dir %&% "bin_rare.txt.gz" %&% " | zmore",header=F)$V1
-low.snps <- fread("cat " %&% out.dir %&% "bin_low.txt.gz"  %&% " | zmore", header=F)$V1
-high.snps <- fread("cat " %&% out.dir %&% "bin_high.txt.gz" %&% " | zmore",header=F)$V1
+#rare.snps <- fread("cat " %&% out.dir %&% "bin_rare.txt.gz" %&% " | zmore",header=F)$V1
+#low.snps <- fread("cat " %&% out.dir %&% "bin_low.txt.gz"  %&% " | zmore", header=F)$V1
+#high.snps <- fread("cat " %&% out.dir %&% "bin_high.txt.gz" %&% " | zmore",header=F)$V1
 
 maf.df <- fread(out.dir %&% "leadSNP_maf.txt")
 names(maf.df) <- c("SNP","MAF")
@@ -41,7 +43,7 @@ maf.df$SNPID <- map(1:dim(maf.df)[1],function(i){
 }) %>% as.character(.)
 
 
-# Enrichment functions 
+# Enrichment functions
 
 
 stringToQuoser <- function(varName) {
@@ -51,7 +53,7 @@ stringToQuoser <- function(varName) {
 extract_query_vec <- function(tissue,threshold){
   # threshold must be: "00","20","50", or "80"
   cname <- ("assigned_" %&% threshold) %>% stringToQuoser(.)
-  id.vec <- dplyr::filter(toa.df, !!cname==tissue)$Locus.ID 
+  id.vec <- dplyr::filter(toa.df, !!cname==tissue)$Locus.ID
   query.vec <- map(1:length(id.vec),function(i){
     id <- id.vec[i]
     snp <- (filter(cred.df,CondID==id) %>% arrange(.,desc(PPA)))[1,]$IndexSNP
@@ -66,7 +68,7 @@ get_overlap <- function(query.vec,eqtl.vec){
 
 get_maf_matched_null_vec <- function(query.vec){
   sub.df <- filter(maf.df,SNPID%in%query.vec)
-  non.dup.df <- sub.df[!duplicated(sub.df$SNPID),]  
+  non.dup.df <- sub.df[!duplicated(sub.df$SNPID),]
   maf.vec <- non.dup.df$MAF
   rare.count <- sum(maf.vec < 0.005)
   low.freq.count <- sum(maf.vec >= 0.005 & maf.vec < 0.05) # MAF >= 0.005 & MAF < 0.05
@@ -94,7 +96,7 @@ enrich_test_snpsnap <- function(query.vec, eqtl.vec){
   pval <- (sum(null.counts >= obs) + 1)/ ((dim(sub.df)[2]-1) + 1)
   fac <- obs / mean(null.counts)
   out.df <- data.frame(observed=obs,enrichment=fac,pvalue=pval,num_sigs=num.sigs,
-                       num_missing=num.miss,stringsAsFactors = FALSE)  
+                       num_missing=num.miss,stringsAsFactors = FALSE)
 }
 
 enrich_test_sampGWAS <- function(query.vec,eqtl.vec,iter=1000){
@@ -112,3 +114,33 @@ enrich_test_sampGWAS <- function(query.vec,eqtl.vec,iter=1000){
   out.df <- data.frame(observed=obs,enrichment=fac,pvalue=pval,stringsAsFactors = FALSE)
 }
 
+
+
+get_build_df <- function(tissue,threshold){
+  query.vec <- extract_query_vec(tissue,threshold)
+  eqtl.list <- list(isl.spec,mus.spec,adi.spec,liv.spec,insp.exon.spec,
+                    insp.gene.spec,mvdb.spec)
+  eqtl.names <- c("islet","muscle","adipose","liver",
+                  "inspire.exon","inspire.gene","mvdb.exon")
+  out.df <- c()
+  for (i in 1:length(eqtl.list)){
+    eqtl.vec = eqtl.list[[i]]
+    ename = eqtl.names[i]
+    print(eqtl.vec)
+    print(ename)
+    #df1 <- enrich_test_sampGWAS(query.vec,eqtl.vec,iter=1000)
+    #df2 <- enrich_test_snpsnap(query.vec,eqtl.vec)
+    #names(df2) <- c("observed_snpsnap","enrichment_snpsnap","pvalue_snpsnap","num_sigs","num_missing")
+    #df <- data.frame("tissue_toa"=tissue,tissue_eqtl=ename,"threshold"=threshold,stringsAsFactors=F)
+    #build.df <- cbind(df,df1,df2)
+    #out.df <- rbind(out.df,build.df)
+  }
+  #return(out.df)
+}
+
+
+# RUN
+
+test <- get_build_df("liver","00")
+test
+str(test)
