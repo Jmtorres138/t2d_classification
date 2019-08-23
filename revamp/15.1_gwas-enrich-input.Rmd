@@ -1,0 +1,59 @@
+---
+title: "14.1_eQTL-enrich-revamp-make-inputs.Rmd"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+
+serv.dir1 <- "/home/jason/science/servers/FUSE/" 
+serv.dir2 <- "/home/jason/science/servers/FUSE5/" 
+proj.dir <- serv.dir2 %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "revamp/"
+out.dir <- work.dir %&% "enrichment_files/gwas/"
+
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+
+```
+
+create and save signal file 
+
+```{r}
+
+sub.df <- dplyr::select(cred.df,one_of("symbol","IndexSNP","lead.rsid","CondID"))
+sub.df <- sub.df[!duplicated(sub.df),]
+write.table(x=sub.df,file = work.dir%&%"analysis_files/index_snps.txt",
+            sep="\t",quote=F,row.names=F)
+rm(sub.df)
+
+
+```
+
+Process GWAS input (downloaded from NHGRI-EBI catalogue accessed Aug 23, 2019)
+
+```{r}
+
+gwas.df <- fread(serv.dir2 %&%
+                   "datasets/nhgri_ebi_gwas_catalogue/gwas_catalog_v1.0-associations_e96_r2019-07-30.tsv",sep="\t")
+
+sub.df <- dplyr::select(gwas.df,one_of("DISEASE/TRAIT","CHR_ID","CHR_POS"))
+sub.df$SNPID <- "chr"%&%sub.df$CHR_ID %&% ":" %&% sub.df$CHR_POS
+sub.df <- dplyr::select(sub.df,one_of("SNPID","DISEASE/TRAIT"))
+names(sub.df) <- c("snp","pheno")
+
+write.table(x=sub.df,file = out.dir %&% "catalogue.txt",
+            sep="\t",quote=F,row.names=F)
+
+```
+
+
