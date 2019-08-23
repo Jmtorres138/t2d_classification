@@ -3,7 +3,9 @@
 
 
 "%&%" <- function(a,b) paste0(a,b)
-library("tidyverse")
+#library("tidyverse")
+library("dplyr")
+library("purrr")
 library("GenomicRanges")
 library("viridis")
 library("data.table")
