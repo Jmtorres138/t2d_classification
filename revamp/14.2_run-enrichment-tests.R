@@ -11,8 +11,8 @@ library("wrapr")
 library("tidyverse")
 library("data.table")
 
-serv.dir1 <- "/well/got2d/jason/" #"/home/jason/science/servers/FUSE/"#
-serv.dir2 <- "/well/mccarthy/users/jason/" # "/home/jason/science/servers/FUSE5/" #
+serv.dir1 <- "/well/got2d/jason/" #"/home/jason/science/servers/FUSE/"##
+serv.dir2 <- "/well/mccarthy/users/jason/" #"/home/jason/science/servers/FUSE5/"# 
 proj.dir <- serv.dir2 %&% "projects/t2d_classification/"
 work.dir <- proj.dir %&% "revamp/"
 out.dir <- work.dir %&% "enrichment_files/eqtls/"
@@ -23,13 +23,15 @@ cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
 snpsnap.df <- fread(out.dir %&% "SNPsnap_oneK_5_20_20_50_rsq5/matched_snps.txt") # Note that only 359/380 (94%) signals were matched with SNPSNAP
 
 
-isl.spec <- fread(out.dir %&% "islet-specific-esnps.txt",header=F)$V1
-mus.spec <- fread(out.dir %&% "muscle-specific-esnps.txt",header=F)$V1
-adi.spec <- fread(out.dir %&% "adipose-specific-esnps.txt",header=F)$V1
-liv.spec <- fread(out.dir %&% "liver-specific-esnps.txt",header=F)$V1
-insp.exon.spec <- fread(out.dir %&%"inspExon-specific-esnps.txt",header=F)$V1
-insp.gene.spec <- fread(out.dir %&% "inspGene-specific-esnps.txt",header=F)$V1
-mvdb.spec <- fread(out.dir %&% "mvdbExon-specific-esnps.txt",header=F)$V1
+isl.spec <- fread(out.dir %&% "islet-specific-esnps.txt",sep="\t",header=FALSE)$V1
+mus.spec <- fread(out.dir %&% "muscle-specific-esnps.txt",sep="\t",header=FALSE)$V1
+adi.spec <- fread(out.dir %&% "adipose-specific-esnps.txt",sep="\t",header=FALSE)$V1
+liv.spec <- fread(out.dir %&% "liver-specific-esnps.txt",sep="\t",header=FALSE)$V1
+insp.exon.spec <- fread(out.dir %&%"inspExon-specific-esnps.txt",sep="\t",header=FALSE)$V1
+insp.gene.spec <- fread(out.dir %&% "inspGene-specific-esnps.txt",sep="\t",header=FALSE)$V1
+mvdb.spec <- fread(out.dir %&% "mvdbExon-specific-esnps.txt",sep="\t",header=FALSE)$V1
+isl.jmt.spec <- fread(out.dir %&% "islet-specific-esnps_jmt.txt",sep="\t",header=FALSE)$V1
+
 
 rare.snps <- fread("cat " %&% out.dir %&% "bin_rare.txt.gz" %&% " | zmore",header=F)$V1
 low.snps <- fread("cat " %&% out.dir %&% "bin_low.txt.gz"  %&% " | zmore", header=F)$V1
@@ -53,11 +55,15 @@ extract_query_vec <- function(tissue,threshold){
   # threshold must be: "00","20","50", or "80"
   cname <- ("assigned_" %&% threshold) %>% stringToQuoser(.)
   id.vec <- dplyr::filter(toa.df, !!cname==tissue)$Locus.ID
-  query.vec <- map(1:length(id.vec),function(i){
-    id <- id.vec[i]
-    snp <- (filter(cred.df,CondID==id) %>% arrange(.,desc(PPA)))[1,]$IndexSNP
-    snp <- strsplit(snp,split="chr")[[1]][2]
-  }) %>% as.character(.)
+  if (length(id.vec)>0){
+    query.vec <- map(1:length(id.vec),function(i){
+      id <- id.vec[i]
+      snp <- (filter(cred.df,CondID==id) %>% arrange(.,desc(PPA)))[1,]$IndexSNP
+      snp <- strsplit(snp,split="chr")[[1]][2]
+    }) %>% as.character(.)    
+  } else{
+    query.vec <- c()
+  }
   return(query.vec)
 }
 
@@ -81,36 +87,47 @@ get_maf_matched_null_vec <- function(query.vec){
 
 
 enrich_test_snpsnap <- function(query.vec, eqtl.vec){
-  sub.df <- filter(snpsnap.df,Input_SNP %in% query.vec)
-  num.sigs <- length(query.vec); num.miss <- num.sigs - dim(sub.df)[1]
-  obs <- get_overlap(query.vec,eqtl.vec)
-  null.counts <- c()
-  pb <- txtProgressBar(min=2,max=(dim(sub.df)[2]),style=3)
-  for (i in 2:(dim(sub.df)[2])){
-    setTxtProgressBar(pb,i)
-    null.vec <- sub.df[,i]
-    nullcount <- get_overlap(null.vec,eqtl.vec)
-    null.counts <- append(null.counts,nullcount)
+  if (length(query.vec)==0){
+    out.df <- data.frame(observed=NA,enrichment=NA,pvalue=NA,num_sigs=NA,
+                         num_missing=NA,stringsAsFactors = FALSE)    
+  } else{
+      sub.df <- filter(snpsnap.df,Input_SNP %in% query.vec)
+      num.sigs <- length(query.vec); num.miss <- num.sigs - dim(sub.df)[1]
+      obs <- get_overlap(query.vec,eqtl.vec)
+      null.counts <- c()
+      pb <- txtProgressBar(min=2,max=(dim(sub.df)[2]),style=3)
+      for (i in 2:(dim(sub.df)[2])){
+        setTxtProgressBar(pb,i)
+        null.vec <- sub.df[,i]
+        nullcount <- get_overlap(null.vec,eqtl.vec)
+        null.counts <- append(null.counts,nullcount)
+      }
+      pval <- (sum(null.counts >= obs) + 1)/ ((dim(sub.df)[2]-1) + 1)
+      fac <- obs / mean(null.counts)
+      out.df <- data.frame(observed=obs,enrichment=fac,pvalue=pval,num_sigs=num.sigs,
+                           num_missing=num.miss,stringsAsFactors = FALSE)
   }
-  pval <- (sum(null.counts >= obs) + 1)/ ((dim(sub.df)[2]-1) + 1)
-  fac <- obs / mean(null.counts)
-  out.df <- data.frame(observed=obs,enrichment=fac,pvalue=pval,num_sigs=num.sigs,
-                       num_missing=num.miss,stringsAsFactors = FALSE)
+  return(out.df)
 }
 
 enrich_test_sampGWAS <- function(query.vec,eqtl.vec,iter=1000){
-  obs <- get_overlap(query.vec,eqtl.vec)
-  null.counts <- c()
-  pb <- txtProgressBar(min=0,max=iter,style=3)
-  for (i in 1:iter){
-    setTxtProgressBar(pb,i)
-    null.vec <- get_maf_matched_null_vec(query.vec)
-    nullcount <- get_overlap(null.vec,eqtl.vec)
-    null.counts <- append(null.counts,nullcount)
+  if (length(query.vec)==0){
+    out.df <- data.frame(observed=NA,enrichment=NA,pvalue=NA,stringsAsFactors = FALSE)
+  } else{
+    obs <- get_overlap(query.vec,eqtl.vec)
+    null.counts <- c()
+    pb <- txtProgressBar(min=0,max=iter,style=3)
+    for (i in 1:iter){
+      setTxtProgressBar(pb,i)
+      null.vec <- get_maf_matched_null_vec(query.vec)
+      nullcount <- get_overlap(null.vec,eqtl.vec)
+      null.counts <- append(null.counts,nullcount)
+    }
+    pval <- (sum(null.counts >= obs) + 1)/ (iter + 1)
+    fac <- obs / mean(null.counts)
+    out.df <- data.frame(observed=obs,enrichment=fac,pvalue=pval,stringsAsFactors = FALSE)    
   }
-  pval <- (sum(null.counts >= obs) + 1)/ (iter + 1)
-  fac <- obs / mean(null.counts)
-  out.df <- data.frame(observed=obs,enrichment=fac,pvalue=pval,stringsAsFactors = FALSE)
+  return(out.df)
 }
 
 
@@ -118,9 +135,9 @@ enrich_test_sampGWAS <- function(query.vec,eqtl.vec,iter=1000){
 get_build_df <- function(tissue,threshold){
   query.vec <- extract_query_vec(tissue,threshold)
   eqtl.list <- list(isl.spec,mus.spec,adi.spec,liv.spec,insp.exon.spec,
-                    insp.gene.spec,mvdb.spec)
+                    insp.gene.spec,mvdb.spec,isl.jmt.spec)
   eqtl.names <- c("islet","muscle","adipose","liver",
-                  "inspire.exon","inspire.gene","mvdb.exon")
+                  "inspire.exon","inspire.gene","mvdb.exon","islet_jmt")
   out.df <- c()
   for (i in 1:length(eqtl.list)){
     eqtl.vec = eqtl.list[[i]]

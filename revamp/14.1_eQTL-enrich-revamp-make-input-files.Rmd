@@ -80,12 +80,21 @@ insp.gene.df <- fread(inspire.dir %&% "media-2.txt")
 pb <- txtProgressBar(min=0,max=dim(insp.gene.df)[1],style=3)
 insp.gene.eqtls <- map(1:dim(insp.gene.df)[1],function(i){
   setTxtProgressBar(pb,i)
-  vec <- c(insp.gene.df$SNPchr[i],insp.gene.df$StartSNP[i])
+  vec <- c(insp.gene.df$chrSNP[i],insp.gene.df$StartSNP[i])
   id <- vec[1] %&% ":" %&% vec[2]
 }) %>% as.character(.) %>% unique(.)
 
 mvdb.df <- fread(serv.dir2 %&% "datasets/mvdb_eSNP_coords.txt",header=F)
 mvdb.eqtls <- mvdb.df$V1 %&% ":" %&% mvdb.df$V2
+
+
+fastqtl.df <- fread("cat " %&% out.dir %&% "snp_keyfile_fdr05.txt.gz" %&% " | zmore")
+pb <- txtProgressBar(min=0,max=dim(fastqtl.df)[1],style=3)
+fastqtl.eqtls <- map(1:dim(fastqtl.df)[1],function(i){
+  setTxtProgressBar(pb,i)
+  vec <- c(fastqtl.df$CHR[i],fastqtl.df$POS[i])
+  id <- strsplit(vec[1],split="chr")[[1]][2] %&% ":" %&% vec[2]
+}) %>% as.character(.)
 
 
 ```
@@ -94,6 +103,7 @@ mvdb.eqtls <- mvdb.df$V1 %&% ":" %&% mvdb.df$V2
 ```{r}
 
 islet.eqtls  <- c(insp.exon.eqtls,insp.gene.eqtls,mvdb.eqtls) %>% unique(.)
+islet.jmt.eqtls <- fastqtl.eqtls
 
 ```
 
@@ -102,6 +112,7 @@ Save tissue-specific eQTL sets
 ```{r}
 
 isl.spec <- islet.eqtls[!(islet.eqtls %in% c(mus.eqtls,liv.eqtls,adi.eqtls))]
+isl.jmt.spec <- islet.jmt.eqtls[!(islet.jmt.eqtls %in% c(mus.eqtls,liv.eqtls,adi.eqtls))]
 mus.spec <- mus.eqtls[!(mus.eqtls %in% c(islet.eqtls,liv.eqtls,adi.eqtls))]
 adi.spec <- adi.eqtls[!(adi.eqtls %in% c(islet.eqtls,liv.eqtls,mus.eqtls))]
 liv.spec <- liv.eqtls[!(liv.eqtls %in% c(islet.eqtls,adi.eqtls,mus.eqtls))]
@@ -124,6 +135,9 @@ write.table(x=insp.gene.spec,file=out.dir %&%
               "inspGene-specific-esnps.txt",sep="\t",quote=F,row.names=F,col.names=F)
 write.table(x=mvdb.spec,file=out.dir %&%
               "mvdbExon-specific-esnps.txt",sep="\t",quote=F,row.names=F,col.names=F)
+write.table(x=isl.jmt.spec,file=out.dir %&% "islet-specific-esnps_jmt.txt",sep="\t",quote=F,row.names=F,col.names=F)
+
+
 ```
 
 
