@@ -162,6 +162,7 @@ build_enrich_df <- function(){
     for (thresh in thresh.vec){
       print("TOA: " %&% tiss %&% "; Threshold: " %&% thresh)
       build.df <- get_build_df(tiss,thresh)
+      print(build.df)
       out.df <- rbind(out.df,build.df)
     }
   }
@@ -172,4 +173,4 @@ build_enrich_df <- function(){
 # RUN
 
 enrich.df <- build_enrich_df()
-write.table(x=enrich.df,file="eqtl_enrichment.txt",sep="\t",quote=F,row.names=F)
+write.table(x=enrich.df,file=out.dir %&% "eqtl_enrichment.txt",sep="\t",quote=F,row.names=F)
