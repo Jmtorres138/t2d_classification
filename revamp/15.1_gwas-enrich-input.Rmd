@@ -32,12 +32,36 @@ create and save signal file
 
 sub.df <- dplyr::select(cred.df,one_of("symbol","IndexSNP","lead.rsid","CondID"))
 sub.df <- sub.df[!duplicated(sub.df),]
-write.table(x=sub.df,file = work.dir%&%"analysis_files/index_snps.txt",
-            sep="\t",quote=F,row.names=F)
-rm(sub.df)
-
+write.table(x=sub.df$lead.rsid,file = work.dir%&%"analysis_files/ensembl_query_snps.txt",
+            sep="\t",quote=F,row.names=F,col.names=F)
 
 ```
+
+
+Manually uploaded file of rsids to e!Ensembl for SNP query of SNP coordinates in Build GRch 38) (accessed Aug 26, 2018)
+
+NOTE: SNP rs505922 (GRCh37, chr9:136149229) at the ABO locus did not yield a result from the Ensembl query, the remaining 379 SNPs did 
+
+
+```{r}
+
+ens.df <- fread(work.dir %&% "analysis_files/ensembl_query_results.txt")
+names(ens.df) <- c("rsid","source","chrom","bp.start","bp.end")
+sub.df$grch38 <- map(1:dim(sub.df)[1],function(i){
+  row.df <- sub.df[i,]
+  chromo <- (strsplit(row.df$IndexSNP,split=":")[[1]][1] %>% strsplit(.,split="chr"))[[1]][2]
+  r <- row.df$lead.rsid
+  sub <- filter(ens.df,rsid==r,chrom==chromo)
+  snp38 <- sub$chrom%&%":"%&%sub$bp.start
+}) %>% as.character(.)
+write.table(x=sub.df,file = work.dir%&%"analysis_files/index_snps.txt",
+            sep="\t",quote=F,row.names=F)
+
+```
+
+
+
+
 
 Process GWAS input (downloaded from NHGRI-EBI catalogue accessed Aug 23, 2019)
 
