@@ -11,8 +11,9 @@ library("wrapr")
 library("tidyverse")
 library("data.table")
 
-serv.dir1 <- "/well/got2d/jason/" #"/home/jason/science/servers/FUSE/"##
-serv.dir2 <- "/well/mccarthy/users/jason/" #"/home/jason/science/servers/FUSE5/"# 
+serv.dir1 <- "/home/jason/science/servers/FUSE/" # "/well/got2d/jason/" ## 
+serv.dir2 <- "/home/jason/science/servers/FUSE5/" #"/well/mccarthy/users/jason/" # 
+local.dir <- "/home/jason/science/projects/t2d_classification/revamp/"
 proj.dir <- serv.dir2 %&% "projects/t2d_classification/"
 work.dir <- proj.dir %&% "revamp/"
 out.dir <- work.dir %&% "enrichment_files/eqtls/"
@@ -173,4 +174,5 @@ build_enrich_df <- function(){
 # RUN
 
 enrich.df <- build_enrich_df()
-write.table(x=enrich.df,file=out.dir %&% "eqtl_enrichment.txt",sep="\t",quote=F,row.names=F)
+#write.table(x=enrich.df,file=out.dir %&% "eqtl_enrichment.txt",sep="\t",quote=F,row.names=F)
+write.table(x=enrich.df,file=local.dir %&% "eqtl_enrichment.txt",sep="\t",quote=F,row.names=F)
