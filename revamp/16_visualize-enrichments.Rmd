@@ -1,0 +1,265 @@
+---
+title: "visualize-enrichments.Rmd"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+
+library("tidyverse")
+library("data.table")
+library("viridis")
+
+
+serv.dir <- "/home/jason/science/servers/FUSE5/"
+
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "revamp/"
+plot.dir <- work.dir %&% "plots/"
+
+
+```
+
+General functions 
+
+```{r}
+
+simpleCap <- function(x) {
+  s <- strsplit(x, " ")[[1]]
+  paste(toupper(substring(s, 1,1)), substring(s, 2),
+      sep="", collapse=" ")
+}
+
+firstup <- function(x) {
+  substr(x, 1, 1) <- toupper(substr(x, 1, 1))
+  x
+}
+
+```
+
+
+
+# eQTL enrichment
+
+```{r}
+
+eqtl.df <- fread(work.dir%&%"analysis_files/eqtl_enrichment.txt")
+eqtl.df$tissue_eqtl <- map(eqtl.df$tissue_eqtl,function(x){
+  s <- strsplit(x, " ")[[1]]
+  paste(toupper(substring(s, 1,1)), substring(s, 2),
+      sep="", collapse=" ")
+}) %>% as.character(.)
+eqtl.df$tissue_toa <- map(eqtl.df$tissue_toa,function(x){
+  s <- strsplit(x, " ")[[1]]
+  paste(toupper(substring(s, 1,1)), substring(s, 2),
+      sep="", collapse=" ") 
+}) %>% as.character(.)
+
+plot(eqtl.df$enrichment,eqtl.df$enrichment_snpsnap)
+abline(a=0,b=1)
+
+lm(eqtl.df$enrichment~eqtl.df$enrichment_snpsnap) %>% summary(.)
+
+```
+
+Both null distrubtion methods are correlated (adj_R2=0.83, pval<2.2e-16)
+but SNPSNAP method is more conservative, median and mean number of missing SNPs for SNPSNAP method are 3 and 3.65 SNPs, respectively (or 6.7% and 8.6% missing signals not matched by SNPSNAP) 
+
+
+eQTL enrichment plot 
+
+```{r}
+
+eqtl.df$tissue_toa <- factor(eqtl.df$tissue_toa,
+                             levels = c("Muscle","Adipose","Liver",
+                                        "Islet","Shared","Unclassified"))
+eqtl.df$tissue_eqtl <- factor(eqtl.df$tissue_eqtl,
+                             levels = c("Muscle","Adipose","Liver",
+                                        "Islet","Islet_jmt",
+                                        "Inspire.gene","Inspire.exon",
+                                        "Mvdb.exon",
+                                        "Shared","Unclassified"))
+eqtl_plot_snpsnap <- function(plot.df){
+  ggplot(data=plot.df, 
+                   aes(x=tissue_toa,y=tissue_eqtl)) + 
+  geom_tile(aes(fill=-log(pvalue_snpsnap,base=10)),color="black") + 
+  geom_text(aes(label=round(enrichment_snpsnap,digits=1),
+                size=observed_snpsnap),
+            color=viridis(10)[1]) + 
+  scale_size_continuous(range=c(1,3.5)) + 
+  scale_fill_viridis(name="-log10(pval)",option = "D") + 
+  xlab("Classified Tissue") + ylab("Tissue-specific eQTLs") + 
+  facet_wrap(~threshold,nrow = 1) + 
+  theme(axis.text.x=element_text(angle=90),
+        strip.background = element_rect(fill="ghostwhite",color="black",
+                                        linetype="solid",size=1)) 
+}
+
+eqtl_plot_gwas <- function(plot.df){
+  ggplot(data=plot.df, 
+                   aes(x=tissue_toa,y=tissue_eqtl)) + 
+  geom_tile(aes(fill=-log(pvalue,base=10)),color="black") + 
+  geom_text(aes(size=observed,
+                label=round(enrichment,digits=1)),
+            color=viridis(10)[1]) + 
+  scale_size_continuous(range=c(1,3.5)) + 
+  scale_fill_viridis(name="-log10(pval)",option = "D") + 
+  xlab("Classified Tissue") + ylab("Tissue-specific eQTLs") + 
+  facet_wrap(~threshold,nrow = 1) + 
+  theme(axis.text.x=element_text(angle=90),
+        strip.background = element_rect(fill="ghostwhite",color="black",
+                                        linetype="solid",size=1)) 
+}
+
+
+```
+
+
+```{r}
+
+ex.vec <- c("Islet","Inspire.exon","Mvdb.exon","Inspire.gene")
+eqtl.plt.snpsnap.full <- eqtl_plot_snpsnap(eqtl.df)
+ggsave(plot=eqtl.plt.snpsnap.full,filename=plot.dir %&%
+         "eqtl_enrich_snpsnap_full.png",width=10,height=4)
+ggsave(plot=eqtl.plt.snpsnap.full,filename=plot.dir %&%
+         "eqtl_enrich_snpsnap_full.pdf",width=10,height=4)
+
+eqtl.plt.snpsnap <- eqtl_plot_snpsnap(filter(eqtl.df,!(tissue_eqtl%in%ex.vec)))
+ggsave(plot=eqtl.plt.snpsnap,filename=plot.dir %&%
+         "eqtl_enrich_snpsnap.png",width=10,height=2.5)
+ggsave(plot=eqtl.plt.snpsnap,filename=plot.dir %&%
+         "eqtl_enrich_snpsnap.pdf",width=10,height=2.5)
+
+eqtl.plt.gwas.full <- eqtl_plot_gwas(eqtl.df)
+ggsave(plot=eqtl.plt.gwas.full,filename=plot.dir %&%
+         "eqtl_enrich_gwas_full.png",width=10,height=4)
+ggsave(plot=eqtl.plt.gwas.full,filename=plot.dir %&%
+         "eqtl_enrich_gwas_full.pdf",width=10,height=4)
+
+eqtl.plt.gwas <- eqtl_plot_gwas(filter(eqtl.df,!(tissue_eqtl%in%ex.vec)))
+ggsave(plot=eqtl.plt.gwas,filename=plot.dir %&%
+         "eqtl_enrich_gwas.png",width=10,height=2.5)
+ggsave(plot=eqtl.plt.gwas,filename=plot.dir %&%
+         "eqtl_enrich_gwas.pdf",width=10,height=2.5)
+
+
+```
+
+
+
+# H3K27ac peak enrichments (Roadmap Epigenome Project)
+
+```{r}
+
+eid.df <- fread(serv.dir %&% "datasets/Roadmap/Roadmap_EIDs.txt") %>% na.omit(.)
+r.df <- data.frame(V1="E017",V2="-",V3="-",V4="IMR90 fetal lung fibroblasts Cell Line",
+                   stringsAsFactors = F)
+names(r.df) <- names(eid.df)
+eid.df <- rbind(eid.df,r.df)
+
+process_plot_df <- function(file.path){
+  plot.df <- fread(file.path)
+  plot.df$cell_type <- map(plot.df$tissue_H3K27ac, function(s){
+                          filter(eid.df,`Epigenome ID (EID)`==s)$`Standardized Epigenome name`        
+  }) %>% as.character(.)
+  plot.df$group <- map(plot.df$tissue_H3K27ac, function(s){
+                        filter(eid.df,`Epigenome ID (EID)`==s)$GROUP
+  }) %>% as.character(.)
+  levs <- arrange(plot.df,(group))$cell_type %>% unique(.)
+  plot.df$cell_type <- factor(plot.df$cell_type,levels = levs)  
+  return(plot.df)
+}
+
+epi_plot <- function(plot.df){
+  ggplot(data=plot.df,aes(x=tissue_toa,y=cell_type))+
+  geom_tile(aes(fill=-log(p.val,base=10)),color="black") + 
+  geom_text(aes(size=observed.count,
+                label=round(enrich.factor,digits=1)),
+            color=viridis(10)[1]) + 
+  scale_size_continuous(range=c(0.5,3.5)) + 
+  scale_fill_viridis(name="-log10(pval)",option = "D") + 
+  xlab("Classified Tissue") + ylab("Tissue/cell type (H3K27ac peaks)") + 
+  theme(axis.text.x=element_text(angle=90),
+        strip.background = element_rect(fill="ghostwhite",color="black",
+                                        linetype="solid",size=1)) 
+}
+
+
+```
+
+
+```{r}
+
+file.path00 <- serv.dir %&% "projects/t2d_classification/revamp/enrichment_files/enrich_H3K27ac/thresh00/enrich_H3K27ac_t00.txt"
+plot.df00 <- process_plot_df(file.path00)
+epi.plt00 <- epi_plot(plot.df00)
+ggsave(plot=epi.plt00,filename=plot.dir %&%
+         "roadmap_enrich_00.png",width=8,height=12)
+ggsave(plot=epi.plt00,filename=plot.dir %&%
+         "roadmap_enrich_00.pdf",width=8,height=12)
+
+file.path20 <- serv.dir %&% "projects/t2d_classification/revamp/enrichment_files/enrich_H3K27ac/thresh20/enrich_H3K27ac_t20.txt"
+plot.df20 <- process_plot_df(file.path20)
+epi.plt20 <- epi_plot(plot.df20)
+ggsave(plot=epi.plt20,filename=plot.dir %&%
+         "roadmap_enrich_20.png",width=8,height=12)
+ggsave(plot=epi.plt20,filename=plot.dir %&%
+         "roadmap_enrich_20.pdf",width=8,height=12)
+
+file.path50 <- serv.dir %&% "projects/t2d_classification/revamp/enrichment_files/enrich_H3K27ac/thresh50/enrich_H3K27ac_t50.txt"
+plot.df50 <- process_plot_df(file.path50)
+epi.plt50 <- epi_plot(plot.df50)
+ggsave(plot=epi.plt50,filename=plot.dir %&%
+         "roadmap_enrich_50.png",width=8,height=12)
+ggsave(plot=epi.plt50,filename=plot.dir %&%
+         "roadmap_enrich_50.pdf",width=8,height=12)
+
+file.path80 <- serv.dir %&% "projects/t2d_classification/revamp/enrichment_files/enrich_H3K27ac/thresh80/enrich_H3K27ac_t80.txt"
+plot.df80 <- process_plot_df(file.path80)
+epi.plt80 <- epi_plot(plot.df80)
+ggsave(plot=epi.plt80,filename=plot.dir %&%
+         "roadmap_enrich_80.png",width=8,height=12)
+ggsave(plot=epi.plt80,filename=plot.dir %&%
+         "roadmap_enrich_80.pdf",width=8,height=12)
+```
+
+
+# GWAS Enrichment 
+
+
+```{r}
+
+gwas.df <- fread(work.dir %&%
+      "enrichment_files/gwas/gwas_enrichment_TOAthresh20.txt") %>% 
+  filter(.,pval<=0.05)
+levs <- arrange(gwas.df,enrichment)$trait %>% unique(.)
+gwas.df$trait <- factor(gwas.df$trait,levels=levs)
+gwas.df$tissue <- factor(gwas.df$tissue,levels=c("adipose","liver","muscle","islet","shared","unclassified"))
+
+gwas.plt <- ggplot(data=gwas.df,aes(x=trait,y=enrichment)) + 
+  geom_point(shape=21,aes(fill=-log(pval,base=10),size=observed)) +
+  scale_fill_viridis() + 
+  scale_size_continuous(range=c(0.5,3)) +
+  facet_wrap(~tissue,nrow = 1)+
+  coord_flip()
+  
+ggsave(plot=gwas.plt,filename=plot.dir %&%
+         "gwas_enrich_20.png",width=15,height=12)
+
+
+```
+
+
+
+
+
+
