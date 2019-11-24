@@ -1,0 +1,151 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+library("tidyverse")
+library("GenomicRanges")
+library("viridis")
+library("data.table")
+library("RColorBrewer")
+library("gridExtra")
+
+
+serv.dir <- "/home/jason/science/servers/FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "revamp/"
+
+analysis.dir <- work.dir %&% "analysis_files/"
+plot.dir <- work.dir %&% "plots/"
+
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+cred.df$Locus.ID <- cred.df$CondID
+
+df <- fread(analysis.dir%&%"classified-loci_weighted_with-shared.txt")
+ 
+gwas.df <- fread("cat " %&% serv.dir %&% "datasets/diamante_hrc/European.HRC.T2D.summary.March2018AMah.txt.gz | zmore")
+gwas.df$SNP <- "chr" %&% gwas.df$SNP
+
+vec <- cred.df$IndexSNP %>% unique(.)
+vec[vec %in% gwas.df$SNP] %>% length(.)
+```
+
+
+# Develop "sharing" score
+
+```{r}
+
+df$sep.score <- map(1:dim(df)[1],function(i){
+  vec <- df[i,2:6] %>% sort(.,decreasing=TRUE) %>% as.numeric(.)
+  vec[1] - vec[2]
+}) %>% as.numeric(.)
+df$share.score <- 1-df$sep.score
+
+df$num.snps <- map(1:dim(df)[1],function(i){
+  id <- df[i,]$Locus.ID
+  dim(filter(cred.df,CondID==id))[1]
+}) %>% as.integer(.)
+
+df$max.ppa <- map(df$Locus.ID,function(id){
+  filter(cred.df,CondID==id)$PPA %>% max(.)
+}) %>% as.numeric(.)
+
+sum(df$sep.score > median(df$sep.score))
+summary(df$sep.score)
+
+#Alternative scheme for measuring sharing (ssds)
+
+
+df$ssd <- map(1:dim(df)[1],function(i){
+  vec <- df[i,] %>% dplyr::select(.,one_of("islet","muscle","adipose","liver")) %>% as.numeric(.) %>% 
+    sort(.,decreasing = T)
+  d1 <- vec[1]-vec[2]; d2 <- vec[2]-vec[3]; d3 <- vec[3]-vec[4]
+  ssd <- (d1^2) + (d2^2) + (d3^2)
+}) %>% as.numeric(.)
+
+```
+
+
+
+```{r}
+
+full.df <- c()
+pb <- txtProgressBar(min=1,max=dim(df)[1],style=3)
+for (i in 1:dim(df)[1]){
+  setTxtProgressBar(pb,i)
+  row.df <- df[i,]
+  sig <- row.df$Locus.ID
+  indsnp <- filter(cred.df,Locus.ID==sig)$IndexSNP %>% unique(.)
+  sub <- filter(gwas.df,SNP==indsnp) %>% dplyr::select(.,one_of("Beta","SE","Pvalue"))  
+  build.df <- cbind(row.df,sub)
+  full.df <- rbind(full.df,build.df)
+}
+
+full.df$Pvalue <- full.df$Pvalue %>% as.numeric(.)
+full.df$Zscore <- full.df$Beta / full.df$SE 
+
+```
+
+
+
+
+
+
+## EDA 
+
+Number of SNPs 
+```{r}
+
+ggplotRegression <- function (fit) {
+
+require(ggplot2)
+
+ggplot(fit$model, aes_string(x = names(fit$model)[2], y = names(fit$model)[1])) + 
+  geom_point() +
+  stat_smooth(method = "lm", col = "red") +
+  labs(title = paste("Adj R2 = ",signif(summary(fit)$adj.r.squared, 5),
+                     "Intercept =",signif(fit$coef[[1]],5 ),
+                     " Slope =",signif(fit$coef[[2]], 5),
+                     " P =",signif(summary(fit)$coef[2,4], 5)))
+}
+
+full.df$absZ <- abs(full.df$Zscore)
+full.df$neglogpval <- -log(full.df$Pvalue,base=10)
+
+plt <- ggplotRegression(lm(ssd~absZ,data=full.df))
+plt <- plt + geom_point(color="black",shape=21,alpha=0.6,fill=viridis(10)[4]) + 
+  xlab("|Z-score|") +
+  ylab("SSD") + 
+  geom_smooth(method='lm',color=viridis(10)[2]) + 
+  theme(panel.background = element_rect(fill="grey95"),
+        plot.title = element_text(size=9))
+
+plt2 <- ggplotRegression(lm(ssd~neglogpval,data=filter(full.df,Pvalue>0)))
+plt2 <- plt2 + geom_point(color="black",shape=21,alpha=0.6,fill=viridis(10)[4]) + 
+  xlab("-log10(P-value)") +
+  ylab("SSD") + 
+  geom_smooth(method='lm',color=viridis(10)[2]) + 
+  theme(panel.background = element_rect(fill="grey95"),
+        plot.title = element_text(size=9))
+
+```
+
+```{r}
+
+cor.test(full.df$ssd,full.df$absZ)
+lm(full.df$ssd~full.df$absZ) %>% summary(.)
+
+cor.test(filter(full.df,Pvalue>0)$ssd,filter(full.df,Pvalue>0)$neglogpval)
+lm(filter(full.df,Pvalue>0)$ssd~filter(full.df,Pvalue>0)$neglogpval) %>% summary(.)
+
+```
+
