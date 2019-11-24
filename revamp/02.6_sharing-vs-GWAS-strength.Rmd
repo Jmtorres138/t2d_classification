@@ -119,6 +119,8 @@ ggplot(fit$model, aes_string(x = names(fit$model)[2], y = names(fit$model)[1])) 
 }
 
 full.df$absZ <- abs(full.df$Zscore)
+full.df$absBeta <- abs(full.df$Beta)
+
 full.df$neglogpval <- -log(full.df$Pvalue,base=10)
 
 plt <- ggplotRegression(lm(ssd~absZ,data=full.df))
@@ -127,11 +129,20 @@ plt <- plt + geom_point(color="black",shape=21,alpha=0.6,fill=viridis(10)[4]) +
   ylab("SSD") + 
   geom_smooth(method='lm',color=viridis(10)[2]) + 
   theme(panel.background = element_rect(fill="grey95"),
-        plot.title = element_text(size=9))
+        plot.title = element_text(size=9)) #+ 
+  #coord_cartesian(xlim=c(0,10))
 
 plt2 <- ggplotRegression(lm(ssd~neglogpval,data=filter(full.df,Pvalue>0)))
 plt2 <- plt2 + geom_point(color="black",shape=21,alpha=0.6,fill=viridis(10)[4]) + 
   xlab("-log10(P-value)") +
+  ylab("SSD") + 
+  geom_smooth(method='lm',color=viridis(10)[2]) + 
+  theme(panel.background = element_rect(fill="grey95"),
+        plot.title = element_text(size=9))
+
+plt3 <- ggplotRegression(lm(ssd~absBeta,data=full.df))
+plt3 <- plt3 + geom_point(color="black",shape=21,alpha=0.6,fill=viridis(10)[4]) + 
+  xlab("|Beta|") +
   ylab("SSD") + 
   geom_smooth(method='lm',color=viridis(10)[2]) + 
   theme(panel.background = element_rect(fill="grey95"),
@@ -146,6 +157,9 @@ lm(full.df$ssd~full.df$absZ) %>% summary(.)
 
 cor.test(filter(full.df,Pvalue>0)$ssd,filter(full.df,Pvalue>0)$neglogpval)
 lm(filter(full.df,Pvalue>0)$ssd~filter(full.df,Pvalue>0)$neglogpval) %>% summary(.)
+
+cor.test(full.df$ssd,full.df$absBeta)
+lm(full.df$ssd~full.df$absBeta) %>% summary(.)
 
 ```
 
