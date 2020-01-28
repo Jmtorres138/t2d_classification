@@ -225,6 +225,8 @@ plt.df1$prop <- plt.df1$Score.Sum / sum(plt.df1$Score.Sum)
 plt.df1 %>% arrange(.,desc(prop)) # WT islet 22%, SE 17%
 # WT total 
 filter(plt.df1,Annotation=="Weak Transcription")$prop %>% sum(.) # 49% 
+filter(plt.df1,Annotation=="Strong Enhancer")$prop %>% sum(.) # 19%
+filter(plt.df1,Annotation=="Strong Enhancer",Tissue=="islet")$prop %>% sum(.) # 12%
 
 ```
 
@@ -236,6 +238,8 @@ plt.df2$prop <- plt.df2$Score.Sum / sum(plt.df2$Score.Sum)
 plt.df2 %>% arrange(.,desc(prop)) # WT islet 17%, SE 17%
 # WT total 
 filter(plt.df2,Annotation=="Weak Transcription")$prop %>% sum(.) # 39%
+filter(plt.df2,Annotation=="Strong Enhancer")$prop %>% sum(.) # 26%
+filter(plt.df2,Annotation=="Strong Enhancer",Tissue=="islet")$prop %>% sum(.) # %
 
 ```
 
@@ -247,6 +251,13 @@ plt.df3$prop <- plt.df3$Score.Sum / sum(plt.df3$Score.Sum)
 plt.df3 %>% arrange(.,desc(prop)) # WT islet 12%, SE 19%
 # WT total 
 filter(plt.df3,Annotation=="Weak Transcription")$prop %>% sum(.) # 28%
+filter(plt.df3,Annotation=="Strong Enhancer")$prop %>% sum(.) # 29%
+filter(plt.df3,Annotation=="Strong Enhancer",Tissue=="islet")$prop %>% sum(.) # 19%
+# islet 12-19% 
+# adipose 4-5%
+# muscle 1-2%
+# liver 2-3% 
+
 
 ```
 
