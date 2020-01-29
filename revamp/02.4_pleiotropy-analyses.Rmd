@@ -35,7 +35,7 @@ df <- fread(analysis.dir%&%"classified-loci_weighted_with-shared.txt")
 ```
 
 
-# some examples of signals with predominant tissue signatures 
+# Some examples of signals with predominant tissue signatures 
 
 ```{r}
 
@@ -49,6 +49,35 @@ df <- fread(analysis.dir%&%"classified-loci_weighted_with-shared.txt")
     filter(.,muscle > 0.87))$symbol %>% unique(.)
 
 ```
+
+
+# Limiting to only the PRIMARY signals 
+
+```{r}
+
+df$signum <- map(df$Locus.ID,function(s){
+  strsplit(s,split="_")[[1]][2]
+}) %>% as.character(.)
+prim.df <- filter(df,signum=="1")
+
+# Islet 
+(dplyr::select(prim.df ,-contains("assigned_")) %>% arrange(.,desc(islet)) %>% 
+   filter(.,islet > 0.9))$Locus.ID %>% length(.) # 12
+(dplyr::select(prim.df ,-contains("assigned_")) %>% arrange(.,desc(islet)) %>% 
+   filter(.,islet > 0.9)) %>% View(.)
+# Liver
+(dplyr::select(prim.df ,-contains("assigned_")) %>% arrange(.,desc(liver)) %>%
+    filter(.,liver > 0.9))$Locus.ID %>% length(.) # 4
+(dplyr::select(prim.df ,-contains("assigned_")) %>% arrange(.,desc(liver)) %>%
+    filter(.,liver > 0.9)) %>% View(.)
+# Adipose 
+(dplyr::select(prim.df ,-contains("assigned_")) %>% arrange(.,desc(adipose)) %>% 
+    filter(.,adipose > 0.9))$Locus.ID %>% length(.) # 1 
+(dplyr::select(prim.df ,-contains("assigned_")) %>% arrange(.,desc(adipose)) %>% 
+    filter(.,adipose > 0.9)) %>% View(.)
+
+```
+
 
 
 
