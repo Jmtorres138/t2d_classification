@@ -1,0 +1,77 @@
+---
+title: "EmissionPlot.Rmd"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+library("tidyverse")
+library("data.table")
+
+
+fuse.path <- "/home/jason/science/servers/"
+serv.dir <- fuse.path %&% "FUSE5/"
+serv.dir0 <- fuse.path %&% "FUSE/"
+
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "tactical_analyses/"
+plot.dir <- work.dir %&% "plots/"
+
+emis.df <- fread(serv.dir0 %&% "reference/chromatin_segmentation/varshney_2017/chromatin_states/emissions_statInfo.txt")
+
+```
+
+
+```{r}
+
+process_df <- function(emis.df){
+  out.df <- c()
+  for (i in 1:dim(emis.df)[1]){
+    row.df <- emis.df[i,]
+    state_number <- row.df$state_number
+    state_name <- row.df$state_name
+    color_code <- row.df$color_code
+    histone_mark <- row.df[,4:8] %>% names(.)
+    Emission <- row.df[,4:8] %>% as.numeric(.)
+    build.df <- data.frame(state_number,state_name,color_code,
+                           histone_mark,Emission,stringsAsFactors = F)
+    out.df <- rbind(out.df,build.df)
+  }
+  return(out.df)
+}
+
+```
+
+
+```{r}
+library("viridis")
+
+plot.df <- process_df(emis.df)
+plot.df$state_name <- plot.df$state_name %&% " (" %&% 
+  plot.df$state_number %&% ")"
+plot.df$state_name <- factor(plot.df$state_name,
+          levels = rev(unique(arrange(plot.df,state_number)$state_name)))
+plot.df$histone_mark <- factor(plot.df$histone_mark,
+          levels = c("H3K27ac","H3K4me3","H3K4me1",
+                     "H3K36me3","H3K27me3"))
+
+
+p <- ggplot(data=plot.df,aes(x=histone_mark,y=state_name)) + 
+  geom_tile(aes(fill=Emission),color="black",size=0.5) + 
+  scale_fill_continuous(low="white",high=viridis(10)[5],
+                        limit=c(0,1),breaks=seq(0,1,0.2))+ 
+  theme(axis.text = element_text(color="black"),
+        axis.title = element_blank())
+
+sub <- dplyr::select(plot.df,one_of("state_name","color_code"))
+sub <- sub[!duplicated(sub),]
+
+```
+
