@@ -32,18 +32,20 @@ bed.dir <- serv0.dir %&% "reference/chromatin_segmentation/varshney_2017/chromat
 
 ```{r}
 
-strong.enhancers <- c("9_Active_enhancer_1","10_Active_enhancer_2")
-weak.enhancers <- c("11_Weak_enhancer")
-repressed.regions <- c("16_Repressed_polycomb", "17_Weak_repressed_polycomb")
-strong.promoter <- c("1_Active_TSS")
-weak.promoter <- c("2_Weak_TSS")
-flank.promoter <- c("3_Flanking_TSS")
-strong.gene.transcription <- c("5_Strong_transcription")
-weak.gene.transcription <- c("6_Weak_transcription")
-bivalent.tss <- c("14_Bivalent_poised_TSS")
-genic.enhancer <- c("8_Genic_enhancer")
+Active_enhancer_1 <- c("9_Active_enhancer_1")
+Active_enhancer_2 <- c("10_Active_enhancer_2")
+Weak_enhancer <- c("11_Weak_enhancer")
+repressed.polycomb <- c("16_Repressed_polycomb")
+repressed.polycomb.weak <- c("17_Weak_repressed_polycomb")
+Active_TSS <- c("1_Active_TSS")
+Weak_TSS <- c("2_Weak_TSS")
+Flanking_TSS <- c("3_Flanking_TSS")
+Strong_transcription <- c("5_Strong_transcription")
+Weak_transcription <- c("6_Weak_transcription")
+Bivalent_poised_TSS <- c("14_Bivalent_poised_TSS")
+Genic_enhancer <- c("8_Genic_enhancer")
 low.signal <- c("18_Quiescent_low_signal")
-coding <- c("coding")
+Coding <- c("coding")
 
 ```
 
@@ -63,17 +65,20 @@ liv.df$V4 <- liv.df$V4 %>% gsub("/","_",.)
 ```
 
 
+
 ```{r}
 
 build_annotation_count_df <- function(tiss.df){
   df.list <- list(isl.df,adi.df,mus.df,liv.df)
   tiss.vec <- c("Islet","Adipose","Muscle","Liver")
-  annot.list <- list(strong.enhancers,weak.enhancers,strong.promoter,
-                     weak.promoter,flank.promoter,strong.gene.transcription,
-                     weak.gene.transcription,genic.enhancer)
-  name.vec <- c("Strong Enhancer","Weak Enhancer","Strong Promoter",
-                "Weak Promoter","Flank Promoter","Strong Transcription",
-                "Weak Transcription","Genic Enhancer")  
+  annot.list <- list(Active_enhancer_1,Active_enhancer_2,Weak_enhancer,
+                    Active_TSS,Weak_TSS, Flanking_TSS,
+                    Strong_transcription,Weak_transcription,
+                    Genic_enhancer)
+  name.vec <- c("Active_enhancer_1","Active_enhancer_2","Weak_enhancer",
+                 "Active_TSS","Weak_TSS", "Flanking_TSS",
+                 "Strong_transcription","Weak_transcription",
+                 "Genic_enhancer")
   out.df <- c()
   pb <- txtProgressBar(min=0,max=length(df.list),style=3)
   for (i in 1:length(df.list)){
@@ -126,20 +131,23 @@ get_median_nearest_distances <- function(gr1,gr2){
 
 ```{r}
 
+
 build_dist_df <- function(tiss.df){
-  se.gr <- filter(tiss.df,V4 %in% strong.enhancers) %>% convert_to_gr(.) 
-  we.gr <- filter(tiss.df,V4 %in% weak.enhancers) %>% convert_to_gr(.) 
-  sp.gr <- filter(tiss.df,V4 %in% strong.promoter) %>% convert_to_gr(.) 
-  wp.gr <- filter(tiss.df,V4 %in% weak.promoter) %>% convert_to_gr(.) 
-  fp.gr <-  filter(tiss.df,V4 %in% flank.promoter) %>% convert_to_gr(.) 
-  st.gr <- filter(tiss.df,V4 %in% strong.gene.transcription) %>% convert_to_gr(.)
-  wt.gr <- filter(tiss.df,V4 %in% weak.gene.transcription) %>% convert_to_gr(.)
-  ge.gr <- filter(tiss.df,V4 %in% genic.enhancer) %>% convert_to_gr(.) 
+  se.gr1 <- filter(tiss.df,V4 %in% Active_enhancer_1) %>% convert_to_gr(.) 
+  se.gr2 <- filter(tiss.df,V4 %in% Active_enhancer_2) %>% convert_to_gr(.) 
+  we.gr <- filter(tiss.df,V4 %in% Weak_enhancer) %>% convert_to_gr(.) 
+  sp.gr <- filter(tiss.df,V4 %in% Active_TSS) %>% convert_to_gr(.) 
+  wp.gr <- filter(tiss.df,V4 %in% Weak_TSS) %>% convert_to_gr(.) 
+  fp.gr <-  filter(tiss.df,V4 %in% Flanking_TSS) %>% convert_to_gr(.) 
+  st.gr <- filter(tiss.df,V4 %in% Strong_transcription) %>% convert_to_gr(.)
+  wt.gr <- filter(tiss.df,V4 %in% Weak_transcription) %>% convert_to_gr(.)
+  ge.gr <- filter(tiss.df,V4 %in% Genic_enhancer) %>% convert_to_gr(.) 
   
-  gr.list <- list(se.gr,we.gr,sp.gr,wp.gr,fp.gr,st.gr,wt.gr,ge.gr)
-  name.vec <- c("Strong Enhancer","Weak Enhancer","Strong Promoter",
-                "Weak Promoter","Flank Promoter","Strong Transcription",
-                "Weak Transcription","Genic Enhancer")
+  gr.list <- list(se.gr1,se.gr2,we.gr,sp.gr,wp.gr,fp.gr,st.gr,wt.gr,ge.gr)
+  name.vec <- c("Active_enhancer_1","Active_enhancer_2","Weak_enhancer",
+                 "Active_TSS","Weak_TSS", "Flanking_TSS",
+                 "Strong_transcription","Weak_transcription",
+                 "Genic_enhancer")
   pb <- txtProgressBar(min=0,max=length(name.vec),style=3)
   out.df <- c()
   for (i in 1:length(name.vec)){
@@ -165,7 +173,7 @@ build_dist_df <- function(tiss.df){
 
 ```{r}
 
-median_tile_plot <- function(dist.df,omit.vec=c("Genic Enhancer","Flank Promoter")){
+median_tile_plot <- function(dist.df,omit.vec=c("Genic_enhancer","Flanking_TSS")){
   p <- ggplot(filter(dist.df,!(ref.annot%in%omit.vec),!(query.annot%in%omit.vec)),
                aes(ref.annot, query.annot)) +
     geom_tile(aes(fill = median.dist.K), color = "white") +
@@ -181,7 +189,7 @@ median_tile_plot <- function(dist.df,omit.vec=c("Genic Enhancer","Flank Promoter
 }
 
 
-mean_tile_plot <- function(dist.df,omit.vec=c("Genic Enhancer","Flank Promoter")){
+mean_tile_plot <- function(dist.df,omit.vec=c("Genic_enhancer","Flanking_TSS")){
   p <- ggplot(filter(dist.df,!(ref.annot%in%omit.vec),!(query.annot%in%omit.vec)),
                aes(ref.annot, query.annot)) +
     geom_tile(aes(fill = mean.dist.K), color = "white") +
@@ -204,6 +212,7 @@ mean_tile_plot <- function(dist.df,omit.vec=c("Genic Enhancer","Flank Promoter")
 
 library("grid")
 library("gridExtra")
+library("viridis")
 
 
 save_composite_plots <- function(){
@@ -211,6 +220,7 @@ save_composite_plots <- function(){
   tiss.vec <- c("Islet","Adipose","Muscle","Liver")
   for (i in 1:length(tiss.vec)){
     tiss <- tiss.vec[i]
+    print(tiss)
     dist.df <- build_dist_df(df.list[[i]])
     write.table(x=dist.df,file=write.dir %&% "analysis_files/annot_dists_" %&% 
                   tiss %&% ".txt",sep="\t",quote=F,row.names=F)
