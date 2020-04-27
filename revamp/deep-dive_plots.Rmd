@@ -142,6 +142,9 @@ ggsave(plot=p,filename = plot.dir %&% "signal_hnf1b_198_1.pdf",h=3,w=9)
 ```
 
 
+
+
+
 ```{r}
 
 sig <- "198_2"
@@ -185,6 +188,36 @@ ggsave(plot=p,filename = plot.dir %&% "signal_hnf1b_198_3.pdf",h=3,w=15.75)
 
 
 ```
+
+
+# PPARG
+
+
+```{r}
+
+sig <- "30_1"
+d <- get_sig_df(sig)
+l1 <- process_sig_snp(d[1,],ymax=0.4)
+p <- grid.arrange(l1[[1]],nrow=1)
+ggsave(plot=p,filename = plot.dir %&% "signal_pparg_30_1.png",h=3,w=3)
+ggsave(plot=p,filename = plot.dir %&% "signal_pparg_30_1.pdf",h=3,w=3)
+
+sig <- "48_2"
+d <- get_sig_df(sig)
+l1 <- process_sig_snp(d[1,],ymax=1)
+p <- grid.arrange(l1[[1]],nrow=1)
+ggsave(plot=p,filename = plot.dir %&% "signal_igf2bp2_48_2.png",h=3,w=3)
+ggsave(plot=p,filename = plot.dir %&% "signal_igf2bp2_48_2.pdf",h=3,w=3)
+
+sig <- "126_1"
+d <- get_sig_df(sig)
+l1 <- process_sig_snp(d[1,],ymax=0.5)
+p <- grid.arrange(l1[[1]],nrow=1)
+ggsave(plot=p,filename = plot.dir %&% "signal_camk1d_126_1.png",h=3,w=3)
+ggsave(plot=p,filename = plot.dir %&% "signal_camk1d_126_1.pdf",h=3,w=3)
+
+```
+
 
 
 

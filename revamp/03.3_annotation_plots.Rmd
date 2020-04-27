@@ -225,6 +225,7 @@ plt.df1$prop <- plt.df1$Score.Sum / sum(plt.df1$Score.Sum)
 plt.df1 %>% arrange(.,desc(prop)) # WT islet 22%, SE 17%
 # WT total 
 filter(plt.df1,Annotation=="Weak Transcription")$prop %>% sum(.) # 49% 
+filter(plt.df1,Annotation=="Coding")$prop %>% sum(.) # 0.03558751; 3.6% 
 filter(plt.df1,Annotation=="Strong Enhancer")$prop %>% sum(.) # 19%
 filter(plt.df1,Annotation=="Strong Enhancer",Tissue=="islet")$prop %>% sum(.) # 12%
 

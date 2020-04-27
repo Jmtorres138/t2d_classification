@@ -282,6 +282,7 @@ brain.tss.plot <- ggplot(data=brain.tss.df,aes(x=assigned_20,y=CumPPA)) +
 brain.tss.plot.v2 <- ggplot(data=brain.tss.df,aes(x=classified,y=CumPPA)) + 
   geom_boxplot() + 
   geom_jitter(shape=15,color="steelblue",position=position_jitter(0.21))
+
 filter(brain.tss.df,classified=="classified")$CumPPA %>% mean(.)
 filter(brain.tss.df,classified=="unclassified")$CumPPA %>% mean(.)
 wilcox.test(filter(brain.tss.df,classified=="classified")$CumPPA,
@@ -322,4 +323,41 @@ wilcox.test(filter(class.df,classified=="classified")$ncredsnps,
 
 
 ```
+
+
+
+```{r}
+
+
+rep.class <- filter(rep.df,classified=="classified")$CumPPA %>% mean(.)
+rep.unclass <- filter(rep.df,classified=="unclassified")$CumPPA %>% mean(.)
+rep.pval <- wilcox.test(filter(rep.df,classified=="classified")$CumPPA,
+            filter(rep.df,classified=="unclassified")$CumPPA)$p.value
+
+qui.class <- filter(qui.df,classified=="classified")$CumPPA %>% mean(.)
+qui.unclass <- filter(qui.df,classified=="unclassified")$CumPPA %>% mean(.)
+qui.pval <- wilcox.test(filter(qui.df,classified=="classified")$CumPPA,
+            filter(qui.df,classified=="unclassified")$CumPPA)$p.value
+
+brain.enh.class <- filter(brain.enh.df,classified=="classified")$CumPPA %>% mean(.)
+brain.enh.unclass <- filter(brain.enh.df,classified=="unclassified")$CumPPA %>% mean(.)
+brain.enh.pval <- wilcox.test(filter(brain.enh.df,classified=="classified")$CumPPA,
+            filter(brain.enh.df,classified=="unclassified")$CumPPA)$p.value
+
+brain.tss.class <- filter(brain.tss.df,classified=="classified")$CumPPA %>% mean(.)
+brain.tss.unclass <- filter(brain.tss.df,classified=="unclassified")$CumPPA %>% mean(.)
+brain.tss.pval <- wilcox.test(filter(brain.tss.df,classified=="classified")$CumPPA,
+            filter(brain.tss.df,classified=="unclassified")$CumPPA)$p.value
+
+
+out.df <- data.frame(annotation_class=c("Repressed.T2Dtiss","Quiescent.T2Dtiss",
+                                        "Enhancer.Brain","ActiveTSS.Brain"),
+                     mean.cum.ppa.classified=c(rep.class,qui.class,brain.enh.class,brain.tss.class),
+                     mean.cum.ppa.unclassified=c(rep.unclass,qui.unclass,brain.enh.unclass,brain.tss.unclass),
+                     pval=c(rep.pval,qui.pval,brain.enh.pval,brain.tss.pval),stringsAsFactors = F)
+
+write.table(x=out.df,file=analysis.dir%&%"brain-enrich.txt",sep="\t",quote=F,row.names=F)
+
+```
+
 

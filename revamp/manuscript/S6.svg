@@ -16,7 +16,10 @@
    id="svg2"
    version="1.1"
    inkscape:version="0.91 r13725"
-   sodipodi:docname="S6.svg">
+   sodipodi:docname="S6.svg"
+   inkscape:export-filename="/home/jason/science/projects/t2d_classification/revamp/manuscript/S6.png"
+   inkscape:export-xdpi="350"
+   inkscape:export-ydpi="350">
   <defs
      id="defs4">
     <clipPath
@@ -7435,8 +7438,8 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="3.2719916"
-     inkscape:cx="237.54365"
+     inkscape:zoom="0.74210942"
+     inkscape:cx="222.67893"
      inkscape:cy="511.78168"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
