@@ -1,0 +1,108 @@
+---
+title: "01.1_tactical-toa-scores.Rmd"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+#devtools::install_github("jmtorres138/TACTICAL")
+library("TACTICAL")
+
+serv.dir <- "/home/jason/science/servers/FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "tactical_analyses/"
+input.dir <- work.dir %&% "input_files/"
+file.dir <- work.dir %&% "analysis_files/"
+
+```
+
+Prepare SNP input file 
+
+```{r}
+
+gen.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt") %>% 
+  dplyr::select(.,one_of("CondID","SNPID","CHR","POS","PPA"))
+names(gen.df) <- c("SIGNAL","SNPID","CHR","POS","VALUE")
+write.table(x=gen.df,file=input.dir %&% "credible-input.txt",sep="\t",quote=F,row.names=F,col.names=T)
+
+```
+
+
+# TACTICAL Steps 1-4 
+
+
+Annotate SNPs 
+
+```{r}
+
+snp.df <- annotate_snps(snp_file = input.dir%&%"credible-input.txt", 
+                        tissue_path_file = input.dir%&%"tissue-file-paths.txt",
+                        tissue_annotation_file = input.dir%&%"tissue-annotations.txt", 
+                        genomic_path_file = input.dir%&%"genomic-file-paths.txt",
+                        genomic_annotation_file = input.dir%&%"genomic-annotations.txt")
+```
+
+
+```{r}
+
+write.table(x=snp.df,file=file.dir%&%"annotated_snp-file.txt",quote=F,sep="\t",row.names=F)
+
+```
+
+
+Calculate SNP scores 
+
+```{r}
+tvec.df <- calculate_tissue_vectors(snp.annotated.df = snp.df,
+                                    tissue_annotation_file = input.dir%&%"tissue-annotations.txt", 
+                                    genomic_annotation_file = input.dir%&%"genomic-annotations.txt",
+                                    ess.annot = "coding",
+                                    ess.file = input.dir%&%"gene-expression-specificity-scores.txt")
+```
+
+```{r}
+
+write.table(x=tvec.df,file=file.dir%&%"snp-score-file.txt",quote=F,sep="\t",row.names=F)
+
+```
+
+Calculate TOA scores 
+
+```{r}
+
+tscores.df <- calculate_toa_scores(snp.tissvec.df = tvec.df)
+
+```
+
+
+```{r}
+
+write.table(x=tscores.df,file=file.dir%&%"toa-scores.txt",quote=F,sep="\t",row.names=F)
+
+```
+
+
+
+Tissue Classifier  
+
+```{r}
+
+classified.df <- tissue_classifier(toa.df=tscores.df, tissue_threshold = 0.2, shared_threshold = 0.1)
+
+```
+
+
+```{r}
+
+write.table(x=classified.df,file=file.dir%&%"classified_p20.txt",quote=F,sep="\t",row.names=F)
+
+```
+
+
