@@ -8,7 +8,8 @@
 
 library("rlang")
 library("wrapr")
-library("tidyverse")
+library("dplyr")
+library("purrr")
 library("data.table")
 
 serv.dir1 <- "/well/got2d/jason/" ## "/home/jason/science/servers/FUSE/" # 
