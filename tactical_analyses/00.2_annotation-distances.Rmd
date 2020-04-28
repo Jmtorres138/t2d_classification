@@ -237,9 +237,9 @@ save_composite_plots <- function(){
     p3 <- median_tile_plot(dist.df)
     p <- arrangeGrob(p1,p2,p3,ncol = 1)
     ggsave(plot=p,filename = plot.dir %&% "annot_counts_" %&% tiss %&% ".png",
-           height = 10,width=5)
+           height = 10,width=6)
     ggsave(plot=p,filename = plot.dir %&% "annot_counts_" %&% tiss %&% ".pdf",
-         height = 10,width=5)
+         height = 10,width=6)
   }
 }
 
