@@ -1,0 +1,247 @@
+---
+title: "Untitled"
+author: "Jason Torres"
+date: "3/12/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+library("Homo.sapiens")
+library("grid");library("gridExtra")
+
+fuse.path <- "/home/jason/science/servers/"
+serv.dir <- fuse.path %&% "FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "tactical_analyses/"
+analysis.dir <- work.dir %&% "analysis_files/"
+plot.dir <- work.dir %&% "plots/"
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+
+```
+
+
+```{r}
+
+weighted.df <- fread(analysis.dir %&% "toa-scores.txt")
+names(weighted.df)[c(1,6)] <- c("Locus.ID","Unclassified")
+
+```
+
+
+# append lead rsID info 
+
+```{r}
+
+append_rslead <- function(df){
+  pb <- txtProgressBar(min=0,max=dim(df)[1],style=3)
+  lead.rsid <- map(1:dim(df)[1],function(i){
+      setTxtProgressBar(pb,i)
+      id <- df$Locus.ID[i]
+      filter(cred.df,CondID==id)$lead.rsid %>% unique(.)
+    }) %>% as.character(.)
+  df$lead.rsid <- lead.rsid
+  return(df)
+}
+
+
+```
+
+
+
+```{r}
+
+stringToQuoser <- function(varName) {
+  wrapr::let(c(VARNAME = varName), quo(VARNAME))
+}
+
+append_het_status <- function(ppa.df,df){
+  het.status <- c()
+  ids <- map(ppa.df$Locus.ID,function(s){
+    strsplit(s,split="_")[[1]][1]
+  }) %>% as.character(.)
+  dup <- duplicated(ids)
+  het.loci <- ids[dup] %>% unique(.)
+  for (i in 1:dim(df)[1]){
+    row.df <- df[i,]
+    vec <- (as.character(row.df$Locus.ID) %>% strsplit(.,split="_"))[[1]]
+    val <- ifelse(vec[1] %in% het.loci,"("%&%vec[2]%&%")","")
+    het.status <- append(het.status,val)
+  }
+  return(cbind(df,het.status))
+}
+
+
+reformat_ppa_df <- function(ppa.df,cred.df){
+  format.df <- c() 
+  pb <- txtProgressBar(min=0,max=dim(ppa.df)[1],style=3)
+  for (i in 1:dim(ppa.df)[1]){
+    myrow <- ppa.df[i,] %>% as.data.frame(.)
+    setTxtProgressBar(pb,i)
+    Locus.ID <- rep(myrow$Locus.ID,length(2:length(myrow)))
+    Annotation <- names(myrow)[2:length(myrow)]
+    Proportion <- as.numeric(myrow[2:length(myrow)])
+    stack.df <- data.frame(Locus.ID,Annotation,Proportion)
+    format.df <- rbind(format.df,stack.df)
+  }
+  format.df$Annotation <- factor(format.df$Annotation,levels=names(ppa.df)[2:dim(ppa.df)[2]])
+  
+  Symbol <- c()
+  pb <- txtProgressBar(min=0,max=dim(format.df)[1],style=3)
+  for (i in 1:dim(format.df)[1]){
+    setTxtProgressBar(pb,i)
+    loc <- format.df$Locus.ID[i]
+    symb <- filter(cred.df,CondID==loc)$symbol %>% unique(.)
+    Symbol <- c(Symbol,symb)
+  }
+  format.df <- cbind(Symbol,format.df)  
+  return(format.df)
+}
+
+
+```
+
+
+```{r}
+
+ppa_plot <- function(ppa.df,col.vec,lev.vec,rankby,number=NULL,leg=TRUE,text.col="black"){
+  rank.by <- stringToQuoser(rankby)
+  append.df <- ppa.df
+  append.df$PlotID <- map(ppa.df$Locus.ID,function(loc.id){
+    sub <- filter(cred.df,CondID==loc.id) %>% dplyr::select(.,one_of("symbol","lead.rsid")) 
+    sub <- sub[!duplicated(sub),]
+    sub$lead.rsid
+  }) %>% as.character(.)
+  
+  format.df <- reformat_ppa_df(ppa.df,cred.df)
+  format.df <- append_rslead(format.df)
+  PlotID <- format.df$lead.rsid
+  plot.df <- cbind(PlotID,format.df)
+
+  ranklevs <- dplyr::arrange(append.df,!!rank.by)$PlotID
+
+  plot.df$PlotID <- factor(plot.df$PlotID,levels=ranklevs)
+
+
+  plot.df$PlotID <- factor(plot.df$PlotID, 
+                           levels=levels(plot.df$PlotID))
+  
+  if(is.null(number)==FALSE){
+    keep.ids <- dplyr::arrange(append.df,desc(!!rank.by))$PlotID[1:number]
+    plot.df <- filter(plot.df,PlotID %in% keep.ids)
+  }
+
+  plot.df$Annotation <- factor(plot.df$Annotation,levels=lev.vec)
+  
+  plot.df <- append_het_status(ppa.df,plot.df)
+
+
+  
+  plt <- ggplot(data=plot.df,aes(x=PlotID,
+                                 y=Proportion,fill=Annotation)) + 
+            geom_bar(stat="identity",color="black",size=0.2) + 
+            geom_text(aes(x=PlotID,label=Symbol%&%" "%&%het.status),y=0.2,color=text.col) + 
+            scale_y_continuous(breaks=seq(0,1,0.2)) + 
+            xlab("Signal") + 
+            coord_flip() + 
+            scale_fill_manual(values=col.vec) +
+            ggtitle(rankby)
+  if(leg==FALSE){
+    plt <- plt + theme(legend.position = "none")
+  }
+  plt <- plt + 
+    theme(axis.text = element_text(size=16))
+  return(plt)
+}
+
+all_tissues_plot <- function(ppa.df,number=NULL){
+  plt1 <- ppa_plot(ppa.df,col.vec=c("grey","gold1","firebrick1","brown","olivedrab2"),
+                     lev.vec = c("Unclassified","Adipose","Muscle","Liver","Islet"),
+                     rankby="Islet",number,leg=FALSE)
+  
+  plt2 <- ppa_plot(ppa.df,col.vec=c("grey","gold1","olivedrab2","brown","firebrick1"),
+                     lev.vec = c("Unclassified","Adipose","Islet","Liver","Muscle"),
+                     rankby="Muscle",number,leg=FALSE,text.col="black")
+  
+  plt3 <- ppa_plot(ppa.df,col.vec=c("grey","olivedrab2","firebrick1","brown","gold1"),
+                     lev.vec = c("Unclassified","Islet","Muscle","Liver","Adipose"),
+                     rankby="Adipose",number,leg=FALSE)
+  
+  plt4 <- ppa_plot(ppa.df,col.vec=c("grey","olivedrab2","firebrick1","gold1","brown"),
+                     lev.vec = c("Unclassified","Islet","Muscle","Adipose","Liver"),
+                     rankby="Liver",number,leg=FALSE,text.col="ghostwhite")
+  
+  plt5 <- ppa_plot(ppa.df,col.vec=c("olivedrab2","firebrick1","brown","gold1","grey"),
+                     lev.vec = c("Islet","Muscle","Liver","Adipose","Unclassified"),
+                     rankby="Unclassified",number,leg=FALSE)
+  
+  grob <- arrangeGrob(plt1,plt2,plt3,plt4,plt5,nrow=1)
+}
+
+```
+
+
+Lookup loci with max PPA >= 0.50 
+
+
+```{r}
+
+maxppa.df <- c()
+sig.vec <- unique(cred.df$CondID)
+for (i in 1:length(sig.vec)){
+  sig <- sig.vec[i]
+  max.ppa <- filter(cred.df,CondID==sig)$PPA %>% max(.)
+  build.df <- data.frame(sig,max.ppa,stringsAsFactors = F)
+  maxppa.df <- rbind(maxppa.df,build.df)
+}
+
+```
+
+
+```{r}
+
+keep.vec <- filter(maxppa.df,max.ppa >= 0.50)$sig %>% unique(.)
+
+```
+
+
+
+```{r}
+
+
+grob1 <- all_tissues_plot(weighted.df,number=20)
+ggsave(plot=grob1,filename=plot.dir%&%"stacked_barplots_full-weighted.png",width=22,height=8)
+ggsave(plot=grob1,filename=plot.dir%&%"stacked_barplots_full-weighted.pdf",width=22,height=8)
+
+grob5 <- all_tissues_plot(filter(weighted.df,Locus.ID%in%keep.vec),number=20)
+ggsave(plot=grob5,filename=plot.dir%&%"stacked_barplots_maxppa50-weighted.png",width=25,height=11.5)
+ggsave(plot=grob5,filename=plot.dir%&%"stacked_barplots_maxppa50-weighted.pdf",width=25,height=11.5)
+
+```
+
+
+# Save Data frame 
+
+
+```{r}
+
+save.df <- append_rslead(weighted.df)
+save.df <- append_het_status(weighted.df,save.df)
+save.df$symbol <- map(save.df$Locus.ID,function(loc.id){
+  filter(cred.df,CondID==loc.id)$symbol %>% unique(.)
+}) %>% as.character(.)
+save.df <- dplyr::select(save.df,one_of("Locus.ID","lead.rsid","symbol","het.status"))
+write.table(x=save.df,file=analysis.dir%&%"SigLookup.df",sep="\t",quote=F,row.names=F)
+```
+
+
