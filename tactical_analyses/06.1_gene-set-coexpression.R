@@ -291,14 +291,14 @@ p10.vec <- filter(annot.prof.df,coding<=0.1)$Locus.ID %>% unique(.) #358
 #            sep="\t",row.names=F,quote=F)
 
 
-df1st <- build_complete_df_extendedGenes(filter(weighted.df,Locus.ID %in% p10.vec),iter=10000,nearest.rank = 1)
-write.table(x=df1st,file=work.dir2%&%"analysis_files/coexpress-enrich_weighted_p10Coding_with-shared_1stNearest.txt",
-            sep="\t",row.names=F,quote=F)
+#df1st <- build_complete_df_extendedGenes(filter(weighted.df,Locus.ID %in% p10.vec),iter=10000,nearest.rank = 1)
+#write.table(x=df1st,file=work.dir2%&%"analysis_files/coexpress-enrich_weighted_p10Coding_with-shared_1stNearest.txt",
+#            sep="\t",row.names=F,quote=F)
 
 #df2nd <- build_complete_df_extendedGenes(filter(weighted.df,Locus.ID %in% p10.vec),iter=10000,nearest.rank = 2)
 #write.table(x=df2nd,file=work.dir2%&%"analysis_files/coexpress-enrich_weighted_p10Coding_with-shared_2ndNearest.txt",
 #            sep="\t",row.names=F,quote=F)
 
-#df3rd <- build_complete_df_extendedGenes(filter(weighted.df,Locus.ID %in% p10.vec),iter=10000,nearest.rank = 3)
-#write.table(x=df3rd,file=work.dir2%&%"analysis_files/coexpress-enrich_weighted_p10Coding_with-shared_3rdNearest.txt",
-#            sep="\t",row.names=F,quote=F)
+df3rd <- build_complete_df_extendedGenes(filter(weighted.df,Locus.ID %in% p10.vec),iter=10000,nearest.rank = 3)
+write.table(x=df3rd,file=work.dir2%&%"analysis_files/coexpress-enrich_weighted_p10Coding_with-shared_3rdNearest.txt",
+            sep="\t",row.names=F,quote=F)
