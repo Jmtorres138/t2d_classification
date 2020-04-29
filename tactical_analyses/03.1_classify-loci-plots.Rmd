@@ -1,0 +1,112 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+library("Homo.sapiens")
+library("grid");library("gridExtra")
+
+fuse.path <- "/home/jason/science/servers/"
+serv.dir <- fuse.path %&% "FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "tactical_analyses/"
+analysis.dir <- work.dir %&% "analysis_files/"
+plot.dir <- work.dir %&% "plots/"
+
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+cred.df$Locus.ID <- cred.df$CondID
+
+
+```
+
+
+
+```{r}
+
+make_plot_and_table <- function(df,saveprefix="classifier_counts",
+                                col.vec=c("gold1","olivedrab2","brown","red","dodgerblue","grey")){
+  check.len <- df$assigned_00 %>% table(.) %>% length(.)
+  if (check.len != length(col.vec)){
+    print("The number of provided colors is not correct, please inspect")
+  }
+  a <- df$assigned_00 %>% table(.) %>% as.data.frame(.); a$Threshold <- "0.0"
+  b <- df$assigned_20 %>% table(.) %>% as.data.frame(.); b$Threshold <- "0.2"
+  c <- df$assigned_50 %>% table(.) %>% as.data.frame(.); c$Threshold <- "0.5"
+  d <- df$assigned_80 %>% table(.) %>% as.data.frame(.); d$Threshold <- "0.8"
+  plot.df <- rbind(a,b,c,d)
+  names(plot.df) <-  c("Tissue","Count","Threshold")
+  plot.df$Tissue <- map(plot.df$Tissue,function(x){
+    x <- as.character(x)
+    paste0(toupper(substring(x,1,1)),substring(x,2,nchar(x)),collapse="")
+  }) %>% as.character(.)
+    
+    
+  plt <- ggplot(data=plot.df,aes(x=Threshold,y=Count)) + 
+    geom_bar(stat="identity",aes(fill=Tissue),color="black") + 
+    theme_bw() + 
+    scale_fill_manual(values=col.vec) + 
+    scale_y_continuous(breaks=seq(0,380,40),limits = c(0,380))
+    
+  ggsave(plot=plt,filename=plot.dir%&%saveprefix%&%".png",height = 5,width=5)
+  ggsave(plot=plt,filename=plot.dir%&%saveprefix%&%".pdf",height = 5,width=5)  
+  
+  count.df <- c()
+  for (thr in unique(plot.df$Threshold)){
+    count.vec <- c()
+    for (tiss in unique(plot.df$Tissue)){
+      count <- filter(plot.df,Threshold==thr,Tissue==tiss)$Count
+      count <- ifelse(length(count)>0,count,0)
+      count.vec <- append(count.vec,count)
+    }
+    names(count.vec) <- unique(plot.df$Tissue)
+    sub.df <- t(count.vec) %>% as.data.frame(.)
+    build.df <- cbind(data.frame("Threshold"=thr,stringsAsFactors = F),sub.df)
+    count.df <- rbind(count.df,build.df)
+  }
+
+  write.table(x=count.df,file=analysis.dir%&%saveprefix%&%".txt",
+              sep="\t",quote=F,row.names=F)
+  gtab <- tableGrob(count.df)
+  grid.draw(gtab)
+
+  ggsave(plot=gtab,filename=plot.dir%&%saveprefix%&%"_table.png",height = 5,width=5)
+  ggsave(plot=gtab,filename=plot.dir%&%saveprefix%&%"_table.pdf",height = 5,width=5)
+  return(list(plt,count.df))
+}
+
+
+```
+
+
+
+```{r}
+
+df1 <- fread(analysis.dir%&%"classified-loci_weighted.txt")
+l1 <- make_plot_and_table(df1,saveprefix="classifier_counts",
+                                col.vec=c("gold1","olivedrab2","brown","red","dodgerblue","grey"))
+
+```
+
+
+
+```{r}
+
+df2 <- fread(analysis.dir%&%"classified-loci_weighted_with-shared.txt")
+l2 <- make_plot_and_table(df2,saveprefix="classifier_counts_with-shared",
+                                col.vec=c("gold1","olivedrab2","brown","red","dodgerblue","grey"))
+ 
+```
+
+
