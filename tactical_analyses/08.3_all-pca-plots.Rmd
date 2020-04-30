@@ -1,0 +1,524 @@
+---
+title: "Untitled"
+author: "Jason Torres"
+date: "3/12/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+library("Homo.sapiens")
+
+fuse.path <- "/home/jason/science/servers/"
+serv.dir <- fuse.path %&% "FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+methA.dir <- proj.dir %&% "method_A/"
+work.dir <- proj.dir %&% "tactical_analyses/"
+analysis.dir <- work.dir %&% "analysis_files/"
+plot.dir <- work.dir %&% "plots/"
+
+
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+
+class.df1 <- fread(analysis.dir %&% "classified-loci_weighted.txt")
+class.df2 <- fread(analysis.dir %&% "classified-loci_weighted_with-shared.txt")
+
+
+```
+
+
+```{r}
+
+make_maxppa_df <- function(){
+  id.vec <- cred.df$CondID %>% unique(.)
+  pb <- txtProgressBar(min=0,max=length(id.vec),style=3)
+  ppa.vec <- c() 
+  for (i in 1:length(id.vec)){
+    setTxtProgressBar(pb,i)
+    id <- id.vec[i]
+    ppa <- (filter(cred.df,CondID==id) %>% arrange(.,desc(PPA)))$PPA[1]
+    ppa.vec <- append(ppa.vec,ppa)
+  } 
+  out.df <- data.frame(Locus.ID=id.vec,maxppa=ppa.vec,stringsAsFactors = FALSE)
+  return(out.df)
+}
+
+
+```
+
+
+```{r}
+
+maxppa.df <- make_maxppa_df()
+
+```
+
+
+```{r}
+
+weighted.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-weighted-unscaled_snpcount.txt") %>% 
+  dplyr::select(.,-one_of("snpcount"))
+
+```
+
+
+# Principal Components Analysis (PCA) Comparison 
+
+
+PCA functions
+
+```{r}
+
+library("viridis")
+library("gridExtra")
+library("RColorBrewer")
+library("ggrepel")
+library("grid")
+
+firstup <- function(x) {
+   substr(x, 1, 1) <- toupper(substr(x, 1, 1))
+x
+}
+
+make_pca_inputs <- function(ppa.df,centerScale=FALSE){
+  if(centerScale==FALSE){
+    df <- dplyr::select(ppa.df,-one_of("Locus.ID")) %>%
+      scale(.,center=FALSE,scale=FALSE)
+    pr.out <- prcomp(df,scale=FALSE)    
+  } else{
+    df <- dplyr::select(ppa.df,-one_of("Locus.ID")) %>%
+      scale(.,center=TRUE,scale=TRUE)
+    pr.out <- prcomp(df,scale=TRUE)     
+  }
+  pr.out$sdev # standard deviations of each principal compoment
+  pr.var <- pr.out$sdev^2 # Getting the variance explained by each PC 
+  pve<-pr.var/sum(pr.var)
+  cumulsum<- cumsum(pve)
+  pve.df <- data.frame(PC=c(1:length(pve)),pve,cumulsum)
+  
+  refseq <- map(1:dim(ppa.df)[1],function(i){
+    loc <- ppa.df$Locus.ID[i]
+    gene <- filter(cred.df,CondID==loc)$symbol %>% unique(.)
+  }) %>% as.character(.)
+  ppa.df$refseq <- refseq
+  ppa.df$Plot.ID <- ppa.df$Locus.ID %&% ": " %&% ppa.df$refseq 
+  return(list(ppa.df,pr.out,pve.df))
+}
+
+scree_cumsum_plot <- function(pve.df){
+  pltA <- ggplot(data=pve.df,aes(x=PC)) + 
+    geom_line(aes(y=pve)) + 
+    geom_point(aes(y=pve),size=3,shape=21,fill=rev(viridis(length(pve.df$PC)))) + 
+    scale_y_continuous(limits=c(0,1),breaks=seq(0,1,0.1)) + 
+    scale_x_continuous(limits=c(0,length(pve.df$PC)),breaks=seq(0,length(pve.df$PC),1)) + 
+    theme_light() + 
+    coord_cartesian(ylim=c(0,1),xlim=c(0.5,length(pve.df$PC)+0.5),expand=FALSE) + 
+    xlab("Principal Component") + ylab("Proportion of Variance Explained") + 
+    ggtitle("Variance explained by principal components") + 
+    theme(panel.grid.minor = element_blank(),
+          axis.title = element_text(size=8),
+          plot.title = element_text(size=10))
+  
+  pltB <- ggplot(data=pve.df,aes(x=PC)) + 
+    geom_line(aes(y=cumulsum)) + 
+    geom_point(aes(y=cumulsum),size=3,shape=21,fill=rev(viridis(length(pve.df$PC)))) + 
+    scale_y_continuous(limits=c(0,1),breaks=seq(0,1,0.1)) +
+    scale_x_continuous(limits=c(0,length(pve.df$PC)),breaks=seq(0,length(pve.df$PC),1)) + 
+    theme_light() + 
+    coord_cartesian(ylim=c(0,1),xlim=c(0.5,length(pve.df$PC)+0.5),expand=FALSE) + 
+    xlab("Principal Component") + ylab("Cumulative proportion of variance explained") + 
+    ggtitle("Cumulative variance explained by principal components") + 
+    theme(panel.grid.minor = element_blank(),
+          axis.title = element_text(size=8),
+          plot.title = element_text(size=10))
+
+  arrangeGrob(pltA,pltB,nrow=2)  
+}
+
+loading_plot <- function(pr.output){
+  numb <- dim(pr.output$rotation)[1]
+  pca.prop.df <- pr.output$rotation %>% as.data.frame(.,row.names=FALSE)
+  annot.vec <- gsub("_"," ",row.names(pr.output$rotation))
+  pca.prop.df <- map(1:dim(pca.prop.df)[2],function(i){
+    vec <- abs(as.numeric(pca.prop.df[,i])) # absolute value step 
+    vec <- vec / sum(vec)
+  }) %>% unlist(.) %>% matrix(.,nrow=numb,ncol=numb,byrow=FALSE) %>% as.data.frame(.)
+  
+  names(pca.prop.df) <- "PC" %&% 1:dim(pca.prop.df)[2]
+  
+  reformat.list <- map(1:dim(pca.prop.df)[1],function(i){
+    PC <- names(pca.prop.df) %>% gsub("PC","",.) %>% as.integer(.)
+    Score <- as.numeric(pca.prop.df[i,])
+    #PC <- rep(i,length(Score))
+    Annotation <- rep(annot.vec[i],length(Score))
+    sub.df <- data.frame(PC,Score,Annotation,stringsAsFactors = FALSE)
+  }) 
+  
+  out.df <- c()
+  for (i in 1:length(reformat.list)){
+    sub.df <- reformat.list[[i]]
+    out.df <- rbind(out.df,sub.df)
+  }
+  ggplot(data=out.df,aes(x=PC,y=Score,fill=Annotation)) + 
+          geom_bar(stat="identity",color="black",size=0.2) + 
+          scale_y_continuous(breaks=seq(0,1,0.1)) + 
+          scale_x_continuous(breaks=seq(0,length(unique(out.df$PC)),1)) + 
+          #scale_fill_manual(values=colorRampPalette(brewer.pal(11,                                  "Spectral"))(length(unique(out.df$PC)) )) + 
+          scale_fill_manual(values=c("gold1","olivedrab2","brown","red","grey")) + 
+          ggtitle("PC Loading Scores for Genomic Annotations") + 
+          ylab("Loading Proportion")
+}
+
+pca_plot <- function(data.df,pca.out,pcX,pcY,withShared=FALSE){
+  pca.df <- as.data.frame(pca.out$x) 
+  pca.df$Locus.ID <- data.df$Locus.ID
+  pca.df <- inner_join(data.df,pca.df,by="Locus.ID")
+  if (withShared==TRUE){
+    pca.df$assigned <- map(pca.df$Locus.ID,function(id){
+      filter(class.df2,Locus.ID==id)$assigned_20
+    }) %>% as.character(.) 
+  } else{
+    pca.df$assigned <- map(pca.df$Locus.ID,function(id){
+      filter(class.df1,Locus.ID==id)$assigned_20
+    }) %>% as.character(.)    
+  }
+  plt <- ggplot(data=pca.df,aes_string(x=pcX,y=pcY)) + 
+    geom_point(shape=21,alpha=0.8,
+               size=2,color="black",
+               aes(fill=assigned)) + 
+    theme_classic() 
+  if (withShared==TRUE){
+    plt <- plt + scale_fill_manual(values=c("gold1","olivedrab2",
+                                            "brown","red","dodgerblue1","grey","black")) 
+  } else{
+    plt <- plt + scale_fill_manual(values=c("gold1","olivedrab2",
+                                            "brown","red","grey","black"))     
+  }
+}
+
+```
+
+
+```{r}
+
+pca_plot_annotated <- function(pca.list,pcX,pcY,class.df,withShared=FALSE){
+  data.df <- pca.list[[1]]
+  pca.out <- pca.list[[2]]
+  pve.df <- pca.list[[3]]
+  pcXpve <- (filter(pve.df,grepl(gsub("PC","",pcX),pve.df$PC))$pve %>% round(.,2)) * 100 
+  pcYpve <- (filter(pve.df,grepl(gsub("PC","",pcY),pve.df$PC))$pve %>% round(.,2)) * 100
+  
+  pca.df <- as.data.frame(pca.out$x) 
+  pca.df$Locus.ID <- data.df$Locus.ID
+  pca.df <- inner_join(data.df,pca.df,by="Locus.ID")
+  pca.df$assigned <- map(pca.df$Locus.ID,function(id){
+    filter(class.df,Locus.ID==id)$assigned_20
+  }) %>% as.character(.)
+
+  islet.df <- filter(pca.df,assigned=="islet") %>% 
+    arrange(.,desc(islet)) %>% head(5)
+  adipose.df <- filter(pca.df,assigned=="adipose") %>% 
+    arrange(.,desc(adipose)) %>% head(5)
+  liver.df <- filter(pca.df,assigned=="liver") %>% 
+    arrange(.,desc(liver)) %>% head(5)
+  muscle.df <- filter(pca.df,assigned=="muscle") %>% 
+    arrange(.,desc(muscle)) %>% head(5)
+  other.df <- filter(pca.df,assigned=="other") %>% 
+    arrange(.,desc(other)) %>% head(5)
+  if (withShared==TRUE){
+    share.df <- filter(pca.df,assigned=="shared") 
+    share.df$maxtoa <- map(1:dim(share.df)[1],function(i){
+      share.df[i,] %>% 
+        dplyr::select(.,one_of("islet","muscle","adipose","liver")) %>% 
+        as.numeric(.) %>% max(.)
+    }) %>% as.numeric(.)
+    share.df <- arrange(share.df,desc(maxtoa)) %>% head(10)
+  }
+  
+  pca.df$assigned <- pca.df$assigned %>% firstup(.)
+  pca.df$maxppa <- map(pca.df$Locus.ID,function(id){
+    filter(maxppa.df,Locus.ID==id)$maxppa
+  }) %>% as.numeric(.)
+  plt <- ggplot(data=pca.df,aes_string(x=pcX,y=pcY)) + 
+    geom_point(shape=21,alpha=0.8,
+               color="black",
+               aes(size=maxppa,fill=assigned))
+  if (withShared==FALSE){
+    plt <- plt + scale_fill_manual(values=c("gold1","olivedrab2",
+                                            "#f7905d","#f97a7a","grey","black"),
+                      name="Assigned Tissue")    
+  } else{
+    plt <- plt + scale_fill_manual(values=c("gold1","olivedrab2","#f7905d",
+                                            "#f97a7a","dodgerblue1","grey","black"),
+                      name="Assigned Tissue")     
+  }
+    plt <- plt +scale_size(range = c(0.1,3),breaks=seq(0,1,0.2),name="Maximum PPA") + 
+    theme_classic() + 
+    geom_label_repel(data=other.df,aes_string(x=pcX,y=pcY,label="refseq"),
+                     size=3,fill="grey",alpha=0.7,label.padding = 0.1) + 
+    geom_label_repel(data=islet.df,aes_string(x=pcX,y=pcY,label="refseq"),
+                     size=3,fill="olivedrab2",alpha=0.7,label.padding = 0.1) +   
+    geom_label_repel(data=adipose.df,aes_string(x=pcX,y=pcY,label="refseq"),
+                     size=3,fill="gold1",alpha=0.7,label.padding = 0.1) + 
+    geom_label_repel(data=liver.df,aes_string(x=pcX,y=pcY,label="refseq"),
+                     size=3,fill="#f7905d",alpha=0.7,label.padding = 0.1) +
+    geom_label_repel(data=muscle.df,aes_string(x=pcX,y=pcY,label="refseq"),
+                     size=3,fill="#f97a7a",alpha=0.7,label.padding = 0.1) + 
+    xlab(pcX %&% " (" %&% pcXpve %&% "%)") + 
+    ylab(pcY %&% " (" %&% pcYpve %&% "%)")
+    
+    if (withShared==TRUE){
+      plt <- plt + geom_label_repel(data=share.df,aes_string(x=pcX,y=pcY,label="refseq"),
+                     size=3,fill="dodgerblue1",alpha=0.7,label.padding = 0.1) 
+    }
+    return(plt)
+}
+
+complete_pca <- function(ppa.df,centerScale,savename){
+  pca.list <- make_pca_inputs(ppa.df,centerScale)
+  scree.plt <- scree_cumsum_plot(pca.list[[3]])
+  load.plt <- loading_plot(pca.list[[2]])
+  pca.plt <- pca_plot(pca.list[[1]],pca.list[[2]],"PC1","PC2")
+  combine.plt <- grid.arrange(scree.plt,load.plt,pca.plt,nrow=1)
+}
+
+
+
+```
+
+
+
+## Filtering out loci with high "other" scores
+
+
+
+filtering out other; 
+
+```{r}
+w.df <- weighted.df
+
+pca.list.filt <- make_pca_inputs(filter(w.df,other<0.50),centerScale=FALSE) 
+pruneA.plt <- pca_plot_annotated(pca.list.filt,"PC1","PC2",class.df1,withShared = FALSE)
+pruneB.plt <- pca_plot_annotated(pca.list.filt,"PC2","PC3",class.df1,withShared = FALSE)
+
+ggsave(plot=pruneA.plt,filename=plot.dir%&%"pca_maxppa-filterd-weighted-pc1-pc2.png",
+       height=5.5,width=7)
+ggsave(plot=pruneB.plt,filename=plot.dir%&%"pca_maxppa-filtered-weighted-pc2-pc3.png",
+       height=5.5,width=7)
+ggsave(plot=pruneA.plt,filename=plot.dir%&%"pca_maxppa-filterd-weighted-pc1-pc2.pdf",
+       height=5.5,width=7)
+ggsave(plot=pruneB.plt,filename=plot.dir%&%"pca_maxppa-filtered-weighted-pc2-pc3.pdf",
+       height=5.5,width=7)
+```
+
+
+```{r}
+w.df <- weighted.df
+
+pca.list.filt <- make_pca_inputs(filter(w.df,other<0.50),centerScale=FALSE) 
+pruneA.plt <- pca_plot_annotated(pca.list.filt,"PC1","PC2",class.df2,withShared = TRUE)
+pruneB.plt <- pca_plot_annotated(pca.list.filt,"PC2","PC3",class.df2,withShared = TRUE)
+
+ggsave(plot=pruneA.plt,filename=plot.dir%&%
+         "pca_maxppa-filterd-weighted-pc1-pc2_with-shared.png",
+       height=5.5,width=7)
+ggsave(plot=pruneB.plt,filename=plot.dir%&%
+         "pca_maxppa-filtered-weighted-pc2-pc3_with-shared.png",
+       height=5.5,width=7)
+ggsave(plot=pruneA.plt,filename=plot.dir%&%
+         "pca_maxppa-filterd-weighted-pc1-pc2_with-shared.pdf",
+       height=5.5,width=7)
+ggsave(plot=pruneB.plt,filename=plot.dir%&%
+         "pca_maxppa-filtered-weighted-pc2-pc3_with-shared.pdf",
+       height=5.5,width=7)
+```
+
+
+
+
+# Physiology comparison plots 
+
+```{r}
+
+phys94.df <- fread(work.dir %&% "analysis_files/phys94-ld-assigned.txt")
+
+```
+
+
+
+```{r}
+
+pca_plot_phys94 <- function(pca.list,pcX,pcY,class.df){
+  data.df <- pca.list[[1]]
+  pca.out <- pca.list[[2]]
+  pve.df <- pca.list[[3]]
+  pcXpve <- (filter(pve.df,grepl(gsub("PC","",pcX),
+                                 pve.df$PC))$pve %>% round(.,2)) * 100 
+  pcYpve <- (filter(pve.df,grepl(gsub("PC","",pcY),
+                                 pve.df$PC))$pve %>% round(.,2)) * 100
+  pca.df <- as.data.frame(pca.out$x) 
+  pca.df$Locus.ID <- data.df$Locus.ID
+  pca.df <- inner_join(data.df,pca.df,by="Locus.ID")
+  pca.df$assigned <- map(pca.df$Locus.ID,function(id){
+    filter(class.df,Locus.ID==id)$assigned_20
+  }) %>% as.character(.)
+  pca.df$physiology <- map(pca.df$Locus.ID,function(id){
+    phys <- filter(phys94.df,Locus.ID==id)$Physiology %>% gsub("_","-",.)
+    ifelse(length(phys)>0,phys,"Unclassified")
+  }) %>% as.character(.)  
+  pca.df$assigned <- pca.df$assigned %>% firstup(.)
+  pca.df$maxppa <- map(pca.df$Locus.ID,function(id){
+    filter(maxppa.df,Locus.ID==id)$maxppa
+  }) %>% as.numeric(.)
+  
+  pca.df$physiology <- factor(pca.df$physiology,
+                              levels = c("Adiposity","IA","Dyslipidemia",
+                              "IA-IS-combination","IS-1","IS-2","Unclassified"))
+  plt <- ggplot(data=pca.df,aes_string(x=pcX,y=pcY)) + 
+    geom_point(shape=21,alpha=ifelse(pca.df$physiology=="Unclassified",0.1,1),
+               color="black",
+               aes(size=maxppa,fill=physiology)) + 
+    #scale_fill_brewer() + 
+    scale_fill_manual(values=c(viridis(100)[100],viridis(100)[90],
+                               viridis(100)[75],viridis(100)[55],
+                               viridis(100)[30],viridis(100)[5],
+                              "ghostwhite"),
+                      name="Assigned Tissue") + 
+    scale_size(range = c(0.1,5),breaks=seq(0,1,0.2),name="Maximum PPA") + 
+    theme_classic() + 
+    xlab(pcX %&% " (" %&% pcXpve %&% "%)") + 
+    ylab(pcY %&% " (" %&% pcYpve %&% "%)")
+    
+}
+
+
+```
+
+```{r}
+
+pca.list.filt <- make_pca_inputs(filter(w.df,other<0.50),centerScale=FALSE) 
+pruneA.plt <- pca_plot_phys94(pca.list.filt,"PC1","PC2",class.df2)
+pruneB.plt <- pca_plot_phys94(pca.list.filt,"PC2","PC3",class.df2)
+
+ggsave(plot=pruneA.plt,filename=plot.dir%&%
+         "pca_phys94maxppa50-filtered-weighted-pc1-pc2.png",
+       height=5.5,width=7)
+ggsave(plot=pruneB.plt,filename=plot.dir%&%
+         "pca_phys94maxppa50-filtered-weighted-pc2-pc3.png",
+       height=5.5,width=7)
+
+```
+
+
+
+# Combination plot 
+
+```{r}
+
+pca.list.filt <- make_pca_inputs(filter(w.df,other<0.50),centerScale=FALSE) 
+prune1a.plt <- pca_plot_annotated(pca.list.filt,"PC1","PC2",class.df2,
+                                  withShared = TRUE)
+prune1b.plt <- pca_plot_annotated(pca.list.filt,"PC2","PC3",class.df2,
+                                  withShared = TRUE)
+prune3a.plt <- pca_plot_phys94(pca.list.filt,"PC1","PC2",class.df2)
+#prune3b.plt <- pca_plot_phys94(pca.list.filt,"PC2","PC3",class.df2)
+
+plt1 <- arrangeGrob(prune1a.plt,prune1b.plt,prune3a.plt,ncol=3)
+ggsave(plt1,filename = plot.dir%&%"all-pca-plots.png",width=20,height=5.5)
+ggsave(plt1,filename = plot.dir%&%"all-pca-plots.pdf",width=20,height=5.5)
+
+```
+
+
+# Udler 
+
+```{r}
+
+phys.df <- fread(work.dir %&% "analysis_files/physUDLER-ld-assigned.txt")
+
+```
+
+
+
+```{r}
+
+pca_plot_phys <- function(pca.list,pcX,pcY,class.df){
+  data.df <- pca.list[[1]]
+  pca.out <- pca.list[[2]]
+  pve.df <- pca.list[[3]]
+  pcXpve <- (filter(pve.df,grepl(gsub("PC","",pcX),
+                                 pve.df$PC))$pve %>% round(.,2)) * 100 
+  pcYpve <- (filter(pve.df,grepl(gsub("PC","",pcY),
+                                 pve.df$PC))$pve %>% round(.,2)) * 100
+  pca.df <- as.data.frame(pca.out$x) 
+  pca.df$Locus.ID <- data.df$Locus.ID
+  pca.df <- inner_join(data.df,pca.df,by="Locus.ID")
+  pca.df$assigned <- map(pca.df$Locus.ID,function(id){
+    filter(class.df,Locus.ID==id)$assigned_20
+  }) %>% as.character(.)
+  pca.df$physiology <- map(pca.df$Locus.ID,function(id){
+    phys <- filter(phys.df,Locus.ID==id)$Physiology %>% gsub("_","-",.)
+    ifelse(length(phys)>0,phys,"Unclassified")
+  }) %>% as.character(.)  
+  pca.df$assigned <- pca.df$assigned %>% firstup(.)
+  pca.df$maxppa <- map(pca.df$Locus.ID,function(id){
+    filter(maxppa.df,Locus.ID==id)$maxppa
+  }) %>% as.numeric(.)
+  
+  pca.df$physiology <- factor(pca.df$physiology,
+                              levels = c("Lipodystrophy","Obesity","Liver",
+                              "Proinsulin","Beta-Cell","Unclassified"))
+  plt <- ggplot(data=pca.df,aes_string(x=pcX,y=pcY)) + 
+    geom_point(shape=21,alpha=ifelse(pca.df$physiology=="Unclassified",0.1,1),
+               color="black",
+               aes(size=maxppa,fill=physiology)) + 
+    #scale_fill_brewer() + 
+    scale_fill_manual(values=c(viridis(100)[100],viridis(100)[90],
+                               viridis(100)[55],
+                               viridis(100)[30],viridis(100)[5],
+                              "ghostwhite"),
+                      name="Assigned Tissue") + 
+    scale_size(range = c(0.1,5),breaks=seq(0,1,0.2),name="Maximum PPA") + 
+    theme_classic() + 
+    xlab(pcX %&% " (" %&% pcXpve %&% "%)") + 
+    ylab(pcY %&% " (" %&% pcYpve %&% "%)")
+    
+}
+
+
+```
+
+```{r}
+
+pca.list.filt <- make_pca_inputs(filter(w.df,other<0.50),centerScale=FALSE) 
+pruneA.plt <- pca_plot_phys(pca.list.filt,"PC1","PC2",class.df2)
+pruneB.plt <- pca_plot_phys(pca.list.filt,"PC2","PC3",class.df2)
+
+ggsave(plot=pruneA.plt,filename=plot.dir%&%
+         "pca_phys_maxppa50-filtered-weighted-pc1-pc2_UDLER.pdf",
+       height=5.5,width=7)
+ggsave(plot=pruneB.plt,filename=plot.dir%&%
+         "pca_phys_maxppa50-filtered-weighted-pc2-pc3_UDLER.pdf",
+       height=5.5,width=7)
+ggsave(plot=pruneA.plt,filename=plot.dir%&%
+         "pca_phys_maxppa50-filtered-weighted-pc1-pc2_UDLER.png",
+       height=5.5,width=7)
+ggsave(plot=pruneB.plt,filename=plot.dir%&%
+         "pca_phys_maxppa50-filtered-weighted-pc2-pc3_UDLER.png",
+       height=5.5,width=7)
+```
+
+
+
+
+
