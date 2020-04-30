@@ -1,0 +1,155 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+library("Homo.sapiens")
+
+fuse.path <- "/home/jason/science/servers/"
+serv.dir <- fuse.path %&% "FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+methA.dir <- proj.dir %&% "method_A/"
+work.dir <- proj.dir %&% "tactical_analyses/"
+analysis.dir <- work.dir %&% "analysis_files/"
+plot.dir <- work.dir %&% "plots/"
+
+
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+
+class.df1 <- fread(analysis.dir %&% "classified-loci_weighted.txt")
+class.df2 <- fread(analysis.dir %&% "classified-loci_weighted_with-shared.txt")
+
+```
+
+
+```{r}
+
+make_maxppa_df <- function(){
+  id.vec <- cred.df$CondID %>% unique(.)
+  pb <- txtProgressBar(min=0,max=length(id.vec),style=3)
+  ppa.vec <- c() 
+  for (i in 1:length(id.vec)){
+    setTxtProgressBar(pb,i)
+    id <- id.vec[i]
+    ppa <- (filter(cred.df,CondID==id) %>% arrange(.,desc(PPA)))$PPA[1]
+    ppa.vec <- append(ppa.vec,ppa)
+  } 
+  out.df <- data.frame(Locus.ID=id.vec,maxppa=ppa.vec,stringsAsFactors = FALSE)
+  return(out.df)
+}
+
+
+```
+
+
+
+
+
+
+```{r}
+
+library("plotly")
+library("heatmaply")
+
+maxppa.df <- make_maxppa_df()
+weighted.df <- fread(analysis.dir %&% "tissue_ppa_divvy-full-weighted-unscaled_snpcount.txt") %>% 
+  dplyr::select(.,-one_of("snpcount"))
+w.df <- weighted.df
+phys94.df <- fread(work.dir %&% "analysis_files/phys94-ld-assigned.txt")
+physfull.df <- inner_join(phys94.df,w.df,by="Locus.ID") %>% filter(.,assigned.r2>=0.3,other<=0.50)
+mat <- dplyr::select(physfull.df,one_of("islet","adipose","muscle",
+                                        "liver")) %>%
+  as.matrix(.)
+
+name.vec <- map(1:dim(physfull.df)[1],function(i){
+  sub <- physfull.df[i,]
+  p <- sub$Physiology
+  p <- ifelse(p=="IA","Insulin-Action",p)
+  p <- ifelse(p=="IS-1","Insulin-Secretion-1",p)
+  p <- ifelse(p=="IS-2","Insulin-Secretion-2",p)
+  p %&% "_" %&% sub$symbol
+}) %>% as.character(.)
+
+row.names(mat) <- name.vec
+mat.df <- as.data.frame(mat)
+
+
+```
+
+
+```{r}
+
+#heatmaply((mat.df), k_row = 1, k_col = 1,fontsize_row=3,plot_method = "ggplot")
+```
+
+
+
+
+```{r}
+
+physfull.df <- arrange(physfull.df,Physiology)
+
+```
+
+```{r}
+
+library("plyr")
+library("scales")
+
+```
+
+
+```{r}
+
+physfull.df <- inner_join(phys94.df,w.df,by="Locus.ID") %>% filter(.,assigned.r2>=0.3,other<=0.50)
+
+plot.df <- dplyr::select(physfull.df,
+             one_of("Physiology","rsID","symbol","islet","adipose",
+                                "muscle","liver"))
+plot.df$Name <-  map(1:dim(plot.df)[1],function(i){
+  sub <- plot.df[i,]
+  p <- sub$Physiology
+  p <- ifelse(p=="IA","Insulin-Action",p)
+  p <- ifelse(p=="IS-1","Insulin-Secretion-1",p)
+  p <- ifelse(p=="IS-2","Insulin-Secretion-2",p)
+  p %&% ": " %&% sub$rsID %&% " (" %&% sub$symbol %&% ")"
+}) %>% as.character(.)
+
+plot.df <- dplyr::select(plot.df,-one_of("Physiology","rsID","symbol"))
+
+plot.df$Name <- as.factor(plot.df$Name)
+plot.df <- melt(plot.df)
+
+
+p <- ggplot(plot.df, aes(variable, Name)) + 
+  geom_tile(aes(fill = value),colour = "black") + 
+  scale_fill_gradientn(colors=c(viridis(100)[1:15],
+                                viridis(100)[30:45],
+                                viridis(100)[60:75],
+                                viridis(100)[85:100])) + 
+  theme(axis.text.x = element_text(size=9,angle=30,
+                                   vjust = 0.5),
+        axis.text.y = element_text(size=6,
+                                   color=c("black"))) + 
+  xlab("Tissue-of-action Score") 
+
+ggsave(plot=p,filename = plot.dir %&% "phys-tile.png",
+       height=6,width=6)
+ggsave(plot=p,filename = plot.dir %&% "phys-tile.pdf",
+       height=6,width=6)
+
+
+```
+
