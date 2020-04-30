@@ -1,0 +1,343 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+library("tidyverse")
+library("GenomicRanges")
+library("viridis")
+library("data.table")
+library("plyr")
+
+serv.dir <- "/home/jason/science/servers/FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+
+work.dir <- proj.dir %&% "tactical_analyses/"
+analysis.dir <- work.dir %&% "analysis_files/"
+plot.dir <- work.dir %&% "plots/"
+
+```
+
+```{r}
+
+annot.df <- fread(work.dir%&%
+                    "analysis_files/annotation-scores-signals.txt")
+names(annot.df)[1] <- "Locus.ID"
+
+annotall.df <- fread(work.dir%&%
+                    "analysis_files/annotation-scores-allSNPs.txt")
+names(annotall.df)[1] <- "Locus.ID"
+
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+annot.df$maxppa <- map(annot.df$Locus.ID,function(id){
+  filter(cred.df,CondID==id)$PPA %>% max(.)
+}) %>% as.numeric(.)
+
+class.df1 <- fread(analysis.dir%&%"classified-loci_weighted.txt")
+class.df1$max.ppa <- map(class.df1$Locus.ID,function(id){
+  sub <- filter(cred.df,CondID==id) %>% arrange(.,desc(PPA))
+  sub$PPA[1]
+  }) %>% as.numeric(.)
+class.df2 <- fread(analysis.dir%&%"classified-loci_weighted_with-shared.txt")
+class.df2$max.ppa <- map(class.df2$Locus.ID,function(id){
+  sub <- filter(cred.df,CondID==id) %>% arrange(.,desc(PPA))
+  sub$PPA[1]
+  }) %>% as.numeric(.)
+
+```
+
+# Effect size weighting 
+
+TOA score * |rankNormal(Beta/SE)| 
+
+```{r}
+gwas.df <- fread("cat " %&% serv.dir %&%
+                   "datasets/diamante_hrc/European.HRC.T2D.summary.March2018AMah.txt.gz" %&% 
+                  " | zmore")
+
+build_weight_df <- function(){
+  sig.vec <- cred.df$CondID %>% unique(.)
+  out.df <- c()
+  pb <- txtProgressBar(min=0,max=length(sig.vec),style=3)
+  for (i in 1:length(sig.vec)){
+    setTxtProgressBar(pb,i)
+    sig <- sig.vec[i]
+    index.snp <- filter(cred.df,CondID==sig)$IndexSNP %>% unique(.)
+    index.snp <- strsplit(index.snp,split="chr")[[1]][2]
+    sub <- filter(gwas.df,SNP==index.snp)
+    beta <- sub$Beta; se <- sub$SE
+    weight <- (beta) / se
+    build.df <- data.frame("signal"=sig,"beta"=beta,"se"=se,"weight"=weight,
+                           stringsAsFactors = F)
+    out.df <- rbind(out.df,build.df)
+  }
+  return(out.df)
+}
+
+```
+
+```{r}
+
+library("RNOmni")
+weight.df <- build_weight_df()
+weight.df$rn.weight <- rankNorm(weight.df$weight)
+weight.df$abs.rn.weight <- abs(weight.df$rn.weight)
+weight.df$abs.weight <- abs(weight.df$weight)
+
+```
+
+
+```{r}
+
+weight_toa_scores <- function(class.df,weight.df,shared=FALSE){
+  out.df <- c()
+  pb <- txtProgressBar(min=0,max=dim(class.df)[1],style=3)
+  for (i in 1:dim(class.df)[1]){
+    setTxtProgressBar(pb, i)
+    row.df <- class.df[i,]
+    w <- filter(weight.df,signal==row.df$Locus.ID)$abs.weight
+    row.df$islet <- row.df$islet * w 
+    row.df$adipose <- row.df$adipose * w 
+    row.df$liver <- row.df$liver * w 
+    row.df$muscle <- row.df$muscle * w 
+    row.df$unclassified <- row.df$unclassified * w 
+    if (shared==TRUE){
+      row.df$shared <- row.df$shared * w
+    }
+    out.df <- rbind(out.df,row.df)
+  }
+  return(out.df)
+}
+
+weight_annot_df <- function(annot.df,weight.df){
+  out.df <- c()
+  pb <- txtProgressBar(min=0,max=dim(annot.df)[1],style=3)
+  for (i in 1:dim(annot.df)[1]){
+    setTxtProgressBar(pb, i)
+    row.df <- annot.df[i,]
+    w <- filter(weight.df,signal==row.df$Locus.ID)$abs.weight
+    row.df[1,2:38] <- row.df[1,2:38]  * w
+    out.df <- rbind(out.df,row.df)
+  }
+  return(out.df)  
+}
+
+```
+
+
+```{r}
+
+class.df1w <- weight_toa_scores(class.df1,weight.df,shared=FALSE)
+class.df2w <- weight_toa_scores(class.df2,weight.df,shared=TRUE)
+
+annot.dfw <- weight_annot_df(annot.df,weight.df)
+```
+
+
+
+```{r}
+
+simpleCap <- function(x) {
+  s <- strsplit(x, " ")[[1]]
+  paste(toupper(substring(s, 1,1)), substring(s, 2),
+      sep="", collapse=" ")
+}
+
+```
+
+
+# Sum plots 
+
+```{r}
+
+name.df <- data.frame(short=c("coding","strongenh","weakenh","genenh",
+                              "strongprom","weakprom","flankprom",
+                              "stronggenetrans","weakgenetrans"),
+                      long=c("Coding","Strong Enhancer","Weak Enhancer",
+                             "Genic Enhancer","Strong Promoter","Weak Promoter",
+                             "Flanking TSS", "Strong Transcription",
+                             "Weak Transcription"),stringsAsFactors = F)
+
+
+
+
+build_plot_df <- function(a.df){
+  tiss.vec  <- c("islet","liver","muscle","adipose")
+  plot.df <- c()
+  for (tiss in tiss.vec){
+    sub.df <- dplyr::select(a.df,contains(tiss))
+    names(sub.df) <- map(names(sub.df),function(n){
+      strsplit(n,"_")[[1]][1]
+    }) %>% as.character(.)
+    names(sub.df) <- map(names(sub.df),function(n){
+      filter(name.df,short==n)$long 
+    }) %>% as.character(.)
+    mat <- as.matrix(sub.df)
+    sums <- colSums(mat)
+    build.df <- data.frame(Annotation=names(sub.df),Score.Sum=sums,Tissue=tiss,
+                          stringsAsFactors = FALSE)  
+    plot.df <- rbind(plot.df,build.df)
+  }
+  plot.df$score.prop <- plot.df$Score.Sum / sum(plot.df$Score.Sum)
+  return(plot.df)
+}
+
+
+annot_plot <- function(plt.df){
+  plt.df$Annotation <- factor(plt.df$Annotation,
+                              levels=c("Coding","Strong Promoter","Weak Promoter",
+                                       "Flanking TSS","Genic Enhancer",
+                                       "Strong Enhancer","Weak Enhancer",
+                                       "Strong Transcription","Weak Transcription"))
+  p <- ggplot(data=plt.df,aes(x=Annotation,y=Score.Sum/sum(Score.Sum))) + 
+    geom_histogram(stat="identity",color="black",aes(fill=Tissue)) + 
+    theme_bw() + 
+    theme(axis.text.x=element_text(angle=30,vjust=0.6),
+          legend.position = "none") + 
+    scale_fill_manual(values=c("gold1","olivedrab2","brown","firebrick1")) + 
+    ylab("Proportion of PPA in functional regions") + 
+    coord_cartesian(ylim=c(0,0.5))
+}
+
+
+```
+
+
+
+
+
+```{r}
+
+compare_plot_annot <- function(df,df.w,title){
+  plt.df <- data.frame(df[,c(1,3,4)],dplyr::select(df.w,one_of("score.prop")))
+  plt.df$change <- abs(plt.df$score.prop.1-plt.df$score.prop)
+  p <- ggplot(data=plt.df,aes(x=score.prop,y=score.prop.1)) + 
+    #geom_smooth(method="lm",alpha=0.5) + 
+    geom_point(size=2) + geom_abline(color="gray",linetype=2) + 
+    theme_classic() + facet_wrap(~Tissue,nrow=1) + 
+    geom_text_repel(data=arrange(plt.df,desc(change))[1:3,],
+                     aes(x=score.prop,y=score.prop.1,label=Annotation),
+                    size=3) + 
+    xlab("Proportion of Cumulative TOA Score (Unweighted)") + 
+    ylab("Proportion of Cumulative TOA Score (Weighted)") + ggtitle(label=title)
+  return(p)
+}
+
+compare_plot_tiss <- function(df,df.w,title){
+  plt.df <- data.frame(df[,c(1,3)],dplyr::select(df.w,one_of("score.prop")))
+  plt.df$change <- abs(plt.df$score.prop.1-plt.df$score.prop)
+  p <- ggplot(data=plt.df,
+              aes(x=score.prop,y=score.prop.1,label=tissue)) + 
+    geom_point(size=2) + geom_abline(color="gray",linetype=2) + 
+    theme_classic()  + 
+    geom_text_repel(aes(label=tissue),size=3) + 
+    xlab("Proportion of Cumulative TOA Score (Unweighted)") + 
+    ylab("Proportion of Cumulative TOA Score (Weighted)") + ggtitle(label=title)
+  return(p)
+}
+
+
+```
+
+
+
+```{r}
+
+library("ggrepel")
+library("gridExtra")
+
+df1 <- build_plot_df(annot.df)
+df1.w <- build_plot_df(annot.dfw)
+p1 <- compare_plot_annot(df1,df1.w,"All Signals")
+
+df2 <- build_plot_df(filter(annot.df,maxppa>0.5))
+df2.w <- build_plot_df(filter(annot.dfw,maxppa>0.5))
+p2 <- compare_plot_annot(df2,df2.w,"Max PPA >= 0.5")
+
+df3 <- build_plot_df(filter(annot.df,maxppa>0.9))
+df3.w <- build_plot_df(filter(annot.dfw,maxppa>0.9))
+p3 <- compare_plot_annot(df3,df3.w,"Max PPA >= 0.9")
+
+```
+
+
+
+```{r}
+
+prepare_toa_collapsed <- function(c.df){
+  tiss.vec <- c("islet","liver","adipose","muscle","unclassified")
+  score.sum <- c(c.df$islet %>% sum(.), 
+                 c.df$liver %>% sum(.), 
+                 c.df$adipose %>% sum(.),
+                 c.df$muscle %>% sum(.),
+                 c.df$unclassified %>% sum(.))
+  score.prop <- score.sum / sum(score.sum)
+  add.df <- data.frame(tissue=tiss.vec,score.sum,score.prop,stringsAsFactors = F)  
+}
+
+toa_collap_plot <- function(p.df){
+  p.df$tissue <- map(p.df$tissue,function(x) {
+    s <- strsplit(x, " ")[[1]]
+    paste(toupper(substring(s, 1,1)), substring(s, 2),
+        sep="", collapse=" ")
+    }) %>% as.character(.)
+  names(p.df)[1] <- "Tissue"
+  plt <- ggplot(data=p.df,aes(x=Tissue,y=score.prop)) + 
+    geom_histogram(stat="identity",color="black",aes(fill=Tissue),
+                 binwidth=1,size=1) + 
+    theme_bw()  + 
+    theme(axis.text.x=element_text(angle=30,vjust=0.6)) + 
+    scale_fill_manual(values=c("gold1","olivedrab2","brown","firebrick1","grey")) +
+  ylab("Proportion of Total PPA")
+}
+
+
+```
+
+
+```{r}
+
+df1b <- prepare_toa_collapsed(class.df1)
+df1b.w <- prepare_toa_collapsed(class.df1w)
+p1b <- compare_plot_tiss(df1b,df1b.w,"All Signals")
+
+plt.df2b <- prepare_toa_collapsed(filter(class.df1,max.ppa>0.5))
+plt.df2b.w <- prepare_toa_collapsed(filter(class.df1w,max.ppa>0.5))
+p2b <- compare_plot_tiss(plt.df2b,plt.df2b.w,"Max PPA >= 0.5")
+
+plt.df3b <- prepare_toa_collapsed(filter(class.df1,max.ppa>0.9))
+plt.df3b.w <- prepare_toa_collapsed(filter(class.df1w,max.ppa>0.9))
+p3b <- compare_plot_tiss(plt.df3b,plt.df3b.w,"Max PPA >= 0.9")
+
+```
+
+
+```{r}
+
+pAnnot <- grid.arrange(p1,p2,p3,nrow=3)
+ggsave(plot=pAnnot,filename = plot.dir %&% "EffectSizeWeight_Annotation.png",
+       width = 10.5,height = 10.5)
+ggsave(plot=pAnnot,filename = plot.dir %&% "EffectSizeWeight_Annotation.pdf",
+       width = 10.5,height = 10.5)
+
+pTiss <- grid.arrange(p1b,p2b,p3b,nrow=1)
+ggsave(plot=pTiss,filename = plot.dir %&% "EffectSizeWeight_Tissue.png",
+       width = 12,height = 3.5)
+ggsave(plot=pTiss,filename = plot.dir %&% "EffectSizeWeight_Tissue.pdf",
+       width = 12,height = 3.5)
+```
+
+
+
+
+
+
