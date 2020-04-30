@@ -24,14 +24,14 @@ library("gridExtra")
 
 serv.dir <- "/home/jason/science/servers/FUSE5/"
 proj.dir <- serv.dir %&% "projects/t2d_classification/"
-work.dir <- proj.dir %&% "revamp/"
+work.dir <- proj.dir %&% "tactical_analyses/"
 
 analysis.dir <- work.dir %&% "analysis_files/"
 plot.dir <- work.dir %&% "plots/"
 
 cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
 cred.df$Locus.ID <- cred.df$CondID
-divvy.df <- fread(analysis.dir%&%"annotation-divvy-weighted-unscaled.txt")
+divvy.df <- fread(analysis.dir%&%"annotation-scores-signals.txt");names(divvy.df)[1]<-"Locus.ID"
 df <- fread(analysis.dir%&%"classified-loci_weighted_with-shared.txt")
 
 ```
@@ -172,9 +172,9 @@ scatpie_sub <- function(df,sub.df,lab=TRUE,lnum=5){
 ```{r}
 
 s.df <- filter(df,sep.score<=0.10)
-s1.df <- filter(s.df,num.snps==1)
-s2.df <- filter(s.df,num.snps>1,max.ppa>0.5) # 23 signals, including lead signal at TCF7L2, and two signals at HNF4A
-s3.df <- filter(s.df,num.snps>1,max.ppa<=0.5) # 88 signals 
+s1.df <- filter(s.df,num.snps==1) # 8 signals 
+s2.df <- filter(s.df,num.snps>1,max.ppa>0.5) # 33 signals, including lead signal at TCF7L2, and two signals at HNF4A
+s3.df <- filter(s.df,num.snps>1,max.ppa<=0.5) # 101 signals 
 
 
 p1 <- scatpie(df)
@@ -187,7 +187,7 @@ ggsave(plot=p2,filename = plot.dir %&%
          "scatterpie_filtUnclass.pdf",width=9,height=9)
 
 spec.df <- filter(df,unclassified<0.10) %>% 
-  filter(.,adipose>=0.9 | liver>=0.9 | muscle>=0.9 |islet >= 0.9)
+  filter(.,adipose>=0.8 | liver>=0.8 | muscle>=0.8 |islet >= 0.8)
 p3 <- scatpie_sub(filter(df,unclassified<0.10),
                   spec.df,lab=TRUE,lnum=10)
 ggsave(plot=p3,filename = plot.dir %&%
