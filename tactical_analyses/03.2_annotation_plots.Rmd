@@ -1,0 +1,309 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+library("tidyverse")
+library("GenomicRanges")
+library("viridis")
+library("data.table")
+library("plyr")
+
+serv.dir <- "/home/jason/science/servers/FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+
+work.dir <- proj.dir %&% "tactical_analyses/"
+analysis.dir <- work.dir %&% "analysis_files/"
+plot.dir <- work.dir %&% "plots/"
+
+
+```
+
+
+```{r}
+
+annot.df <- fread(work.dir%&%
+                    "analysis_files/annotation-scores-signals.txt")
+names(annot.df)[1] <- "Locus.ID"
+annot.df$strong_enhancer.Liver <- annot.df$`10_Active_enhancer_2.Liver` +
+  annot.df$`9_Active_enhancer_1.Liver`
+annot.df$strong_enhancer.Muscle <- annot.df$`10_Active_enhancer_2.Muscle` +
+  annot.df$`9_Active_enhancer_1.Muscle`
+annot.df$strong_enhancer.Adipose <- annot.df$`10_Active_enhancer_2.Adipose` +
+  annot.df$`9_Active_enhancer_1.Adipose`
+annot.df$strong_enhancer.Islet <- annot.df$`10_Active_enhancer_2.Islet` +
+  annot.df$`9_Active_enhancer_1.Islet`
+
+#annotall.df <- fread(work.dir%&%
+#                    "analysis_files/annotation-scores-allSNPs.txt")
+#names(annotall.df)[1] <- "Locus.ID"
+#annotall.df$strong_enhancer.Liver <- annotall.df$`10_Active_enhancer_2.Liver` +
+#  annotall.df$`9_Active_enhancer_1.Liver`
+#annotall.df$strong_enhancer.Muscle <- annotall.df$`10_Active_enhancer_2.Muscle` +
+#  annotall.df$`9_Active_enhancer_1.Muscle`
+#annotall.df$strong_enhancer.Adipose <- annotall.df$`10_Active_enhancer_2.Adipose` +
+#  annotall.df$`9_Active_enhancer_1.Adipose`
+#annotall.df$strong_enhancer.Islet <- annotall.df$`10_Active_enhancer_2.Islet` +
+#  annotall.df$`9_Active_enhancer_1.Islet`
+
+```
+
+
+```{r}
+
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+annot.df$maxppa <- map(annot.df$Locus.ID,function(id){
+  filter(cred.df,CondID==id)$PPA %>% max(.)
+}) %>% as.numeric(.)
+
+class.df1 <- fread(analysis.dir%&%"classified-loci_weighted.txt")
+class.df1$max.ppa <- map(class.df1$Locus.ID,function(id){
+  sub <- filter(cred.df,CondID==id) %>% arrange(.,desc(PPA))
+  sub$PPA[1]
+  }) %>% as.numeric(.)
+class.df2 <- fread(analysis.dir%&%"classified-loci_weighted_with-shared.txt")
+class.df2$max.ppa <- map(class.df2$Locus.ID,function(id){
+  sub <- filter(cred.df,CondID==id) %>% arrange(.,desc(PPA))
+  sub$PPA[1]
+  }) %>% as.numeric(.)
+
+```
+
+
+```{r}
+
+simpleCap <- function(x) {
+  s <- strsplit(x, " ")[[1]]
+  paste(toupper(substring(s, 1,1)), substring(s, 2),
+      sep="", collapse=" ")
+}
+
+```
+
+
+# Sum plots 
+
+```{r}
+
+name.df <- data.frame(short=c("coding","1_Active_TSS","2_Weak_TSS",
+                              "3_Flanking_TSS","5_Strong_transcription",
+                              "6_Weak_transcription","8_Genic_enhancer",
+                              "9_Active_enhancer_1","10_Active_enhancer_2",
+                              "strong_enhancer",
+                              "11_Weak_enhancer"),
+                      long=c("Coding","Active TSS","Weak TSS",
+                              "Flanking TSS","Strong transcription",
+                              "Weak transcription","Genic enhancer",
+                              "Strong enhancer (1)","Strong enhancer (2)",
+                              "Strong enhancer (1,2)",
+                              "Weak enhancer"),stringsAsFactors = F)
+
+build_plot_df <- function(a.df){
+  tiss.vec  <- c("islet","liver","muscle","adipose")
+  plot.df <- c()
+  for (tiss in tiss.vec){
+    sub.df <- dplyr::select(a.df,contains(tiss))
+    names(sub.df) <- map(names(sub.df),function(n){
+      strsplit(n,".",fixed=TRUE)[[1]][1]
+    }) %>% as.character(.)
+    names(sub.df) <- map(names(sub.df),function(n){
+      filter(name.df,short==n)$long 
+    }) %>% as.character(.)
+    mat <- as.matrix(sub.df)
+    sums <- colSums(mat)
+    build.df <- data.frame(Annotation=names(sub.df),Score.Sum=sums,Tissue=tiss,
+                          stringsAsFactors = FALSE)  
+    plot.df <- rbind(plot.df,build.df)
+  }
+  return(plot.df)
+}
+
+
+annot_plot <- function(plt.df){
+  denom <- sum(plt.df$Score.Sum) - 
+    (filter(plt.df,Annotation=="Strong enhancer (1,2)")$Score.Sum %>% sum(.))
+  plt.df$Annotation <- factor(plt.df$Annotation,
+                              levels=c("Coding","Active TSS","Weak TSS",
+                              "Flanking TSS","Strong transcription",
+                              "Weak transcription","Genic enhancer",
+                              "Strong enhancer (1)","Strong enhancer (2)",
+                              "Strong enhancer (1,2)",
+                              "Weak enhancer"))
+  p <- ggplot(data=plt.df,aes(x=Annotation,y=Score.Sum/denom)) + 
+    geom_histogram(stat="identity",color="black",aes(fill=Tissue)) + 
+    theme_bw() + 
+    theme(axis.text.x=element_text(angle=30,vjust=0.6),
+          legend.position = "none") + 
+    scale_fill_manual(values=c("gold1","olivedrab2","brown","firebrick1")) + 
+    ylab("Proportion of PPA in functional regions") + 
+    coord_cartesian(ylim=c(0,0.5))
+}
+
+
+```
+
+
+
+```{r}
+
+
+library("gridExtra")
+plt.df1 <- build_plot_df(annot.df)
+plt.df2 <- build_plot_df(filter(annot.df,maxppa>0.5))
+plt.df3 <- build_plot_df(filter(annot.df,maxppa>0.9))
+
+plt1 <- annot_plot(plt.df1)
+plt2 <- annot_plot(plt.df2)
+plt3 <- annot_plot(plt.df3)
+
+
+plt <- grid.arrange(plt1,plt2,plt3,nrow=1)
+ggsave(plot=plt,filename=plot.dir%&%"annot_profile.png",
+       width=16,height=5)
+ggsave(plot=plt,filename=plot.dir%&%"annot_profile.pdf",
+       width=16,height=5)
+
+```
+
+
+
+```{r}
+
+prepare_toa_collapsed <- function(c.df){
+  tiss.vec <- c("islet","liver","adipose","muscle","unclassified")
+  score.sum <- c(c.df$islet %>% sum(.), 
+                 c.df$liver %>% sum(.), 
+                 c.df$adipose %>% sum(.),
+                 c.df$muscle %>% sum(.),
+                 c.df$unclassified %>% sum(.))
+  score.prop <- score.sum / sum(score.sum)
+  add.df <- data.frame(tissue=tiss.vec,score.sum,score.prop,stringsAsFactors = F)  
+}
+
+toa_collap_plot <- function(p.df){
+  p.df$tissue <- map(p.df$tissue,function(x) {
+    s <- strsplit(x, " ")[[1]]
+    paste(toupper(substring(s, 1,1)), substring(s, 2),
+        sep="", collapse=" ")
+    }) %>% as.character(.)
+  names(p.df)[1] <- "Tissue"
+  plt <- ggplot(data=p.df,aes(x=Tissue,y=score.prop)) + 
+    geom_histogram(stat="identity",color="black",aes(fill=Tissue),
+                 binwidth=1,size=1) + 
+    theme_bw()  + 
+    theme(axis.text.x=element_text(angle=30,vjust=0.6)) + 
+    scale_fill_manual(values=c("gold1","olivedrab2","brown","firebrick1","grey")) +
+  ylab("Proportion of Total PPA")
+}
+
+
+```
+
+
+```{r}
+
+plt.df1b <- prepare_toa_collapsed(class.df1)
+plt.df2b <- prepare_toa_collapsed(filter(class.df1,max.ppa>0.5))
+plt.df3b <- prepare_toa_collapsed(filter(class.df1,max.ppa>0.9))
+
+plt1b <- toa_collap_plot(plt.df1b)
+ggsave(plot=plt1b,filename=plot.dir%&%"toa_profile_all.png",
+       width=5,height=4)
+ggsave(plot=plt1b,filename=plot.dir%&%"toa_profile_all.pdf",
+       width=5,height=4)
+plt2b <- toa_collap_plot(plt.df2b)
+ggsave(plot=plt2b,filename=plot.dir%&%"toa_profile_50.png",
+       width=5,height=4)
+ggsave(plot=plt2b,filename=plot.dir%&%"toa_profile_50.pdf",
+       width=5,height=4)
+plt3b <- toa_collap_plot(plt.df3b)
+ggsave(plot=plt3b,filename=plot.dir%&%"toa_profile_90.png",
+       width=5,height=4)
+ggsave(plot=plt3b,filename=plot.dir%&%"toa_profile_90.pdf",
+       width=5,height=4)
+
+```
+
+
+# Summary values for manuscript 
+
+```{r}
+
+ids <- unique(cred.df$CondID)
+snp.num <- map(ids,function(id){
+  dim(filter(cred.df,CondID==id))[1] 
+}) %>% as.integer(.)
+summary(snp.num)
+max.ppa <- map(ids,function(id){
+  (filter(cred.df,CondID==id) %>% arrange(.,desc(PPA)))$PPA[1]
+}) %>% as.numeric(.)
+summary(max.ppa)
+
+```
+
+
+                              
+```{r}
+
+plt.df1b %>% arrange(.,desc(score.prop)) # islet 29%, unclass 20%
+
+denom <- sum(plt.df1$Score.Sum) - 
+    (filter(plt.df1,Annotation=="Strong enhancer (1,2)")$Score.Sum %>% sum(.))
+plt.df1$prop <- plt.df1$Score.Sum / denom
+plt.df1 %>% arrange(.,desc(prop)) # islet WT 21%, islet SE 10%
+# WT total 
+filter(plt.df1,Annotation=="Weak transcription")$prop %>% sum(.) # 50.7% 
+filter(plt.df1,Annotation=="Coding")$prop %>% sum(.) # 0.02954429; 3.0% 
+filter(plt.df1,Annotation=="Strong enhancer (1,2)")$prop %>% sum(.) # 17.6%
+filter(plt.df1,Annotation=="Strong enhancer (1,2)",Tissue=="islet")$prop %>% sum(.) # 10.1%
+
+```
+
+
+```{r}
+
+plt.df2b %>% arrange(.,desc(score.prop)) # islet 34%, unclass 14%, 11-21%
+
+denom <- sum(plt.df2$Score.Sum) - 
+    (filter(plt.df2,Annotation=="Strong enhancer (1,2)")$Score.Sum %>% sum(.))
+plt.df2$prop <- plt.df2$Score.Sum / denom
+
+plt.df2 %>% arrange(.,desc(prop)) # WT islet 17%, SE 15%
+# WT total 
+filter(plt.df2,Annotation=="Weak transcription")$prop %>% sum(.) # 40.4%
+filter(plt.df2,Annotation=="Strong enhancer (1,2)")$prop %>% sum(.) # 24%
+filter(plt.df2,Annotation=="Strong enhancer (1,2)",Tissue=="islet")$prop %>% sum(.) # 15%
+
+```
+
+
+```{r}
+
+plt.df3b %>% arrange(.,desc(score.prop)) # islet 38%, unclass 5%, 14-23%
+
+denom <- sum(plt.df3$Score.Sum) - 
+    (filter(plt.df3,Annotation=="Strong enhancer (1,2)")$Score.Sum %>% sum(.))
+plt.df3$prop <- plt.df3$Score.Sum / denom
+plt.df3 %>% arrange(.,desc(prop)) # WT islet 12%, SE 16%
+# WT total 
+filter(plt.df3,Annotation=="Weak transcription")$prop %>% sum(.) # 31%
+filter(plt.df3,Annotation=="Strong enhancer (1,2)")$prop %>% sum(.) # 26%
+filter(plt.df3,Annotation=="Strong enhancer (1,2)",Tissue=="islet")$prop %>% sum(.) # 16%
+
+# islet 12-19% ??
+# adipose 4-5% ?? 
+# muscle 1-2% ?? 
+# liver 2-3% ?? 
+
+
+```
+
