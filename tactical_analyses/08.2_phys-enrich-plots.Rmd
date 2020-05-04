@@ -129,7 +129,7 @@ names(phys.counts) <- c("phys","count")
 ```{r}
 
 
-df3 <- fread(work.dir %&% "analysis_files/phys94-enrich_weighted-V2.txt") %>% mod_thresh(.)
+df3 <- fread(work.dir %&% "analysis_files/phys-enrich_weighted-V2.txt") %>% mod_thresh(.)
 df3$physiology <- gsub("_"," ",df3$physiology)
 df3$counts <- map(df3$physiology,function(p){
   filter(phys.counts,phys==p)$count
