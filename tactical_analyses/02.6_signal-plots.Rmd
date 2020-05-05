@@ -252,3 +252,52 @@ ggsave(plot=p,filename = plot.dir %&% "signal_ank1_1.pdf",h=3,w=2.5)
 ```
 
 
+# ANK1 tertiary Signal 
+
+
+```{r}
+
+sig <- "106_3"
+
+d <- get_sig_df(sig) %>% arrange(.,desc(ppa))
+bed.df <- d_to_bed(d,name.prefix="ANK1(3:PPA=")
+write.table(x=bed.df,file=analysis.dir%&%"ank1_3.bed",
+            quote=F,sep="\t",row.names = F,col.names = F)
+l1 <- process_sig_snp(d[1,],ymax=0.3)
+l2 <- process_sig_snp(d[2,],ymax=0.3)
+l3 <- process_sig_snp(d[3,],ymax=0.3)
+l4 <- process_sig_snp(d[4,],ymax=0.3)
+
+
+p <- grid.arrange(l1[[1]],l2[[1]],l3[[1]],l4[[1]],nrow=1) 
+write.table(x=d,file=analysis.dir%&%"signal_ank1_3.txt",sep="\t",quote=F,row.names=F)
+ggsave(plot=p,filename = plot.dir %&% "signal_ank1_3.png",h=3,w=8)
+ggsave(plot=p,filename = plot.dir %&% "signal_ank1_3.pdf",h=3,w=8)
+
+```
+
+
+
+# TCF7L2 Lead Signal 
+
+
+```{r}
+
+sig <- "130_1"
+
+d <- get_sig_df(sig) %>% arrange(.,desc(ppa))
+bed.df <- d_to_bed(d,name.prefix="TCF7L2(1:PPA=")
+write.table(x=bed.df,file=analysis.dir%&%"tcf7l2_1.bed",
+            quote=F,sep="\t",row.names = F,col.names = F)
+l1 <- process_sig_snp(d[1,],ymax=0.3)
+l2 <- process_sig_snp(d[2,],ymax=0.3)
+l3 <- process_sig_snp(d[3,],ymax=0.3)
+
+
+p <- grid.arrange(l1[[1]],l2[[1]],l3[[1]],nrow=1) 
+write.table(x=d,file=analysis.dir%&%"signal_tcf7l2_1.txt",sep="\t",quote=F,row.names=F)
+ggsave(plot=p,filename = plot.dir %&% "signal_tcf7l2_1.png",h=3,w=7.5)
+ggsave(plot=p,filename = plot.dir %&% "signal_tcf7l2_1.pdf",h=3,w=7.5)
+
+```
+
