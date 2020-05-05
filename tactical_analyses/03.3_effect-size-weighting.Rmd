@@ -159,16 +159,16 @@ simpleCap <- function(x) {
 
 ```{r}
 
-name.df <- data.frame(short=c("coding","strongenh","weakenh","genenh",
-                              "strongprom","weakprom","flankprom",
-                              "stronggenetrans","weakgenetrans"),
-                      long=c("Coding","Strong Enhancer","Weak Enhancer",
-                             "Genic Enhancer","Strong Promoter","Weak Promoter",
-                             "Flanking TSS", "Strong Transcription",
-                             "Weak Transcription"),stringsAsFactors = F)
-
-
-
+name.df <- data.frame(short=c("coding","1_Active_TSS","2_Weak_TSS",
+                                         "3_Flanking_TSS","5_Strong_transcription",
+                                         "6_Weak_transcription","8_Genic_enhancer",
+                                         "9_Active_enhancer_1","10_Active_enhancer_2",
+                                         "11_Weak_enhancer"),
+                      long=c("Coding","Active TSS","Weak TSS",
+                                         "Flanking TSS","Strong transcription",
+                                         "Weak transcription","Genic enhancer",
+                                         "Active enhancer (1)","Active enhancer (2)",
+                                         "Weak enhancer"),stringsAsFactors = F)
 
 build_plot_df <- function(a.df){
   tiss.vec  <- c("islet","liver","muscle","adipose")
@@ -176,7 +176,7 @@ build_plot_df <- function(a.df){
   for (tiss in tiss.vec){
     sub.df <- dplyr::select(a.df,contains(tiss))
     names(sub.df) <- map(names(sub.df),function(n){
-      strsplit(n,"_")[[1]][1]
+      strsplit(n,".",fixed=TRUE)[[1]][1]
     }) %>% as.character(.)
     names(sub.df) <- map(names(sub.df),function(n){
       filter(name.df,short==n)$long 
@@ -194,10 +194,11 @@ build_plot_df <- function(a.df){
 
 annot_plot <- function(plt.df){
   plt.df$Annotation <- factor(plt.df$Annotation,
-                              levels=c("Coding","Strong Promoter","Weak Promoter",
-                                       "Flanking TSS","Genic Enhancer",
-                                       "Strong Enhancer","Weak Enhancer",
-                                       "Strong Transcription","Weak Transcription"))
+                              levels=c("Coding","Active TSS","Weak TSS",
+                                         "Flanking TSS","Strong transcription",
+                                         "Weak transcription","Genic enhancer",
+                                         "Active enhancer (1)","Active enhancer (2)",
+                                         "Weak enhancer"))
   p <- ggplot(data=plt.df,aes(x=Annotation,y=Score.Sum/sum(Score.Sum))) + 
     geom_histogram(stat="identity",color="black",aes(fill=Tissue)) + 
     theme_bw() + 
@@ -261,11 +262,11 @@ p1 <- compare_plot_annot(df1,df1.w,"All Signals")
 
 df2 <- build_plot_df(filter(annot.df,maxppa>0.5))
 df2.w <- build_plot_df(filter(annot.dfw,maxppa>0.5))
-p2 <- compare_plot_annot(df2,df2.w,"Max PPA >= 0.5")
+p2 <- compare_plot_annot(df2,df2.w,"Max PPA > 0.5")
 
 df3 <- build_plot_df(filter(annot.df,maxppa>0.9))
 df3.w <- build_plot_df(filter(annot.dfw,maxppa>0.9))
-p3 <- compare_plot_annot(df3,df3.w,"Max PPA >= 0.9")
+p3 <- compare_plot_annot(df3,df3.w,"Max PPA > 0.9")
 
 ```
 
@@ -312,11 +313,11 @@ p1b <- compare_plot_tiss(df1b,df1b.w,"All Signals")
 
 plt.df2b <- prepare_toa_collapsed(filter(class.df1,max.ppa>0.5))
 plt.df2b.w <- prepare_toa_collapsed(filter(class.df1w,max.ppa>0.5))
-p2b <- compare_plot_tiss(plt.df2b,plt.df2b.w,"Max PPA >= 0.5")
+p2b <- compare_plot_tiss(plt.df2b,plt.df2b.w,"Max PPA > 0.5")
 
 plt.df3b <- prepare_toa_collapsed(filter(class.df1,max.ppa>0.9))
 plt.df3b.w <- prepare_toa_collapsed(filter(class.df1w,max.ppa>0.9))
-p3b <- compare_plot_tiss(plt.df3b,plt.df3b.w,"Max PPA >= 0.9")
+p3b <- compare_plot_tiss(plt.df3b,plt.df3b.w,"Max PPA > 0.9")
 
 ```
 

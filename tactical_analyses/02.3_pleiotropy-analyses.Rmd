@@ -441,6 +441,9 @@ write.table(x=tab3.df,file=analysis.dir%&%"SuppTable_shared_tier3.csv",quote=F,s
 
 ```
 
+Important note: 
+
+40.59% of well-resolved signals (max.ppa >= 0.5) are SHARED 
 
 
 
