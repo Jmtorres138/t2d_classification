@@ -1,0 +1,254 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+library("tidyverse")
+library("viridis")
+library("data.table")
+library("gridExtra")
+
+serv.dir <- "/home/jason/science/servers/FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "tactical_analyses/"
+analysis.dir <- work.dir %&% "analysis_files/"
+plot.dir <- work.dir %&% "plots/"
+
+an.df <- fread(analysis.dir%&%"annotation-scores-signals.txt")
+anall.df <- fread(analysis.dir%&%"annotation-scores-allSNPs.txt")
+names(an.df)[1] <- c("Locus.ID"); names(anall.df)[1] <- c("Locus.ID")
+
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+class.df <- fread(work.dir %&% "analysis_files/classified-loci_weighted_with-shared.txt")
+
+```
+
+
+```{r}
+
+df9 <- fread(analysis.dir %&% "het_9.txt")
+df10 <- fread(analysis.dir %&% "het_10.txt")
+
+df9$num.snps <- map(df9$Locus.ID,function(id){
+  dim(filter(anall.df,Locus.ID==id))[1]
+}) %>% as.integer(.)
+df10$num.snps <- map(df10$Locus.ID,function(id){
+  dim(filter(anall.df,Locus.ID==id))[1]
+}) %>% as.integer(.)
+
+
+```
+
+
+
+```{r}
+
+get_sig_df <- function(sig){
+  sub.df <- filter(anall.df,Locus.ID==sig)
+  sub.df$ppa <- map(sub.df$SNPID,function(id,loc=sig){
+    filter(cred.df,CondID==sig,SNPID==id)$PPA %>% max(.)
+  }) %>% as.numeric(.)
+  sub.df <- arrange(sub.df,desc(ppa))  
+}
+
+process_sig_snp <- function(sigsnp.df,ymax=1){
+  snpid <- sigsnp.df$SNPID; ppa <- sigsnp.df$ppa
+  test.df <- sigsnp.df[,6:(dim(sigsnp.df)[2]-1)]
+  annot <- test.df %>% names(.)
+  val <- test.df %>% as.numeric(.)
+  
+  new.df <- data.frame(annot,val,stringsAsFactors = F)
+  new.df$Annotation <- map(new.df$annot,function(a){
+    strsplit(x=a,split=".",fixed=TRUE)[[1]][1]
+  }) %>% as.character(.)
+  new.df$Tissue <- map(new.df$annot,function(a){
+    strsplit(x=a,split=".",fixed=TRUE)[[1]][2]
+  }) %>% as.character(.)
+  names(new.df) <- c("annot","score","Annotation","Tissue")
+  new.df$Annotation <- factor(new.df$Annotation,
+                              levels = c("coding","1_Active_TSS","2_Weak_TSS",
+                                         "3_Flanking_TSS","5_Strong_transcription",
+                                         "6_Weak_transcription","8_Genic_enhancer",
+                                         "9_Active_enhancer_1","10_Active_enhancer_2",
+                                         "11_Weak_enhancer"))
+  p <- ggplot(data=new.df,aes(x=Tissue,y=score)) + 
+    geom_bar(aes(fill=Annotation),stat="identity",color="black") + 
+    coord_cartesian(ylim=c(0,ymax)) + 
+    scale_fill_manual(values=c("grey30","#ff0000","#ff4500",
+                               "#ff4500","#008000",
+                               "#006400","#c2e105",
+                               "#ffc34d","#ffc34d",
+                               "#ffff00")) + 
+    theme_bw() + 
+    ggtitle(snpid %&% "\nPPA="%&%round(ppa,3)) + 
+    ylab("Proportion of TOA Score") + 
+    theme(legend.position = "none")
+  return(list(p,new.df))
+}
+
+
+```
+
+
+```{r}
+
+d_to_bed <- function(d,name.prefix="HNF1B(1:PPA="){
+  df <- data.frame(ID=d$SNPID,PPA=d$ppa,stringsAsFactors = F)
+  chrom <- map(df$ID,function(s){
+    strsplit(x=s,split=":")[[1]][1]
+  }) %>% as.character(.)
+  pos0 <- map(df$ID,function(s){
+    as.integer(strsplit(x=s,split=":")[[1]][2]) - 1
+  }) %>% as.integer(.)
+  pos <- map(df$ID,function(s){
+    as.integer(strsplit(x=s,split=":")[[1]][2]) - 1
+  }) %>% as.integer(.)
+  nam <- name.prefix %&% d$ppa %&% ")"
+  bed.df <- data.frame(chrom,pos0,pos,nam,stringsAsFactors = F)
+  return(bed.df)
+}
+
+
+
+```
+
+
+
+HNF1B lead signal (198)
+
+```{r}
+
+sig <- "198_1"
+
+d <- get_sig_df(sig)
+bed.df <- d_to_bed(d,name.prefix="HNF1B(1:PPA=")
+write.table(x=bed.df,file=analysis.dir%&%"hnf1b_1.bed",
+            quote=F,sep="\t",row.names = F,col.names = F)
+l1 <- process_sig_snp(d[1,],ymax=1)
+l2 <- process_sig_snp(d[2,],ymax=1)
+l3 <- process_sig_snp(d[3,],ymax=1)
+l4 <- process_sig_snp(d[4,],ymax=1)
+
+
+p <- grid.arrange(l1[[1]],l2[[1]],l3[[1]],l4[[1]],nrow=1)
+write.table(x=d,file=analysis.dir%&%"signal_hnf1b_198_1.txt",sep="\t",quote=F,row.names=F)
+ggsave(plot=p,filename = plot.dir %&% "signal_hnf1b_198_1.png",h=3,w=9)
+ggsave(plot=p,filename = plot.dir %&% "signal_hnf1b_198_1.pdf",h=3,w=9)
+
+
+```
+
+
+
+
+
+```{r}
+
+sig <- "198_2"
+
+d <- get_sig_df(sig)
+bed.df <- d_to_bed(d,name.prefix="HNF1B(2:PPA=")
+write.table(x=bed.df,file=analysis.dir%&%"hnf1b_2.bed",
+            quote=F,sep="\t",row.names = F,col.names = F)
+l1 <- process_sig_snp(d[1,],ymax=1)
+l2 <- process_sig_snp(d[2,],ymax=1)
+
+p <- grid.arrange(l1[[1]],l2[[1]],nrow=1)
+write.table(x=d,file=analysis.dir%&%"signal_hnf1b_198_2.txt",sep="\t",quote=F,row.names=F)
+ggsave(plot=p,filename = plot.dir %&% "signal_hnf1b_198_2.png",h=3,w=4.5)
+ggsave(plot=p,filename = plot.dir %&% "signal_hnf1b_198_2.pdf",h=3,w=4.5)
+
+
+```
+
+
+```{r}
+
+sig <- "198_3"
+
+d <- get_sig_df(sig)
+bed.df <- d_to_bed(d,name.prefix="HNF1B(3:PPA=")
+write.table(x=bed.df,file=analysis.dir%&%"hnf1b_3.bed",
+            quote=F,sep="\t",row.names = F,col.names = F)
+l1 <- process_sig_snp(d[1,],ymax=0.3)
+l2 <- process_sig_snp(d[2,],ymax=0.3)
+l3 <- process_sig_snp(d[3,],ymax=0.3)
+l4 <- process_sig_snp(d[4,],ymax=0.3)
+l5 <- process_sig_snp(d[5,],ymax=0.3)
+l6 <- process_sig_snp(d[6,],ymax=0.3)
+l7 <- process_sig_snp(d[7,],ymax=0.3)
+
+p <- grid.arrange(l1[[1]],l2[[1]],l3[[1]],l4[[1]],l5[[1]],l6[[1]],l7[[1]],nrow=1)
+write.table(x=d,file=analysis.dir%&%"signal_hnf1b_198_3.txt",sep="\t",quote=F,row.names=F)
+ggsave(plot=p,filename = plot.dir %&% "signal_hnf1b_198_3.png",h=3,w=15.75)
+ggsave(plot=p,filename = plot.dir %&% "signal_hnf1b_198_3.pdf",h=3,w=15.75)
+
+
+```
+
+
+# PPARG
+
+
+```{r}
+
+sig <- "30_1"
+d <- get_sig_df(sig)
+l1 <- process_sig_snp(d[1,],ymax=0.4)
+p <- grid.arrange(l1[[1]],nrow=1)
+ggsave(plot=p,filename = plot.dir %&% "signal_pparg_30_1.png",h=3,w=3)
+ggsave(plot=p,filename = plot.dir %&% "signal_pparg_30_1.pdf",h=3,w=3)
+
+sig <- "48_2"
+d <- get_sig_df(sig)
+l1 <- process_sig_snp(d[1,],ymax=1)
+p <- grid.arrange(l1[[1]],nrow=1)
+ggsave(plot=p,filename = plot.dir %&% "signal_igf2bp2_48_2.png",h=3,w=3)
+ggsave(plot=p,filename = plot.dir %&% "signal_igf2bp2_48_2.pdf",h=3,w=3)
+
+sig <- "126_1"
+d <- get_sig_df(sig)
+l1 <- process_sig_snp(d[1,],ymax=0.5)
+p <- grid.arrange(l1[[1]],nrow=1)
+ggsave(plot=p,filename = plot.dir %&% "signal_camk1d_126_1.png",h=3,w=3)
+ggsave(plot=p,filename = plot.dir %&% "signal_camk1d_126_1.pdf",h=3,w=3)
+
+```
+
+
+
+
+# ANK1 Lead Signal 
+
+
+```{r}
+
+sig <- "106_1"
+
+d <- get_sig_df(sig) %>% arrange(.,desc(ppa))
+bed.df <- d_to_bed(d,name.prefix="ANK1(1:PPA=")
+write.table(x=bed.df,file=analysis.dir%&%"ank1_1.bed",
+            quote=F,sep="\t",row.names = F,col.names = F)
+l1 <- process_sig_snp(d[1,],ymax=1)
+#l2 <- process_sig_snp(d[2,],ymax=1)
+#l3 <- process_sig_snp(d[3,],ymax=1)
+#l4 <- process_sig_snp(d[4,],ymax=1)
+
+
+p <- grid.arrange(l1[[1]],nrow=1) # ,l2[[1]],l3[[1]],l4[[1]]
+write.table(x=d,file=analysis.dir%&%"signal_ank1_1.txt",sep="\t",quote=F,row.names=F)
+ggsave(plot=p,filename = plot.dir %&% "signal_ank1_1.png",h=3,w=2.5)
+ggsave(plot=p,filename = plot.dir %&% "signal_ank1_1.pdf",h=3,w=2.5)
+
+```
+
+
