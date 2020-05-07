@@ -43,17 +43,6 @@ annot.df$strong_enhancer.Adipose <- annot.df$`10_Active_enhancer_2.Adipose` +
 annot.df$strong_enhancer.Islet <- annot.df$`10_Active_enhancer_2.Islet` +
   annot.df$`9_Active_enhancer_1.Islet`
 
-#annotall.df <- fread(work.dir%&%
-#                    "analysis_files/annotation-scores-allSNPs.txt")
-#names(annotall.df)[1] <- "Locus.ID"
-#annotall.df$strong_enhancer.Liver <- annotall.df$`10_Active_enhancer_2.Liver` +
-#  annotall.df$`9_Active_enhancer_1.Liver`
-#annotall.df$strong_enhancer.Muscle <- annotall.df$`10_Active_enhancer_2.Muscle` +
-#  annotall.df$`9_Active_enhancer_1.Muscle`
-#annotall.df$strong_enhancer.Adipose <- annotall.df$`10_Active_enhancer_2.Adipose` +
-#  annotall.df$`9_Active_enhancer_1.Adipose`
-#annotall.df$strong_enhancer.Islet <- annotall.df$`10_Active_enhancer_2.Islet` +
-#  annotall.df$`9_Active_enhancer_1.Islet`
 
 ```
 
@@ -299,11 +288,40 @@ filter(plt.df3,Annotation=="Weak transcription")$prop %>% sum(.) # 31%
 filter(plt.df3,Annotation=="Strong enhancer (1,2)")$prop %>% sum(.) # 26%
 filter(plt.df3,Annotation=="Strong enhancer (1,2)",Tissue=="islet")$prop %>% sum(.) # 16%
 
-# islet 12-19% ??
-# adipose 4-5% ?? 
-# muscle 1-2% ?? 
-# liver 2-3% ?? 
 
+```
+
+
+
+```{r}
+# islet to other tissue (next highest) factor
+plt.df1b %>% arrange(.,desc(score.prop)) # islet = 0.2914650; liver =  0.1898216; factor = 1.54
+plt.df2b %>% arrange(.,desc(score.prop)) # islet = 0.3413803; liver =  0.2139818; factor = 1.59
+plt.df3b %>% arrange(.,desc(score.prop)) # islet = 0.37988524; liver =  0.23992068; factor = 1.58
+
+#increase of 
+
+```
+
+
+
+```{r}
+
+filter(plt.df1,Annotation=="Strong enhancer (1,2)",Tissue=="islet")$prop %>% sum(.) # 10.06%
+filter(plt.df2,Annotation=="Strong enhancer (1,2)",Tissue=="islet")$prop %>% sum(.) # 15.0%
+filter(plt.df3,Annotation=="Strong enhancer (1,2)",Tissue=="islet")$prop %>% sum(.) # 16.3%
+
+filter(plt.df1,Annotation=="Strong enhancer (1,2)",Tissue=="adipose")$prop %>% sum(.) # 4.2%
+filter(plt.df2,Annotation=="Strong enhancer (1,2)",Tissue=="adipose")$prop %>% sum(.) # 4.4%
+filter(plt.df3,Annotation=="Strong enhancer (1,2)",Tissue=="adipose")$prop %>% sum(.) # 4.8%
+
+filter(plt.df1,Annotation=="Strong enhancer (1,2)",Tissue=="muscle")$prop %>% sum(.) # 0.8 %
+filter(plt.df2,Annotation=="Strong enhancer (1,2)",Tissue=="muscle")$prop %>% sum(.) # 1.2%
+filter(plt.df3,Annotation=="Strong enhancer (1,2)",Tissue=="muscle")$prop %>% sum(.) # 1.5%
+
+filter(plt.df1,Annotation=="Strong enhancer (1,2)",Tissue=="liver")$prop %>% sum(.) # 2.5%
+filter(plt.df2,Annotation=="Strong enhancer (1,2)",Tissue=="liver")$prop %>% sum(.) # 3.4%
+filter(plt.df3,Annotation=="Strong enhancer (1,2)",Tissue=="liver")$prop %>% sum(.) # 3.8%
 
 ```
 
