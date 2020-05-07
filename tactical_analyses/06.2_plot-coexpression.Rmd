@@ -114,12 +114,12 @@ plot_enrich_alt2 <- function(plot.df){
 
 ```{r}
 
-plot.dfV1 <- fread(analysis.dir %&%
-                 "coexpress-enrich_weighted_p10Coding_with-shared.txt") %>% 
-  na.omit(.) %>% append_classifer_counts(.,count.df2)
-pltV1 <- plot_enrich_alt2(plot.dfV1)
-ggsave(plot=pltV1,filename = plot.dir %&% "coexpress-enrich_weighted-p10Coding_with-shared_V1.png",
-       width=12,height=5.25)
+#plot.dfV1 <- fread(analysis.dir %&%
+#                 "coexpress-enrich_weighted_p10Coding_with-shared.txt") %>% 
+#  na.omit(.) %>% append_classifer_counts(.,count.df2)
+#pltV1 <- plot_enrich_alt2(plot.dfV1)
+#ggsave(plot=pltV1,filename = plot.dir %&% "coexpress-enrich_weighted-p10Coding_with-shared_V1.png",
+#       width=12,height=5.25)
 
 
 ```
