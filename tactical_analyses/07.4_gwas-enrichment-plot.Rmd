@@ -1,0 +1,78 @@
+---
+title: "visualize-enrichments.Rmd"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+
+library("tidyverse")
+library("data.table")
+library("viridis")
+
+
+serv.dir <- "/home/jason/science/servers/FUSE5/"
+
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "tactical_analyses/"
+plot.dir <- work.dir %&% "plots/"
+
+
+```
+
+General functions 
+
+```{r}
+
+simpleCap <- function(x) {
+  s <- strsplit(x, " ")[[1]]
+  paste(toupper(substring(s, 1,1)), substring(s, 2),
+      sep="", collapse=" ")
+}
+
+firstup <- function(x) {
+  substr(x, 1, 1) <- toupper(substr(x, 1, 1))
+  x
+}
+
+```
+
+
+
+# GWAS Enrichment 
+
+
+```{r}
+
+gwas.df <- fread(work.dir %&%
+      "enrichment_files/gwas/gwas_enrichment_TOAthresh20.txt") %>% 
+  filter(.,pval<=0.05)
+levs <- arrange(gwas.df,enrichment)$trait %>% unique(.)
+gwas.df$trait <- factor(gwas.df$trait,levels=levs)
+gwas.df$tissue <- factor(gwas.df$tissue,levels=c("adipose","liver","muscle","islet","shared","unclassified"))
+
+gwas.plt <- ggplot(data=gwas.df,aes(x=trait,y=enrichment)) + 
+  geom_point(shape=21,aes(fill=-log(pval,base=10),size=observed)) +
+  scale_fill_viridis() + 
+  scale_size_continuous(range=c(0.5,3)) +
+  facet_wrap(~tissue,nrow = 1)+
+  coord_flip() + theme_bw()
+  
+ggsave(plot=gwas.plt,filename=plot.dir %&%
+         "gwas_enrich_20.png",width=15,height=12)
+ggsave(plot=gwas.plt,filename=plot.dir %&%
+         "gwas_enrich_20.pdf",width=15,height=12)
+
+```
+
+
+
