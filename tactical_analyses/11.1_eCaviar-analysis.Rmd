@@ -1,0 +1,516 @@
+---
+title: "eCaviar-analysis.Rmd"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+
+serv.dir <- "/home/jason/science/servers/FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "tactical_analyses/"
+write.dir <- work.dir %&%  "analysis_files/"
+plot.dir <- work.dir %&% "plots/"
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+class.df <- fread(work.dir %&% "analysis_files/classified-loci_weighted_with-shared.txt")
+
+# eCaviar colocalization results 
+coloc.dir <- serv.dir %&% "datasets/diamante_hrc/eCAVIAR/"
+coloc.islet <- fread("cat " %&% coloc.dir %&% "EUR_full_eqtls_coloc.txt.gz" %&% " | zmore")
+coloc.islet$Tissue <- "Islet"
+coloc.gtex <- fread("cat " %&% coloc.dir %&% "EUR_significant_eqtls_coloc.txt.gz" %&% " | zmore")
+sub1 <- dplyr::select(coloc.islet,one_of("Locus","SNP_ID","Tissue",
+                                         "Gene","gene_name","gwas_z",
+                                         "eqtl_z","CLPP"))
+sub2 <- dplyr::select(coloc.gtex,one_of("Locus","SNP_ID","Tissue",
+                                         "Gene","gene_name","gwas_z",
+                                         "eqtl_z","CLPP"))
+coloc.df <- rbind(sub1,sub2)
+
+```
+
+
+```{r}
+
+coloc.df$SNPID <- map(coloc.df$SNP_ID,function(id){
+  gsub("_",":","chr" %&% id)
+}) %>% as.character(.)
+
+```
+
+# Append colocalization
+```{r}
+
+class.df$maxppa.snp <- map(class.df$Locus.ID,function(id){
+  (filter(cred.df,CondID==id) %>% arrange(.,desc(PPA)))$SNPID[1]
+}) %>% as.character(.)
+class.df$max.ppa <- map(class.df$Locus.ID,function(id){
+  (filter(cred.df,CondID==id) %>% arrange(.,desc(PPA)))$PPA[1]
+}) %>% as.numeric(.)
+
+class.df$ntiss.clpp01 <- map(class.df$Locus.ID,function(id){
+  snp <- filter(class.df,Locus.ID==id)$maxppa.snp
+  filter(coloc.df,SNPID==snp,CLPP>=0.01)$Tissue %>% unique(.) %>% length(.)
+}) %>% as.integer(.)
+class.df$ngene.clpp01 <- map(class.df$Locus.ID,function(id){
+  snp <- filter(class.df,Locus.ID==id)$maxppa.snp
+  filter(coloc.df,SNPID==snp,CLPP>=0.01)$gene_name %>% unique(.) %>% length(.)
+}) %>% as.integer(.)
+
+class.df$ntiss.clpp10 <- map(class.df$Locus.ID,function(id){
+  snp <- filter(class.df,Locus.ID==id)$maxppa.snp
+  filter(coloc.df,SNPID==snp,CLPP>=0.10)$Tissue %>% unique(.) %>% length(.)
+}) %>% as.integer(.)
+class.df$ngene.clpp10 <- map(class.df$Locus.ID,function(id){
+  snp <- filter(class.df,Locus.ID==id)$maxppa.snp
+  filter(coloc.df,SNPID==snp,CLPP>=0.10)$gene_name %>% unique(.) %>% length(.)
+}) %>% as.integer(.)
+
+class.df$ntiss.clpp50 <- map(class.df$Locus.ID,function(id){
+  snp <- filter(class.df,Locus.ID==id)$maxppa.snp
+  filter(coloc.df,SNPID==snp,CLPP>=0.50)$Tissue %>% unique(.) %>% length(.)
+}) %>% as.integer(.)
+class.df$ngene.clpp50 <- map(class.df$Locus.ID,function(id){
+  snp <- filter(class.df,Locus.ID==id)$maxppa.snp
+  filter(coloc.df,SNPID==snp,CLPP>=0.50)$gene_name %>% unique(.) %>% length(.)
+}) %>% as.integer(.)
+
+
+class.df$tiss.clpp50 <- map(class.df$Locus.ID,function(id){
+  snp <- filter(class.df,Locus.ID==id)$maxppa.snp
+  filter(coloc.df,SNPID==snp,CLPP>=0.50)$Tissue %>% unique(.)  %>% paste0(.,collapse=",")
+}) %>% as.character(.)
+class.df$gene.clpp50 <- map(class.df$Locus.ID,function(id){
+  snp <- filter(class.df,Locus.ID==id)$maxppa.snp
+  filter(coloc.df,SNPID==snp,CLPP>=0.50)$gene_name %>% unique(.)  %>% paste0(.,collapse=",")
+}) %>% as.character(.)
+
+t2d.tissues <- c("Adipose_Subcutaneous","Islet","Liver","Muscle_Skeletal")
+
+class.df$t2d.relevant.tiss50 <- map(1:dim(class.df)[1],function(i){
+  vec <- (class.df$tiss.clpp50[i] %>% strsplit(.,split=","))[[1]]
+  any(vec %in% t2d.tissues)
+}) %>% as.logical(.)
+
+class.df$multi.t2d.relevant.tiss50 <- map(1:dim(class.df)[1],function(i){
+  vec <- (class.df$tiss.clpp50[i] %>% strsplit(.,split=","))[[1]]
+  sum(vec %in% t2d.tissues) > 1
+}) %>% as.logical(.)
+
+```
+
+
+```{r}
+
+sub.df <- filter(class.df,ntiss.clpp10>0)
+
+fit1 <- aov(ntiss.clpp10 ~ assigned_20, data=sub.df)
+boxplot(sub.df$ntiss.clpp10~sub.df$assigned_20)
+
+fit2 <- aov(ngene.clpp10 ~ assigned_20, data=sub.df)
+boxplot(sub.df$ngene.clpp10~sub.df$assigned_20)
+
+```
+
+
+
+```{r}
+
+class.df2 <- arrange(class.df,desc(ntiss.clpp50)) %>% dplyr::select(.,-contains("01")) %>% filter(.,ntiss.clpp50>0,max.ppa>0.5)
+
+class.df2$lead.snp <- map(class.df2$Locus.ID,function(id){
+  filter(cred.df,CondID==id)$lead.rsid %>% unique(.)
+}) %>% as.character(.)
+ 
+tab.df <- dplyr::select(class.df2,one_of("Locus.ID","lead.snp","symbol",
+                                         "islet","muscle","adipose","liver",
+                                         "assigned_20","maxppa.snp","max.ppa",
+                                         "ntiss.clpp50","ngene.clpp50"))
+tab.df$islet <- tab.df$islet %>% prettyNum(digits=2)
+tab.df$muscle <- tab.df$muscle %>% prettyNum(digits=2)
+tab.df$adipose <- tab.df$adipose %>% prettyNum(digits=2)
+tab.df$liver <- tab.df$liver %>% prettyNum(digits=2)
+tab.df$max.ppa <- tab.df$max.ppa %>% prettyNum(digits=2)
+
+ggsave(plot=gridExtra::grid.table(tab.df),filename = plot.dir %&% "coloc_tab.pdf", height = 20, width=20)
+```
+
+
+
+# Look up summary numbers
+
+```{r}
+
+class.df$ntiss.clpp10[class.df$ntiss.clpp10>0] %>% length(.)
+class.df$ntiss.clpp10[class.df$ntiss.clpp10>0] %>% median(.)
+class.df$ntiss.clpp10[class.df$ntiss.clpp10>0] %>% max(.)
+
+class.df$ngene.clpp10[class.df$ngene.clpp10>0] %>% length(.)
+class.df$ngene.clpp10[class.df$ngene.clpp10>0] %>% median(.)
+class.df$ngene.clpp10[class.df$ngene.clpp10>0] %>% max(.)
+
+class.df$ntiss.clpp50[class.df$ntiss.clpp50>0] %>% length(.)
+class.df$ntiss.clpp50[class.df$ntiss.clpp50>0] %>% median(.)
+class.df$ntiss.clpp50[class.df$ntiss.clpp50>0] %>% max(.)
+class.df$t2d.relevant.tiss50 %>% sum(.) # 12
+class.df$multi.t2d.relevant.tiss50 %>% sum(.) # 4
+
+
+class.df$ngene.clpp50[class.df$ngene.clpp50>0] %>% length(.)
+class.df$ngene.clpp50[class.df$ngene.clpp50>0] %>% median(.)
+class.df$ngene.clpp50[class.df$ngene.clpp50>0] %>% max(.)
+
+#dim(class.df2)
+
+# We looked for eQTL colocalization for max ppa SNP (within (1Mb)) using eCAVIAR to yield CLPP values 
+# 81 / 380 signals had at least one significant colocalization at CLPP>=0.1
+# median number of colocalized tissues in these 81 signals is 2 and max number is 27
+# median number of colocalized genes in these 81 signals is also 2 and max number is 16
+
+
+sig50.df <- filter(class.df,ntiss.clpp50>=0.5) %>% dplyr::select(.,-one_of("assigned_00","assigned_50",
+                                                        "assigned_80","ntiss.clpp01","ngene.clpp01",
+                                                        "ntiss.clpp10","ngene.clpp10"))# %>% View(.)
+write.table(x=sig50.df,file=write.dir%&%"eCav_clpp50_23.txt",sep="\t",quote=F,row.names=F)
+
+
+# 23 / 380 signals had at least one significant colocalization at CLPP>=0.5
+# median number of colocalized tissues in these 23 signals is 2 and max number is 17 
+# median number of colocalized genes in these 23 signals is also 2 and max number is 7
+# Supports previously reported results
+# CAMK1D at CDC123-CAMK1D locus in islet - CLPP=0.996258 -  (5 tissues total); only one is T2D relevant; "Islet,Heart_Atrial_Appendage,Heart_Left_Ventricle,Lung,Whole_Blood"
+
+
+# OF these 23 signals, 12 are colocalized with T2D relevant tissues 
+# 4 of the 12 involve multiple T2D relevant tissues 
+#  Look up some interesting examples from here 
+# ANK1 is assigned to ISLET so would opt for NKX6-3 as the likely gene 
+#  Locus     SNP_ID                 Tissue               Gene gene_name    gwas_z    eqtl_z     CLPP         SNPID
+#1 106_1 8_41508577                  Islet ENSG00000165066.11    NKX6-3 -6.937904  4.008114 0.783713 chr8:41508577
+#2 106_1 8_41508577   Adipose_Subcutaneous ENSG00000029534.15      ANK1 -6.937904 -4.930794 0.991803 chr8:41508577
+#3 106_1 8_41508577 Heart_Atrial_Appendage ENSG00000029534.15      ANK1 -6.937904 -5.380686 0.998853 chr8:41508577
+#4 106_1 8_41508577        Muscle_Skeletal ENSG00000029534.15      ANK1 -6.937904 -4.643371 0.974049 chr8:41508577
+
+# GCKR assigned to LIVER but no colocalization in liver 
+#  Locus     SNP_ID                          Tissue              Gene   gene_name    gwas_z    eqtl_z     CLPP         SNPID
+##1  18_1 2_27730940            Adipose_Subcutaneous ENSG00000115216.9       NRBP1 -10.30769 -5.809959 0.639148 chr2:27730940
+#2  18_1 2_27730940     Brain_Cerebellar_Hemisphere ENSG00000234072.1 AC074117.10 -10.30769  4.966348 0.848770 chr2:27730940
+#3  18_1 2_27730940                Brain_Cerebellum ENSG00000234072.1 AC074117.10 -10.30769  5.802805 0.658791 chr2:27730940
+#4  18_1 2_27730940   Cells_Transformed_fibroblasts ENSG00000234072.1 AC074117.10 -10.30769 -5.487904 0.500365 chr2:27730940
+#5  18_1 2_27730940                Colon_Transverse ENSG00000115216.9       NRBP1 -10.30769 -4.304776 0.599799 chr2:27730940
+#6  18_1 2_27730940                 Muscle_Skeletal ENSG00000115234.6       SNX17 -10.30769 -9.389504 0.522173 chr2:27730940
+#7  18_1 2_27730940                    Nerve_Tibial ENSG00000115216.9       NRBP1 -10.30769 -4.184118 0.628664 chr2:27730940
+#8  18_1 2_27730940 Skin_Not_Sun_Exposed_Suprapubic ENSG00000115216.9       NRBP1 -10.30769 -5.858140 0.528631 chr2:27730940
+#9  18_1 2_27730940  Small_Intestine_Terminal_Ileum ENSG00000115216.9       NRBP1 -10.30769 -5.161366 0.599923 chr2:27730940
+
+#CCND2 classifed as shared (adipose and islet toa scores = 0.473458374, 0.5265416), colocalization in 11 tissues, 3 genes; put my money on CCND2 
+#filter(coloc.df,SNP_ID=="12_4384844",CLPP>=0.5,Tissue %in% c("Muscle_Skeletal","Adipose_Subcutaneous"))
+#  Locus     SNP_ID               Tissue              Gene gene_name  gwas_z   eqtl_z     CLPP         SNPID
+#1 146_1 12_4384844 Adipose_Subcutaneous ENSG00000118971.3     CCND2 17.6325 5.176068 0.997129 chr12:4384844
+#2 146_1 12_4384844      Muscle_Skeletal ENSG00000118971.3     CCND2 17.6325 5.704212 0.999750 chr12:4384844
+
+#ABCB10 classifed as islet (islet toa scores = 0.6787883), colocalization in 17 tissues, 4 genes; only two are T2D relevant, none are islet 
+#filter(coloc.df,SNP_ID=="1_229672955",CLPP>=0.5,Tissue %in% c("Muscle_Skeletal","Adipose_Subcutaneous"))
+#  Locus      SNP_ID               Tissue              Gene gene_name   gwas_z    eqtl_z     CLPP          SNPID
+#1  13_1 1_229672955 Adipose_Subcutaneous ENSG00000229367.1  HMGN2P19 -7.61194 -5.413025 0.999011 chr1:229672955
+#2  13_1 1_229672955      Muscle_Skeletal ENSG00000229367.1  HMGN2P19 -7.61194 -5.503373 0.999350 chr1:229672955
+
+filter(class.df,multi.t2d.relevant.tiss50==TRUE) %>% View(.)
+
+
+# 19/23 CLPP>=0.5 signals have max ppa > 0.5
+
+```
+
+
+
+```{r}
+
+
+filter(coloc.df,Locus==tab.df$Locus.ID[6],
+       SNPID==tab.df$maxppa.snp[6],CLPP>=0.5) # CAMK1D 
+filter(coloc.df,Locus==tab.df$Locus.ID[7],
+       SNPID==tab.df$maxppa.snp[7],CLPP>=0.5) # ANK1 !!!! Plot this 
+filter(coloc.df,Locus==tab.df$Locus.ID[12],
+       SNPID==tab.df$maxppa.snp[12],CLPP>=0.5) # GLI2, maybe INHBB in adipose visceral omentum?? 
+filter(coloc.df,Locus==tab.df$Locus.ID[19],
+       SNPID==tab.df$maxppa.snp[19],CLPP>=0.5) # CCND2 
+filter(coloc.df,Locus==tab.df$Locus.ID[16],
+       SNPID==tab.df$maxppa.snp[16],CLPP>=0.5) # CCND2 
+filter(coloc.df,Locus==tab.df$Locus.ID[9],
+       SNPID==tab.df$maxppa.snp[9],CLPP>=0.5) # PROX1 should be islet but no colocalization  
+
+filter(coloc.df,Locus==tab.df$Locus.ID[5],
+       SNPID==tab.df$maxppa.snp[5],CLPP>=0.5) # CLUAP to underscore the nonsense of eQTL colocalization 
+
+
+```
+
+
+
+```{r}
+
+write.table(x=coloc.df,file=write.dir%&%"coloc.txt",sep="\t",quote=F,row.names=F)
+write.table(x=class.df,file=write.dir%&%"coloc_clpp50_380.txt",sep="\t",quote=F,row.names=F)
+
+```
+
+
+
+
+# Evaluate colocalization plot (all w/ CLPP >= 0.01)
+
+```{r}
+
+coloc01.df <- filter(coloc.df,CLPP>=0.01)
+
+pb <- txtProgressBar(min=0,max=dim(coloc01.df)[1],style=3)
+coloc01.df$PPA <- map(1:dim(coloc01.df)[1],function(i){
+  setTxtProgressBar(pb,i)
+  snp <- coloc01.df$SNPID[i]
+  loc <- coloc01.df$Locus[i]
+  filter(cred.df,CondID==loc,SNPID==snp)$PPA[1]
+}) %>% as.numeric(.)
+
+coloc01.df$is.lead <- map(1:dim(coloc01.df)[1],function(i){
+  setTxtProgressBar(pb,i)
+  snp <- coloc01.df$SNPID[i]
+  loc <- coloc01.df$Locus[i]
+  lead <- filter(cred.df,CondID==loc)$IndexSNP %>% unique(.)
+  snp==lead
+}) %>% as.logical(.)
+
+
+```
+
+
+```{r}
+
+cor.test(coloc01.df$PPA,coloc01.df$CLPP)
+fit <- lm(coloc01.df$CLPP~coloc01.df$PPA)
+fit %>% summary(.)
+
+plt <- ggplot(data=coloc01.df,aes(x=PPA,y=CLPP)) + 
+  geom_point(color="dodgerblue4",alpha=0.4) + 
+  geom_smooth(method='lm',formula=y~x)
+ggsave(filename = plot.dir %&% "clpp_ppa_plot.png",height = 3,width = 3)
+ggsave(filename = plot.dir %&% "clpp_ppa_plot.pdf",height = 3,width = 3)
+
+```
+
+
+## TRYING SOMETHING OUT
+
+```{r}
+
+sig.vec <- unique(coloc.df$Locus)
+out.df <- c()
+for (sig in sig.vec){
+  maxppasnp <- (filter(cred.df,CondID==sig) %>% arrange(.,desc(PPA)))[1,]$SNPID
+  sub <- filter(coloc.df,SNPID %in% maxppasnp) %>% arrange(.,desc(CLPP))
+  out.df <- rbind(out.df,sub)
+}
+names(out.df)[1] <- "Locus.ID"
+
+sub.df <- inner_join(out.df,class.df,by="Locus.ID")
+
+
+
+
+```
+
+```{r}
+
+convert_name <- function(tissname){
+  out.name <- ifelse(tissname=="liver","Liver",
+                  ifelse(tissname=="adipose","Adipose_Subcutaneous",
+                         ifelse(tissname=="islet","Islet",
+                                ifelse(tissname=="muscle","Muscle_Skeletal",
+                                       ifelse(tissname=="shared","shared","unclassified")))))
+  return(out.name)
+}
+
+
+prepare_coloc_dfs <- function(){
+  out.df1 <- c()
+  out.df2 <- c()
+  t2dtissues <- c("Islet","Liver","Muscle_Skeletal","Adipose_Subcutaneous")
+  pb <- txtProgressBar(min=1,max=dim(class.df)[1],style=3)
+  for (i in 1:dim(class.df)[1]){
+    setTxtProgressBar(pb,i)
+    row.df <- class.df[i,]; loc.id <- row.df$Locus.ID
+    sub <- (filter(cred.df,CondID==loc.id) %>% arrange(.,desc(PPA)))[1,]
+    maxppa <- sub$PPA; maxppasnp <- sub$SNPID
+    coloc.sub <- filter(coloc.df,Locus==loc.id,SNPID==maxppasnp,CLPP>=0.01)
+    ntiss <- unique(coloc.sub$Tissue) %>% length(.); ngene <- unique(coloc.sub$gene_name) %>% length(.)
+    npairs <- ifelse(ntiss>0,((coloc.sub$Tissue %&% ":" %&% coloc.sub$gene_name) %>% unique(.) %>% length(.)),0)
+    coloc.t2d <- filter(coloc.sub,Tissue%in%t2dtissues)
+    ntiss.t2d <- unique(coloc.t2d$Tissue) %>% length(.)
+    ngene.t2d <- unique(coloc.t2d$gene_name) %>% length(.)
+    npairs.t2d <- ifelse(ntiss.t2d>0,((coloc.t2d$Tissue %&% ":" %&% coloc.t2d$gene_name) %>% unique(.) %>% length(.)),0)
+    ass20 <- row.df$assigned_20
+    ass20 <- convert_name(ass20)
+    if (ass20=="shared"){
+      ranked.df <- dplyr::select(row.df,one_of("islet","muscle","liver","adipose"))[1,] %>%
+        sort(.,decreasing = T)
+      colnames <- names(ranked.df)
+      ranked.vec <- as.numeric(ranked.df)
+      names(ranked.vec) <- colnames
+      maxval <- ranked.vec[1] %>% as.numeric(.)
+      share.vec <- ranked.vec[as.logical(abs(ranked.vec - maxval) <= 0.10)]
+      ass20 <- map(names(share.vec),function(s){
+        ifelse(s=="liver","Liver",ifelse(s=="adipose","Adipose_Subcutaneous",
+                ifelse(s=="islet","Islet",ifelse(s=="muscle","Muscle_Skeletal",NA))))
+      }) %>% as.character(.)
+    }
+    coloc.toa <- filter(coloc.sub,Tissue%in%ass20)
+    ntiss.toa <- unique(coloc.toa$Tissue) %>% length(.)
+    ngene.toa <- unique(coloc.toa$gene_name) %>% length(.)
+    npairs.toa <- ifelse(ntiss.toa>0,((coloc.toa$Tissue %&% ":" %&% coloc.toa$gene_name) %>% unique(.) %>% length(.)),0)
+    join.df1 <- data.frame("max.ppa"=maxppa,"max.ppa.snp"=maxppasnp,
+                           "ntiss"=ntiss,"ngene"=ngene,"npairs"=npairs,
+                           "ntiss.t2d"=ntiss.t2d,"ngene.t2d"=ngene.t2d,"npairs.t2d"=npairs.t2d,
+                           "ntiss.toa"=ntiss.toa,"ngene.toa"=ngene.toa,"npairs.toa"=npairs.toa,
+                           stringsAsFactors = FALSE)
+    build.df1 <- cbind(row.df,join.df1)
+    out.df1 <- rbind(out.df1,build.df1)
+    if (dim(coloc.sub)[1]>0){
+      coloc.sub$max.ppa <- maxppa; coloc.sub$max.ppa.snp <- maxppasnp  
+      coloc.sub$pairs<- coloc.sub$Tissue %&% ":" %&% coloc.sub$gene_name
+      build.df2 <- dplyr::select(coloc.sub,one_of("Locus","max.ppa.snp","max.ppa","pairs","Tissue","gene_name",
+                                                  "gwas_z","eqtl_z","CLPP"))
+      names(build.df2)[1] <- "Locus.ID"    
+    } else{
+      build.df2 <- data.frame("Locus.ID"=NA,"max.ppa.snp"=NA,"max.ppa"=NA,"pairs"=NA,"Tissue"=NA,"gene_name"=NA,
+                                                  "gwas_z"=NA,"eqtl_z"=NA,"CLPP"=NA)
+    }
+    out.df2 <- rbind(out.df2,build.df2)
+  }  
+  return(list(out.df1,out.df2))
+}
+#require(MASS)
+#summary(m1 <- glm.nb(ngenes01~assigned_20,data=filter(sub.df,Tissue=="Islet")))
+```
+
+
+```{r}
+
+df.list <- prepare_coloc_dfs()
+
+write.table(x=df.list[[1]],file=write.dir %&% "coloc_380_clpp01_summary.txt",sep="\t",quote=F,row.names=F)
+write.table(x=df.list[[2]],file=write.dir %&% "coloc_380_clpp01_allpairs.txt",sep="\t",quote=F,row.names=F)
+
+```
+
+
+```{r}
+
+out.df <- na.omit(df.list[[2]])
+sub.df <- dplyr::select(cred.df,one_of("CondID","IndexSNP","lead.rsid"))
+names(sub.df)[1] <- "Locus.ID"
+sub.df <- sub.df[!duplicated(sub.df$Locus.ID),]
+
+
+out.df <- inner_join(out.df,sub.df,by="Locus.ID")
+out.df <- dplyr::select(out.df,one_of("Locus.ID","lead.rsid","IndexSNP","max.ppa.snp","max.ppa","Tissue","gene_name",
+                                      "gwas_z","eqtl_z","CLPP"))
+out.df <- filter(out.df,max.ppa>=0.50)
+write.table(x=out.df,file=write.dir %&% "coloc_380_clpp01_allpairs_expanded_ppa50.txt",sep="\t",quote=F,row.names=F)
+
+```
+
+
+# Some updated analyses and checks 
+
+
+```{r}
+
+t2dtissues <- c("Islet","Liver","Muscle_Skeletal","Adipose_Subcutaneous")
+
+
+# 101 signals with max >= 0.5
+names(df.list[[1]])[13] <- "MAX.PPA"
+df1a <- df.list[[1]] %>% filter(.,max.ppa >=0.50) 
+(df1a$npairs > 0) %>% sum(.) # 53 have colocalization w/ at least one gene in one tissue 
+df1b <- filter(df1a, npairs>0) %>% arrange(.,desc(npairs))
+df1b$npairs %>% summary(.) # median 4 pairs, max is 64 pairs (involving 15 genes in 37 tissues; CLUAP, 186_1) 
+df2a <- df.list[[2]] %>% filter(.,max.ppa>=0.50) # 378 colocalizations 
+df2b <- filter(df2a,Tissue %in% t2dtissues) # 209 (55.3%) correspond to one of the T2D relevant tissues; at 49 signals 
+
+meancptps.2a <- map(unique(df2a$Locus.ID),function(sig){ # mean number of candidate genes per tissue per signal 
+  vec <- c()
+  s1 <- filter(df2a,Locus.ID==sig)
+  for (t in unique(s1$Tissue)){
+    v <- (filter(s1,Tissue==t) %>% dim(.))[1] %>% mean(.)
+    vec <- append(vec,v)
+  }
+  return(mean(vec))
+}) %>% as.numeric(.) %>% mean(.) # 2.76 
+
+meancptps.2b <- map(unique(df2b$Locus.ID),function(sig){ # mean number of candidate genes per tissue per signal 
+  vec <- c()
+  s1 <- filter(df2b,Locus.ID==sig)
+  for (t in unique(s1$Tissue)){
+    v <- (filter(s1,Tissue==t) %>% dim(.))[1] %>% mean(.)
+    vec <- append(vec,v)
+  }
+  return(mean(vec))
+}) %>% as.numeric(.) %>% mean(.) # 3.59 
+
+
+df2c <- c()
+for (i in 1:dim(df2b)[1]){
+  row.df <- df2b[i,]
+  ass20 <- filter(class.df,Locus.ID==row.df$Locus.ID)$assigned_20 %>% convert_name(.)
+  if (ass20=="shared"){
+    ranked.df <- dplyr::select(filter(class.df,Locus.ID==row.df$Locus.ID),
+                               one_of("islet","muscle","liver","adipose"))[1,] %>%
+      sort(.,decreasing = T)
+    colnames <- names(ranked.df)
+    ranked.vec <- as.numeric(ranked.df)
+    names(ranked.vec) <- colnames
+    maxval <- ranked.vec[1] %>% as.numeric(.)
+  share.vec <- ranked.vec[as.logical(abs(ranked.vec - maxval) <= 0.10)]
+    ass20 <- map(names(share.vec),function(s){
+      ifelse(s=="liver","Liver",ifelse(s=="adipose","Adipose_Subcutaneous",
+              ifelse(s=="islet","Islet",ifelse(s=="muscle","Muscle_Skeletal",NA))))
+    }) %>% as.character(.)
+  }
+  if (row.df$Tissue %in% ass20){
+    df2c <- rbind(df2c,row.df)
+  }
+}
+
+df2c <- arrange(df2c,desc(CLPP))
+meancptps.2c <- map(unique(df2c$Locus.ID),function(sig){ # mean number of candidate genes per tissue per signal 
+  vec <- c()
+  s1 <- filter(df2c,Locus.ID==sig)
+  for (t in unique(s1$Tissue)){
+    v <- (filter(s1,Tissue==t) %>% dim(.))[1] %>% mean(.)
+    vec <- append(vec,v)
+  }
+  return(mean(vec))
+}) %>% as.numeric(.) %>% mean(.) # 3.713542 (in earlier script it was 4.011905)
+
+
+
+filter(df1a, npairs.t2d>0) %>% arrange(.,desc(npairs.t2d)) %>% dim(.)
+eval.df <- filter(df1a, npairs.toa>0) %>% arrange(.,desc(npairs.t2d)) #%>% dim(.) 28 
+eval.df$perdec1 <- (eval.df$npairs - eval.df$npairs.toa) / eval.df$npairs
+eval.df$perdec2 <- (eval.df$npairs.t2d - eval.df$npairs.toa) / eval.df$npairs.t2d
+
+eval.df <- arrange(eval.df,desc(perdec2))
+
+```
+
+
