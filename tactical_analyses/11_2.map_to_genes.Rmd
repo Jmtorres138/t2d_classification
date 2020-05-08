@@ -1,0 +1,236 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup 
+
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+
+got2d.dir <- "/home/jason/science/servers/FUSE/"
+rescomp.dir <- "/home/jason/science/servers/FUSE5/"
+proj.dir <- rescomp.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "tactical_analyses/"
+write.dir <- work.dir %&%  "analysis_files/"
+plot.dir <- work.dir %&% "plots/"
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+coloc.df <- fread(write.dir%&%"coloc.txt")
+class.df <- fread(write.dir%&%"coloc_clpp50_380.txt")
+an.df <- fread(write.dir %&% "annotation-scores-signals.txt")
+anfull.df <- fread(write.dir %&% "annotation-scores-allSNPs.txt")
+names(an.df)[1] <- c("Locus.ID"); names(anfull.df)[1] <- c("Locus.ID")
+ens.df <- fread(rescomp.dir %&% "datasets/Ensembl_HumanGenes_GRCh37-p13.txt")
+names(ens.df)[c(1,4)] <- c("ensid","gene_name")
+
+```
+
+
+```{r}
+
+class.df$coding.score <- map(1:dim(class.df)[1],function(i){
+  id <- class.df$Locus.ID[i]
+  filter(an.df,Locus.ID==id) %>% select(.,contains("coding")) %>% as.numeric(.) %>% sum(.)
+}) %>% as.numeric(.)
+
+```
+
+
+```{r}
+
+process_gtex <- function(df){
+  pb <- txtProgressBar(min=0,max=dim(df)[1],style=3)
+  df$snp.id <- map(1:dim(df)[1],function(i){
+    setTxtProgressBar(pb,i)
+    "chr" %&% ((df$variant_id[i] %>% strsplit(.,split="_"))[[1]][c(1,2)] %>% paste0(.,collapse = ":"))
+  }) %>% as.character(.)
+  return(df)
+}
+
+gtex.dir <- rescomp.dir %&% "datasets/GTEx/v7/eqtl/GTEx_Analysis_v7_eQTL/"
+liv.df <- fread("cat " %&% gtex.dir %&% "Liver.v7.signif_variant_gene_pairs.txt.gz" %&% " | zmore") %>% 
+  process_gtex(.)
+mus.df <- fread("cat " %&% gtex.dir %&% "Muscle_Skeletal.v7.signif_variant_gene_pairs.txt.gz" %&% " | zmore") %>% 
+  process_gtex(.)
+adi.df <- fread("cat " %&% gtex.dir %&% "Adipose_Subcutaneous.v7.signif_variant_gene_pairs.txt.gz" %&% " | zmore") %>%
+  process_gtex(.)
+
+
+islet.dir <- got2d.dir %&% "reference/islet/eqtls/oxford/nominal_pass/output/"
+islet.df <- fread("cat " %&% islet.dir %&% "eqtls_fdr05.txt.gz" %&% " | zmore")
+islet.snps <- fread("cat " %&% islet.dir %&% "snp_keyfile_fdr05.txt.gz" %&% " | zmore")
+islet.df <- cbind(islet.df,islet.snps[,c(2:3)])
+names(islet.df)[c(1,4)] <- c("gene_id","pval_nominal")
+pb <- txtProgressBar(min=0,max=dim(islet.df)[1],style=3)
+islet.df$snp.id <- map(1:dim(islet.df)[1],function(i){
+  setTxtProgressBar(pb,i)
+  islet.df$CHR[i] %&% ":" %&% islet.df$POS[i]
+}) %>% as.character(.)
+
+isl.df2 <- data.frame(tissue="Islet",select(islet.df,one_of("gene_id","snp.id","pval_nominal")),stringsAsFactors = F)
+mus.df2 <- data.frame(tissue="Muscle",select(mus.df,one_of("gene_id","snp.id","pval_nominal")),stringsAsFactors = F)
+adi.df2 <- data.frame(tissue="Adipose",select(adi.df,one_of("gene_id","snp.id","pval_nominal")),stringsAsFactors = F)
+liv.df2 <- data.frame(tissue="Liver",select(liv.df,one_of("gene_id","snp.id","pval_nominal")),stringsAsFactors = F)
+
+eq.df <- rbind(isl.df2,mus.df2,adi.df2,liv.df2)
+write.table(x=eq.df,file=write.dir%&%"t2d_tissues_eqtls.txt",sep="\t",quote=F,row.names=F)
+
+
+```
+
+
+
+# Add genes table 
+
+```{r}
+
+simpleCap <- function(x) {
+  s <- strsplit(x, " ")[[1]]
+  paste(toupper(substring(s, 1,1)), substring(s, 2),
+      sep="", collapse=" ")
+}
+
+lookup_eGene_info <- function(sig){
+  sub <- filter(main.df,Locus.ID==sig)
+  snp <- sub$maxppa.snp
+  tis <- sub$assigned_20 %>% simpleCap(.)
+  if (tis == "Shared"){
+    t.df <- sub[1,c(7:10)] %>% t(.) %>% data.frame(.)
+    t.df$tiss <- row.names(t.df); names(t.df)[1] <- "toa"
+    t.df <- arrange(t.df,desc(toa)); maxval <- t.df$toa[1]
+    as20tiss <- map(filter(t.df,maxval - toa <= 0.1)$tiss,function(x){
+      s <- strsplit(x, " ")[[1]]
+      paste(toupper(substring(s, 1,1)), substring(s, 2),
+      sep="", collapse=" ")      
+    }) %>% as.character(.)
+      filt.df <- filter(eq.df,tissue%in%as20tiss,snp.id==snp)
+  } else{
+      filt.df <- filter(eq.df,tissue==tis,snp.id==snp)
+  }
+  filt.df$symbol <- map(filt.df$gene_id,function(ens){
+    filter(ens.df,ensid==strsplit(x=ens,split=".",fixed=TRUE)[[1]][1])$gene_name %>%
+      unique(.)
+  }) %>% as.character(.)
+  filt.df <- arrange(filt.df,pval_nominal)
+  if (dim(filt.df)[1]>0){
+    filt.df$CLPP <- map(1:dim(filt.df)[1],function(i){
+      row.df <- filt.df[i,]
+      coltiss <- row.df$tissue
+      coltiss <- ifelse(coltiss=="Adipose","Adipose_Subcutaneous",
+                       ifelse(coltiss=="Muscle","Muscle_Skeletal",coltiss))
+      filter(coloc.df,Tissue==coltiss,gene_name==row.df$symbol,SNPID==row.df$snp.id)$CLPP
+    }) %>% as.numeric(.) %>% prettyNum(.,digits=3)    
+  }
+  return(filt.df)
+}
+
+
+#for (sig in main.df$Locus.ID){
+#  print(sig)
+#  print(lookup_eGene_info(sig))
+#}
+
+
+process_eGene_df <- function(egene.df){
+  if (length(unique(egene.df$tissue))==1){
+    egenes <- egene.df$symbol %>% paste0(.,collapse=",")
+  } else{
+    egenes <- map(1:dim(egene.df)[1],function(i){
+      egene.df$symbol[i]%&%" ("%&%egene.df$tissue[i]%&%")"
+    }) %>% as.character(.) %>% paste0(.,collapse = ",")
+  }
+  eqtl_pval <- egene.df$pval_nominal %>% prettyNum(.,digits=3) %>% paste0(.,collapse=",")
+  CLPP <- egene.df$CLPP %>% paste0(.,collapse=",")
+  out.df <- data.frame(egenes,eqtl_pval,CLPP,stringsAsFactors = FALSE)
+  return(out.df)
+}
+
+append_eGene_info <- function(main.df){
+  out.df <- c()
+  pb <- txtProgressBar(min=0,max=dim(main.df)[1],style=3)
+  for (i in 1:dim(main.df)[1]){
+    setTxtProgressBar(pb,i)
+    row.df <- main.df[i,]
+    c.df <- lookup_eGene_info(row.df$Locus.ID) 
+    c.df$CLPP <- as.numeric(c.df$CLPP)
+    c.df <-filter(c.df,CLPP>=0.01)
+    if (dim(c.df)[1]>0){
+      e.df <- process_eGene_df(c.df)
+      build.df <- cbind(row.df,e.df)
+      out.df <- rbind(out.df,build.df)
+    }
+  }
+  return(out.df)
+}
+
+```
+
+
+
+```{r}
+
+main.df <- dplyr::select(cred.df,one_of("CondID","lead.rsid","IndexSNP","symbol"))
+names(main.df)[1] <- "Locus.ID"
+main.df <- main.df[!duplicated(main.df),]
+sub.df <- dplyr::select(class.df,one_of("Locus.ID","maxppa.snp","max.ppa","islet",
+                                        "muscle","adipose","liver","assigned_20"))
+main.df <- inner_join(main.df,sub.df,by="Locus.ID")
+main.df$coding <- map(1:dim(main.df)[1],function(i){
+  row.df <- main.df[i,]
+  sub <- filter(anfull.df,Locus.ID==row.df$Locus.ID,SNPID==row.df$maxppa.snp) %>% 
+    dplyr::select(.,contains("coding")) %>% sum(.)
+  sub > 0
+}) %>% as.integer(.)
+
+
+
+```
+
+
+```{r}
+sub.df2 <- dplyr::select(class.df,one_of("Locus.ID","maxppa.snp","max.ppa","islet",
+                                        "muscle","adipose","liver","assigned_00","assigned_20",
+                                        "assigned_50","assigned_80"))
+main.df2 <- inner_join(main.df,sub.df2,by="Locus.ID")
+write.table(x=main.df2,file=write.dir%&%"supptab1.txt",quote=F,sep="\t",row.names=F)
+```
+
+
+
+```{r}
+
+multeq.df <- append_eGene_info(main.df)
+write.table(x=multeq.df,file = write.dir %&% "table_eqtls.txt",sep="\t",row.names=F,quote = F)
+
+```
+
+
+
+
+```{r}
+
+multeq.df$max.ppa <- multeq.df$max.ppa %>% prettyNum(.,digits=3)
+multeq.df$islet <- multeq.df$islet %>% prettyNum(.,digits=3)
+multeq.df$muscle <- multeq.df$muscle %>% prettyNum(.,digits=3)
+multeq.df$adipose <- multeq.df$adipose %>% prettyNum(.,digits=3)
+multeq.df$liver <- multeq.df$liver %>% prettyNum(.,digits=3)
+
+multeq.df2 <- dplyr::select(multeq.df,one_of("symbol","Locus.ID","lead.rsid","IndexSNP",
+                                             "maxppa.snp","coding","max.ppa","islet","muscle","adipose",
+                                             "liver","assigned_20","egenes","eqtl_pval","CLPP"))
+write.table(x=multeq.df2,file = write.dir %&% "table_eqtls_prettyNum.txt",sep="\t",row.names=F,quote = F)
+
+```
+
+
+
+
