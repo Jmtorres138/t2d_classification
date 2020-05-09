@@ -23734,8 +23734,8 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.91372639"
-     inkscape:cx="472.51309"
+     inkscape:zoom="1.6579137"
+     inkscape:cx="147.10411"
      inkscape:cy="489.00077"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
@@ -30949,21 +30949,23 @@
            sodipodi:role="line"
            id="tspan90792"
            x="0"
-           y="0">TOA Threshold for tissue classifier</tspan>
+           y="0">TOA threshold for tissue classifier</tspan>
       </text>
     </g>
     <g
        id="g90796"
-       transform="matrix(0.82350017,0,0,-0.82350017,-0.49619,732.43885)">
+       transform="matrix(0.82350017,0,0,-0.82350017,0.9006423,732.43885)">
       <text
-         transform="matrix(0,1,1,0,13.38,175.16)"
+         transform="matrix(0,1,1,0,0,0)"
          style="font-variant:normal;font-weight:normal;font-size:11px;font-family:Helvetica;-inkscape-font-specification:Helvetica;writing-mode:lr-tb;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none"
-         id="text90798">
+         id="text90798"
+         x="104.72894"
+         y="13.38">
         <tspan
-           x="0 7.3369999 13.453 17.281 19.723 25.223 31.339001 40.501999 46.618 52.734001"
-           y="0"
            sodipodi:role="line"
-           id="tspan90800">Enrichment</tspan>
+           id="tspan90800"
+           x="104.72894"
+           y="13.38">Fold enrichment of tissue-specific eQTLs</tspan>
       </text>
     </g>
     <text
