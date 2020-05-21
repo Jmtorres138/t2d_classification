@@ -325,3 +325,105 @@ filter(plt.df3,Annotation=="Strong enhancer (1,2)",Tissue=="liver")$prop %>% sum
 
 ```
 
+
+# Adjusting annotation proportions by genomic abundance proporition, within each tissue SEPARATELY!!
+
+```{r}
+
+count.df <- fread(analysis.dir %&% "annot_count.txt")
+
+```
+
+
+```{r}
+
+append_count_proportions <- function(df,count.df){
+  # df is plot.df for annotations 
+  out.df <- c()
+  for (i in 1:dim(df)[1]){
+    row.df <- df[i,]
+    annot <- row.df$Annotation; tiss <- row.df$Tissue
+    t <- ifelse(tiss=="islet","Islet",
+                ifelse(tiss=="muscle","Muscle",
+                       ifelse(tiss=="adipose","Adipose",
+                              ifelse(tiss=="liver","Liver",NA))))
+    a <- ifelse(annot=="Strong enhancer (2)","Active_enhancer_2",
+         ifelse(annot=="Weak enhancer","Weak_enhancer",
+         ifelse(annot=="Active TSS","Active_TSS",
+         ifelse(annot=="Weak TSS","Weak_TSS",
+         ifelse(annot=="Flanking TSS","Flanking_TSS",
+         ifelse(annot=="Strong transcription","Strong_transcription",
+         ifelse(annot=="Weak transcription","Weak_transcription",
+         ifelse(annot=="Genic enhancer","Genic_enhancer",
+         ifelse(annot=="Strong enhancer (1)","Active_enhancer_1",
+         ifelse(annot=="Coding","Coding",
+         ifelse(annot=="Strong enhancer (1,2)",c("Active_enhancer_1","Active_enhancer_2"))))))))))))
+    if (annot=="Strong enhancer (1,2)"){
+      a <- c("Active_enhancer_1","Active_enhancer_2")
+    }
+    genome.prop <- ifelse(a=="Coding",0.01,(filter(count.df,Tissue==t,Annotation%in%a)$Proportion)) %>% sum(.)
+    row.df$genome.prop <- genome.prop
+    denom <- filter(df,Tissue==tiss,Annotation!="Strong enhancer (1,2)")$Score.Sum %>% 
+      sum(.)
+    adj.prop <- row.df$Score.Sum / denom
+    row.df$adj.prop <- adj.prop
+    out.df <- rbind(out.df,row.df)
+  }
+  out.df$ratio <- out.df$adj.prop / out.df$genome.prop
+  return(out.df)
+}
+
+```
+
+
+
+```{r}
+
+library("ggrepel")
+
+prop_plot <- function(prop.df){
+  p <- ggplot(data=filter(prop.df,Annotation!="Coding"),
+             aes(x=genome.prop,y=adj.prop,label=)) + geom_point() + 
+    geom_abline(slope=1)  + 
+    geom_text_repel(aes(label=Annotation),size=2)+
+    facet_wrap(~Tissue,nrow=1) + 
+    theme_classic() + 
+    xlab("Within-tissue proportion of genomic regions") + 
+    ylab("Within-tissue proportion\n of cumulative PPA")
+  return(p)
+}
+
+```
+
+
+```{r}
+
+prop.df1 <- append_count_proportions(plt.df1,count.df)
+prop.df2 <- append_count_proportions(plt.df2,count.df)
+prop.df3 <- append_count_proportions(plt.df3,count.df)
+
+pp1 <- prop_plot(prop.df1)
+pp2<- prop_plot(prop.df2)
+pp3 <- prop_plot(prop.df3)
+
+```
+
+
+```{r}
+
+write.table(x=prop.df1,file=analysis.dir%&%"genome_adjusted_annotationPPA_allsigs.txt",sep="\t",quote=F,row.names=F)
+write.table(x=prop.df2,file=analysis.dir%&%"genome_adjusted_annotationPPA_ppa50.txt",sep="\t",quote=F,row.names=F)
+write.table(x=prop.df3,file=analysis.dir%&%"genome_adjusted_annotationPPA_ppa90.txt",sep="\t",quote=F,row.names=F)
+
+```
+
+
+```{r}
+
+p <- grid.arrange(pp1,pp2,pp3,nrow=3)
+ggsave(plot=p,filename=plot.dir%&%"genome_adjusted_annotationPPA.png",width=10,height = 8)
+ggsave(plot=p,filename=plot.dir%&%"genome_adjusted_annotationPPA.pdf",width=10,height = 8)
+
+
+```
+
