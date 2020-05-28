@@ -24,10 +24,29 @@ proj.dir <- serv.dir %&% "projects/t2d_classification/"
 work.dir <-  proj.dir %&% "tactical_analyses/" 
 cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
 write.dir <- work.dir   
-phys94.df <- fread(work.dir %&% "analysis_files/phys94-ld-assigned.txt") %>%
-  filter(.,assigned.r2>=0.3)
-  
+phys82.df <- fread(work.dir %&% "analysis_files/phys94-ld-assigned.txt") %>%
+  filter(.,assigned.r2>=0.3) # fuzzy 
+phys73.df <- fread(work.dir %&% "analysis_files/phys94-ld-assigned.txt") %>%
+  filter(.,assigned.r2>=0.5) # fuzzy 
+phys53.df <- fread(work.dir %&% "analysis_files/phys94-ld-assigned.txt") %>%
+  filter(.,assigned.r2>=0.8) # fuzzy 
 ```
+
+
+Also consider the set of HRC 71 SNPs from Anubha
+```{r}
+
+phys71.df <- fread(work.dir %&% "analysis_files/physiology_hrc_for_Jason.txt")
+names(phys71.df)[1] <- "Locus.ID"
+phys71.df$Locus.ID <- map(phys71.df$Locus.ID,function(s){
+  if (grepl("_",s)==FALSE){
+    s <- s %&% "_1"
+  }
+  return(s)
+}) %>% as.character(.)
+
+```
+
 
 
 ```{r}
@@ -101,12 +120,32 @@ build_enrich_df <- function(class.df,phys.df){
 
 ```{r}
 
-
-df4 <- build_enrich_df(weighted.df,phys94.df)
-write.table(x=df4,file = write.dir %&% "analysis_files/" %&% 
+# Fuzzy; r2 > 0.3
+df82 <- build_enrich_df(weighted.df,phys82.df)
+write.table(x=df82,file = write.dir %&% "analysis_files/" %&% 
               "phys82-enrich_weighted_with-shared.txt",
             sep="\t",quote=F,row.names=F)
-filter(df4,p<0.05,threshold!="assigned_00") %>% arrange(.,p)
+# Fuzzy; r2 > 0.5
+df73 <- build_enrich_df(weighted.df,phys73.df)
+write.table(x=df73,file = write.dir %&% "analysis_files/" %&% 
+              "phys73-enrich_weighted_with-shared.txt",
+            sep="\t",quote=F,row.names=F)
+# Fuzzy; r2 > 0.8
+df53 <- build_enrich_df(weighted.df,phys53.df)
+write.table(x=df53,file = write.dir %&% "analysis_files/" %&% 
+              "phys53-enrich_weighted_with-shared.txt",
+            sep="\t",quote=F,row.names=F)
+# Hard
+df71 <- build_enrich_df(weighted.df,phys71.df) # Not sure if this is fuzzy or hard clustering
+write.table(x=df71,file = write.dir %&% "analysis_files/" %&% 
+              "phys71-enrich_weighted_with-shared.txt",
+            sep="\t",quote=F,row.names=F)
+
+filter(df82,p<0.05,threshold!="assigned_00") %>% arrange(.,p)
+filter(df73,p<0.05,threshold!="assigned_00") %>% arrange(.,p)
+filter(df53,p<0.05,threshold!="assigned_00") %>% arrange(.,p)
+
+filter(df71,p<0.05,threshold!="assigned_00") %>% arrange(.,p)
 
 
 ```
@@ -164,17 +203,30 @@ build_enrich_df_v2 <- function(class.df,phys.df){
 
 ```{r}
 
-df4b <- build_enrich_df_v2(weighted.df,phys94.df)
+df82b <- build_enrich_df_v2(weighted.df,phys82.df)
+write.table(x=df82b,file = write.dir %&% "analysis_files/" %&% 
+              "phys-enrich82_weighted-V2.txt",sep="\t",quote=F,row.names=F)
+filter(df82b,p<0.05) %>% arrange(.,p) #%>% View(.)
 
-filter(df4b,p<0.05) %>% arrange(.,p) #%>% View(.)
+df73b <- build_enrich_df_v2(weighted.df,phys73.df)
+write.table(x=df73b,file = write.dir %&% "analysis_files/" %&% 
+              "phys-enrich73_weighted-V2.txt",sep="\t",quote=F,row.names=F)
+filter(df73b,p<0.05) %>% arrange(.,p) #%>% View(.)
 
-write.table(x=df4b,file = write.dir %&% "analysis_files/" %&% 
-              "phys-enrich_weighted-V2.txt",sep="\t",quote=F,row.names=F)
+df53b <- build_enrich_df_v2(weighted.df,phys53.df)
+write.table(x=df53b,file = write.dir %&% "analysis_files/" %&% 
+              "phys-enrich53_weighted-V2.txt",sep="\t",quote=F,row.names=F)
+filter(df53b,p<0.05) %>% arrange(.,p) #%>% View(.)
+
+df71b <- build_enrich_df_v2(weighted.df,phys71.df)
+write.table(x=df71b,file = write.dir %&% "analysis_files/" %&% 
+              "phys-enrich71_weighted-V2.txt",sep="\t",quote=F,row.names=F)
+filter(df71b,p<0.05) %>% arrange(.,p) #%>% View(.)
 
 ```
 
 
-
+It appears that adjusting the r2 threshold from 0.3, to 0.5, to 0.8, does not change the substance of the results for the fuzzy clustering; not sure if its worth changing or better to leave as is (i.e. 0.3 threshold)
 
 
 
