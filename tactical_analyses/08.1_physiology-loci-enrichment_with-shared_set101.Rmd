@@ -1,0 +1,254 @@
+---
+title: "physiology-loci-enrichment.Rmd"
+author: "Jason Torres"
+date: "5/13/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup
+
+
+```{r}
+
+set.seed(100)
+
+"%&%" <- function(a,b) paste0(a,b)
+library("tidyverse")
+library("data.table")
+serv.dir <- "/home/jason/science/servers/FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <-  proj.dir %&% "tactical_analyses/" 
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+write.dir <- work.dir   
+phys82.df <- fread(work.dir %&% "analysis_files/phys94-ld-assigned.txt") %>%
+  filter(.,assigned.r2>=0.3) # fuzzy 
+phys73.df <- fread(work.dir %&% "analysis_files/phys94-ld-assigned.txt") %>%
+  filter(.,assigned.r2>=0.5) # fuzzy 
+phys53.df <- fread(work.dir %&% "analysis_files/phys94-ld-assigned.txt") %>%
+  filter(.,assigned.r2>=0.8) # fuzzy 
+```
+
+
+Also consider the set of HRC 71 SNPs from Anubha
+```{r}
+
+phys71.df <- fread(work.dir %&% "analysis_files/physiology_hrc_for_Jason.txt")
+names(phys71.df)[1] <- "Locus.ID"
+phys71.df$Locus.ID <- map(phys71.df$Locus.ID,function(s){
+  if (grepl("_",s)==FALSE){
+    s <- s %&% "_1"
+  }
+  return(s)
+}) %>% as.character(.)
+
+```
+
+
+
+```{r}
+
+keep.sigs <- filter(cred.df,PPA>=0.5)$CondID
+
+weighted.df <- fread(work.dir %&% "analysis_files/" %&% 
+                     "classified-loci_weighted_with-shared.txt") %>% filter(.,Locus.ID %in% keep.sigs)
+```
+
+
+
+# Enrichment functions 
+
+```{r}
+
+enrich_test <- function(query.vec,ref.vec,iter=10000){
+  vec <- cred.df$CondID %>% unique(.)
+  obs <- (query.vec %in% ref.vec) %>% sum(.)
+  null.vec <- c()
+  pb <- txtProgressBar(min=0,max=iter,style=3)
+  for (i in 1:iter){
+    setTxtProgressBar(pb,i)
+    samp <- sample(x=vec,size=length(query.vec),replace=FALSE)
+    count <- (samp %in% ref.vec) %>% sum(.)
+    null.vec <- append(null.vec,count)
+  }
+  enrichment <- obs/(mean(null.vec))
+  p <- (sum(null.vec >= obs) + 1) / (iter + 1)
+  out.df <- data.frame(observed.count=obs,mean.null=mean(null.vec),
+                       enrichment=enrichment,p=p,stringsAsFactors = FALSE)
+  return(out.df)
+}
+
+build_enrich_df <- function(class.df,phys.df){
+  tvec <- c("assigned_00","assigned_20","assigned_50","assigned_80")
+  tiss.vec <- c("islet","liver","adipose","muscle","shared","peripheral")
+  phys.vec <- phys.df$Physiology  %>% unique(.)
+  out.df <- c()
+  for (t in tvec){
+    cond <- "Locus.ID"
+    threshold <- t
+    sub <- dplyr::select(class.df,one_of(cond,threshold))
+    names(sub)[2] <- "assigned"
+    for (tiss in tiss.vec){
+      if (tiss=="peripheral"){
+        query.vec <- filter(sub,assigned!="islet")$Locus.ID %>% unique(.)
+      } else{
+        query.vec <- filter(sub,assigned==tiss)$Locus.ID %>% unique(.)
+      }
+      for (phys in phys.vec){
+        print("Threshold: " %&% t %&% " Tissue: " %&% tiss %&% " Physiology: " %&% phys)
+        ref.vec <- filter(phys.df,Physiology==phys)$Locus.ID %>% 
+          unique(.)
+        test.df <- enrich_test(query.vec,ref.vec,iter=10000)
+        test.df$threshold <- threshold; test.df$tissue <- tiss
+        test.df$physiology <- phys
+        test.df <- dplyr::select(test.df,one_of("tissue","physiology",
+                                                "observed.count",
+                                                "mean.null",
+                                                "enrichment","p",
+                                                "threshold"))
+        out.df <- rbind(out.df,test.df)
+      }
+    }
+  }
+  return(out.df)
+}
+
+
+```
+
+
+```{r}
+
+# Fuzzy; r2 > 0.3
+df82 <- build_enrich_df(weighted.df,phys82.df)
+write.table(x=df82,file = write.dir %&% "analysis_files/" %&% 
+              "phys82-enrich_weighted_with-shared_set101.txt",
+            sep="\t",quote=F,row.names=F)
+# Fuzzy; r2 > 0.5
+df73 <- build_enrich_df(weighted.df,phys73.df)
+write.table(x=df73,file = write.dir %&% "analysis_files/" %&% 
+              "phys73-enrich_weighted_with-shared_set101.txt",
+            sep="\t",quote=F,row.names=F)
+# Fuzzy; r2 > 0.8
+df53 <- build_enrich_df(weighted.df,phys53.df)
+write.table(x=df53,file = write.dir %&% "analysis_files/" %&% 
+              "phys53-enrich_weighted_with-shared_set101.txt",
+            sep="\t",quote=F,row.names=F)
+# Hard
+df71 <- build_enrich_df(weighted.df,phys71.df) # Not sure if this is fuzzy or hard clustering
+write.table(x=df71,file = write.dir %&% "analysis_files/" %&% 
+              "phys71-enrich_weighted_with-shared_set101.txt",
+            sep="\t",quote=F,row.names=F)
+
+filter(df82,p<0.05,threshold!="assigned_00") %>% arrange(.,p)
+filter(df73,p<0.05,threshold!="assigned_00") %>% arrange(.,p)
+filter(df53,p<0.05,threshold!="assigned_00") %>% arrange(.,p)
+
+filter(df71,p<0.05,threshold!="assigned_00") %>% arrange(.,p)
+
+
+```
+
+Note that among the 101 most fine-mapped signals, only islet and liver yield significant enrichemtns 
+For example:
+filter(df82,p<0.05,threshold!="assigned_00") %>% arrange(.,p)
+  tissue   physiology observed.count mean.null enrichment          p   threshold
+1  liver Dyslipidemia              2    0.0803  24.906600 0.00169983 assigned_50
+2  liver Dyslipidemia              2    0.0861  23.228804 0.00239976 assigned_20
+3  islet         IS-1              2    0.1417  14.114326 0.00659934 assigned_80
+4  islet         IS-1              3    0.5094   5.889282 0.00939906 assigned_20
+5  islet         IS-1              2    0.2837   7.049700 0.02509749 assigned_50
+6  islet         IS-2              5    1.8650   2.680965 0.02949705 assigned_20
+
+# Physiology driven enrichment (see if phys groups are enriched for higher tissue scores)
+
+
+```{r}
+
+enrich_test_v2 <- function(phys.vec, tissue, class.df,iter=10000){
+  if (tissue == "peripheral"){
+    full.vec <- dplyr::select(class.df,one_of("liver","muscle","adipose")) %>% rowSums(.)
+    query.vec <- filter(class.df,Locus.ID%in%phys.vec) %>% dplyr::select(.,one_of("liver","muscle","adipose")) %>% rowSums(.)
+  } else{
+    full.vec <- dplyr::select(class.df,one_of(tissue)) %>% as.matrix(.) %>% as.numeric(.)
+    query.vec <- filter(class.df,Locus.ID%in%phys.vec) %>% dplyr::select(.,one_of(tissue)) %>% as.matrix(.) %>% as.numeric(.)
+  }
+  obs.mean <- mean(query.vec)
+  null.vec <- c()
+  pb <- txtProgressBar(min=0,max=iter,style=3)
+  for (i in 1:iter){
+    setTxtProgressBar(pb,i)
+      null.vec <- append(null.vec,sample(x=full.vec,size=length(query.vec),replace=TRUE) %>% mean(.))
+  }
+  enrichment <- obs.mean / mean(null.vec)
+  p <- (sum(null.vec >= obs.mean) + 1) / (iter + 1)
+  out.df <- data.frame(obs.mean=obs.mean,null.mean=mean(null.vec),enrichment=enrichment,p=p,stringsAsFactors = F)
+}
+
+
+build_enrich_df_v2 <- function(class.df,phys.df){
+  tiss.vec <- c("islet","liver","adipose","muscle","peripheral")
+  phys.vec <- phys.df$Physiology  %>% unique(.)
+  out.df <- c()
+  for (phys in phys.vec){
+    query.vec <- filter(phys.df,Physiology==phys)$Locus.ID %>% 
+      unique(.)    
+    for (tiss in tiss.vec){
+      test.df <- enrich_test_v2(query.vec,tiss,class.df,iter=10000)
+      test.df$tissue <- tiss; test.df$physiology <- phys
+      test.df <- dplyr::select(test.df,one_of("physiology","tissue",
+                                              "obs.mean",
+                                              "null.mean",
+                                              "enrichment","p"))
+      out.df <- rbind(out.df,test.df)
+    }
+  }
+  return(out.df)
+}
+
+
+```
+
+
+```{r}
+
+df82b <- build_enrich_df_v2(weighted.df,phys82.df)
+write.table(x=df82b,file = write.dir %&% "analysis_files/" %&% 
+              "phys-enrich82_weighted-V2_set101.txt",sep="\t",quote=F,row.names=F)
+filter(df82b,p<0.05) %>% arrange(.,p) #%>% View(.)
+
+df73b <- build_enrich_df_v2(weighted.df,phys73.df)
+write.table(x=df73b,file = write.dir %&% "analysis_files/" %&% 
+              "phys-enrich73_weighted-V2_set101.txt",sep="\t",quote=F,row.names=F)
+filter(df73b,p<0.05) %>% arrange(.,p) #%>% View(.)
+
+df53b <- build_enrich_df_v2(weighted.df,phys53.df)
+write.table(x=df53b,file = write.dir %&% "analysis_files/" %&% 
+              "phys-enrich53_weighted-V2_set101.txt",sep="\t",quote=F,row.names=F)
+filter(df53b,p<0.05) %>% arrange(.,p) #%>% View(.)
+
+df71b <- build_enrich_df_v2(weighted.df,phys71.df)
+write.table(x=df71b,file = write.dir %&% "analysis_files/" %&% 
+              "phys-enrich71_weighted-V2_set101.txt",sep="\t",quote=F,row.names=F)
+filter(df71b,p<0.05) %>% arrange(.,p) #%>% View(.)
+
+```
+
+
+It appears that adjusting the r2 threshold from 0.3, to 0.5, to 0.8, does not change the substance of the results for the fuzzy clustering; not sure if its worth changing or better to leave as is (i.e. 0.3 threshold)
+
+
+
+
+
+
+
+
+
+
+
+
+
