@@ -1,7 +1,7 @@
 ---
 title: "Expression specificity scores"
 author: "Jason Torres"
-date: "December 27, 2017"
+date: "June 2020"
 output: html_document
 ---
 
@@ -22,7 +22,6 @@ library("GenomicRanges")
 library('rtracklayer')
 library("GenABEL")
 
-#fuse.path <- "/Users/jtorres/"
 fuse.path <- "/home/jason/science/servers/"
 serv.dir <- fuse.path %&% "FUSE5/"
 work.dir <- serv.dir %&% "projects/t2d_classification/"
@@ -35,48 +34,23 @@ Commented out following section as needed to evaluate different data sets and ge
 
 ```{r}
 
-# Approach 1 for obtaining gene lengths 
-# File obtained from UCSC Table Browser 
-#ensg.df <- fread("cat " %&% serv.dir %&% "datasets/ucsc/Ensembl_Genes.txt.gz" %&% " | zmore")
-#ens.vec <- ensg.df$name2 %>% unique(.)
-#pb <- txtProgressBar(min=0,max=length(ens.vec),style=3)
-#gene.length.v1 <- map(1:length(ens.vec),function(i){
-#  setTxtProgressBar(pb,i)
-#  ens <- ens.vec[i]
-#  sub <- filter(ensg.df,name2==ens)
-#  #sub.gr <- GRanges(seqnames=sub$chrom,IRanges(sub$cdsStart,sub$cdsEnd),sub$strand)
-  #sum(width(reduce(sub.gr)))
-#  sub.gr <- GRanges(seqnames=sub$chrom,IRanges(sub$txStart,sub$txEnd),sub$strand)
-#  sum(width(reduce(sub.gr)))
-#}) %>% as.integer(.) 
-
-#ensid.v1.df <- data.frame(ensid=ens.vec,gene.length.v1,stringsAsFactors = FALSE)
-
-
-# Approach 2 for obtaining gene lengths 
-gtf.gr <- import("~/Downloads/gencode.v19.genes.v7.patched_contigs.gtf")
+# Approach for obtaining gene lengths 
+gtf.gr <- import(serv.dir %&% "/datasets/gencode.v19.genes.v7.patched_contigs.gtf")
 gtf.df <- as.data.frame(gtf.gr,stringsAsFactors=FALSE)
 
-#ens.vec <- gtf.df$gene_id %>% unique(.)
-#pb <- txtProgressBar(min=0,max=length(ens.vec),style=3)
-#gene.length.v2 <- map(1:length(ens.vec),function(i){
-#  setTxtProgressBar(pb,i)
-#  print(i)
-#  ens <- ens.vec[i]
-#  sub <- filter(gtf.df,gene_id==ens,type=="gene")
-#  #sub.gr <- GRanges(seqnames=sub$chrom,IRanges(sub$cdsStart,sub$cdsEnd),sub$strand)
-#  #sum(width(reduce(sub.gr)))
-#  sub.gr <- GRanges(seqnames="chr"%&%sub$seqnames,IRanges(sub$start,sub$end),sub$strand)
-#  sum(width(reduce(sub.gr)))
-#}) %>% as.integer(.) 
+ens.vec <- gtf.df$gene_id %>% unique(.)
+pb <- txtProgressBar(min=0,max=length(ens.vec),style=3)
+gene.length.v2 <- purrr::map(1:length(ens.vec),function(i){
+  setTxtProgressBar(pb,i)
+  ens <- ens.vec[i]
+  sub <- filter(gtf.df,gene_id==ens,type=="gene")
+  #sub.gr <- GRanges(seqnames=sub$chrom,IRanges(sub$cdsStart,sub$cdsEnd),sub$strand)
+  #sum(width(reduce(sub.gr)))
+  sub.gr <- GRanges(seqnames="chr"%&%sub$seqnames,IRanges(sub$start,sub$end),sub$strand)
+  sum(width(reduce(sub.gr)))
+}) %>% as.integer(.) 
 
-#ensid.v2.df <- data.frame(ensid=ens.vec,gene.length.v2,stringsAsFactors = FALSE)
-
-#test.df <- ensid.v2.df
-#test.df$ensid <- map(test.df$ensid,function(id){strsplit(id,split=".",fixed=TRUE)[[1]][1]}) %>% as.character(.)
-#test2.df <- inner_join(ensid.v1.df,test.df,by="ensid")
-
-# 
+ensid.v2.df <- data.frame(ensid=ens.vec,gene.length.v2,stringsAsFactors = FALSE)
 
 ```
 
@@ -116,17 +90,14 @@ symb.vec <-islet.df$GeneName.x
 ensid.vec <- ensids #map(ensids,function(e){strsplit(e,".",fixed=TRUE)[[1]][1]}) %>% 
 #as.character(.)
 pb <- txtProgressBar(min=0,max=length(ensid.vec),style=3)
-gl.vec <- map(1:length(ensid.vec),function(i){
+gl.vec <- purrr::map(1:length(ensid.vec),function(i){
   setTxtProgressBar(pb,i)
   ens <- ensid.vec[i]
-  #filter(ensid.df,ensid==ens)$gene.length
   filter(ensid.v2.df,ensid==ens)$gene.length
 }) %>% as.integer(.) 
 
 gl.df <- data.frame(ensembl=ensids,symbol=symb.vec,ensid=ensid.vec,gene.length=gl.vec,
                     stringsAsFactors = FALSE)
-
-# Note that LincRNAs are missing from Ensembl Gene Reference file (n=47 lincRNAs)
 
 ```
 
@@ -150,7 +121,7 @@ for (i in 1:dim(step2.mat)[2]){
 }
 
 pb <- txtProgressBar(min=0,max=length(row.names(step2.mat)),style=3)
-GeneName=map(1:length(row.names(step2.mat)),function(i){
+GeneName=purrr::map(1:length(row.names(step2.mat)),function(i){
   setTxtProgressBar(pb,i)
   id <- row.names(step2.mat)[i];
   filter(islet.df,GeneID==id)$GeneName.x}) %>% as.character(.)
@@ -161,11 +132,23 @@ islet.tpm.df <- cbind(GeneID=row.names(step2.mat),
 islet.tpm.df$GeneID <- as.character(islet.tpm.df$GeneID)
 islet.tpm.df$GeneName <- as.character(islet.tpm.df$GeneName)
 
-write.table(islet.tpm.df,file=afile.dir%&%"islet_expression_tpm.txt",
+write.table(islet.tpm.df,file=afile.dir%&%"islet_expression_tpm_v1.txt",
             sep="\t",quote=F,row.names=F)
-islet.tpm.df <- fread(afile.dir%&%"islet_expression_tpm.txt")
+islet.tpm.df <- fread(afile.dir%&%"islet_expression_tpm_v1.txt")
 
 ```
+
+# Islet samples (n=174)
+
+
+```{r}
+
+df174.df <- fread(work.dir %&% "tactical_analyses/input_files/islet_tpm_174.tsv")
+
+
+
+```
+
 
 
 # GTEx 
