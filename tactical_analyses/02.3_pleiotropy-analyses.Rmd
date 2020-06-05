@@ -30,9 +30,10 @@ cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
 cred.df$Locus.ID <- cred.df$CondID
 
 df <- fread(analysis.dir%&%"classified-loci_weighted_with-shared.txt")
-df$max.ppa <- map(df$Locus.ID,function(id){
+df$max.ppa <- purrr::map(df$Locus.ID,function(id){
   filter(cred.df,CondID==id)$PPA %>% max(.) %>% unique(.)
 }) %>%  as.numeric(.)
+
 ```
 
 
@@ -88,7 +89,7 @@ filter(filter(df,max.ppa>=0.5),adipose>=0.8|islet>=0.8|liver>=0.8|muscle>=0.8) %
 
 ```{r}
 
-df$signum <- map(df$Locus.ID,function(s){
+df$signum <- purrr::map(df$Locus.ID,function(s){
   strsplit(s,split="_")[[1]][2]
 }) %>% as.character(.)
 prim.df <- filter(df,signum=="1")
@@ -123,18 +124,18 @@ prim.df <- filter(df,signum=="1")
 
 ```{r}
 
-df$sep.score <- map(1:dim(df)[1],function(i){
+df$sep.score <- purrr::map(1:dim(df)[1],function(i){
   vec <- df[i,2:6] %>% sort(.,decreasing=TRUE) %>% as.numeric(.)
   vec[1] - vec[2]
 }) %>% as.numeric(.)
 df$share.score <- 1-df$sep.score
 
-df$num.snps <- map(1:dim(df)[1],function(i){
+df$num.snps <- purrr::map(1:dim(df)[1],function(i){
   id <- df[i,]$Locus.ID
   dim(filter(cred.df,CondID==id))[1]
 }) %>% as.integer(.)
 
-df$max.ppa <- map(df$Locus.ID,function(id){
+df$max.ppa <- purrr::map(df$Locus.ID,function(id){
   filter(cred.df,CondID==id)$PPA %>% max(.)
 }) %>% as.numeric(.)
 
@@ -262,7 +263,7 @@ num_to_thresh <- function(ppa.vec,thr){
   return(count)
 }
 
-df$num.snps10 <- map(df$Locus.ID,function(id){
+df$num.snps10 <- purrr::map(df$Locus.ID,function(id){
     sub <- filter(cred.df,CondID==id)
     ppa.vec <- sub$PPA %>% sort(.,decreasing = T)
     count <- 0
@@ -275,7 +276,7 @@ df$num.snps10 <- map(df$Locus.ID,function(id){
     }
     count
 }) %>% as.integer(.)
-df$num.snps50 <- map(df$Locus.ID,function(id){
+df$num.snps50 <- purrr::map(df$Locus.ID,function(id){
     sub <- filter(cred.df,CondID==id)
     ppa.vec <- sub$PPA %>% sort(.,decreasing = T)
     count <- 0
@@ -288,7 +289,7 @@ df$num.snps50 <- map(df$Locus.ID,function(id){
     }
     count
 }) %>% as.integer(.)
-df$num.snps80 <- map(df$Locus.ID,function(id){
+df$num.snps80 <- purrr::map(df$Locus.ID,function(id){
     sub <- filter(cred.df,CondID==id)
     ppa.vec <- sub$PPA %>% sort(.,decreasing = T)
     count <- 0
@@ -315,7 +316,7 @@ Alternative scheme for measuring sharing (ssds)
 
 ```{r}
 
-df$ssd <- map(1:dim(df)[1],function(i){
+df$ssd <- purrr::map(1:dim(df)[1],function(i){
   vec <- df[i,] %>% dplyr::select(.,one_of("islet","muscle","adipose","liver")) %>% as.numeric(.) %>% 
     sort(.,decreasing = T)
   d1 <- vec[1]-vec[2]; d2 <- vec[2]-vec[3]; d3 <- vec[3]-vec[4]
@@ -403,12 +404,12 @@ Fine-mapped to a single SNP
 divvy.df <- fread(analysis.dir%&%"annotation-scores-signals.txt")
 
 s.df <- filter(df,sep.score<=0.10) # Note using difference between top two as measure for specificity, threshold used is 0.10, more directly interpretable than SSD 
-s.df$lead.snp <- map(s.df$Locus.ID,function(id){
+s.df$lead.snp <- purrr::map(s.df$Locus.ID,function(id){
   filter(cred.df,CondID==id)$lead.rsid %>% unique(.)
 }) %>% as.character(.)
 
 
-s.df$coding.score <- map(s.df$Locus.ID,function(id){
+s.df$coding.score <- purrr::map(s.df$Locus.ID,function(id){
   val <- filter(divvy.df,SIGNAL==id) %>% dplyr::select(.,contains("coding")) %>%
     as.numeric(.) %>% sum(.)
 }) %>% as.numeric(.) 
@@ -505,7 +506,7 @@ names(anall.df)[1] <- "Locus.ID"
 
 get_sig_df <- function(sig){
   sub.df <- filter(anall.df,Locus.ID==sig)
-  sub.df$ppa <- map(sub.df$SNPID,function(id,loc=sig){
+  sub.df$ppa <- purrr::map(sub.df$SNPID,function(id,loc=sig){
     filter(cred.df,CondID==sig,SNPID==id)$PPA %>% max(.)
   }) %>% as.numeric(.)
   sub.df <- arrange(sub.df,desc(ppa))  
@@ -518,11 +519,11 @@ process_sig_snp <- function(sigsnp.df,ymax=1){
   val <- test.df %>% as.numeric(.)
   
   new.df <- data.frame(annot,val,stringsAsFactors = F)
-  new.df$Annotation <- map(new.df$annot,function(a){
+  new.df$Annotation <- purrr::map(new.df$annot,function(a){
     strsplit(x=a,split=".",fixed=TRUE)[[1]][1]
   }) %>% as.character(.)
   
-  new.df$Tissue <- map(new.df$annot,function(a){
+  new.df$Tissue <- purrr::map(new.df$annot,function(a){
     strsplit(x=a,split=".",fixed=TRUE)[[1]][2]
   }) %>% as.character(.)
   
@@ -601,13 +602,13 @@ ggsave(plot=p,filename = plot.dir %&% "signal_ank1_106_3.png",h=7,w=20)
 ggsave(plot=p,filename = plot.dir %&% "signal_ank1_106_3.pdf",h=7,w=20)
 
 sub <- dplyr::select(d[1:10,],one_of("SNPID","ppa"))
-sub$chr <- map(sub$SNPID,function(s){
+sub$chr <- purrr::map(sub$SNPID,function(s){
   strsplit(x=s,split=":")[[1]][1]
 }) %>% as.character(.)
-sub$pos0 <- map(sub$SNPID,function(s){
+sub$pos0 <- purrr::map(sub$SNPID,function(s){
   as.integer(strsplit(x=s,split=":")[[1]][2]) - 1
 }) %>% as.integer(.)
-sub$pos <- map(sub$SNPID,function(s){
+sub$pos <- purrr::map(sub$SNPID,function(s){
   as.integer(strsplit(x=s,split=":")[[1]][2]) - 1
 }) %>% as.integer(.)
 sub$ppa <- prettyNum(sub$ppa,digits=2)
