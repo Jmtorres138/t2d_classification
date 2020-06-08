@@ -191,7 +191,8 @@ toa_collap_plot <- function(p.df){
     theme_bw()  + 
     theme(axis.text.x=element_text(angle=30,vjust=0.6)) + 
     scale_fill_manual(values=c("gold1","olivedrab2","brown","firebrick1","grey")) +
-  ylab("Proportion of Total PPA")
+  ylab("Proportion of Total PPA") + 
+  coord_cartesian(ylim=c(0,0.4))
 }
 
 
