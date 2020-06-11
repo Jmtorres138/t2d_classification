@@ -1,0 +1,160 @@
+---
+title: "01.1_tactical-toa-scores.Rmd"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+library("tidyverse")
+library("data.table")
+#devtools::install_github("jmtorres138/TACTICAL")
+library("TACTICAL")
+
+serv.dir <- "/home/jason/science/servers/FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "tactical_analyses/"
+input.dir <- work.dir %&% "input_files/"
+file.dir <- work.dir %&% "analysis_files/"
+
+```
+
+Prepare SNP input file 
+
+```{r}
+
+gen.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt") %>% 
+  dplyr::select(.,one_of("CondID","SNPID","CHR","POS","PPA"))
+names(gen.df) <- c("SIGNAL","SNPID","CHR","POS","VALUE")
+
+```
+
+
+# TACTICAL Steps 1-4 
+
+
+Annotate SNPs 
+
+```{r}
+
+snp.df <- annotate_snps(snp_file = input.dir%&%"credible-input.txt", 
+                        tissue_path_file = input.dir%&%"tissue-file-paths.txt",
+                        tissue_annotation_file = input.dir%&%"tissue-annotations.txt", 
+                        genomic_path_file = input.dir%&%"genomic-file-paths.txt",
+                        genomic_annotation_file = input.dir%&%"genomic-annotations.txt")
+```
+
+
+```{r}
+
+
+```
+
+
+Calculate SNP scores 
+
+```{r}
+tvec.df <- calculate_tissue_vectors(snp.annotated.df = snp.df,
+                                    tissue_annotation_file = input.dir%&%"tissue-annotations.txt", 
+                                    genomic_annotation_file = input.dir%&%"genomic-annotations.txt",
+                                    ess.annot = "coding",
+                                    ess.file = input.dir%&%"gene-expression-specificity-scores_v2.txt")
+```
+
+```{r}
+
+
+```
+
+Calculate TOA scores 
+
+```{r}
+
+tscores.df <- calculate_toa_scores(snp.tissvec.df = tvec.df)
+
+```
+
+
+```{r}
+
+
+```
+
+
+
+Tissue Classifier  
+
+```{r}
+
+class00.df <- tissue_classifier(toa.df=tscores.df, tissue_threshold = 0.0, shared_threshold = 0.1)
+class20.df <- tissue_classifier(toa.df=tscores.df, tissue_threshold = 0.2, shared_threshold = 0.1)
+class50.df <- tissue_classifier(toa.df=tscores.df, tissue_threshold = 0.5, shared_threshold = 0.1)
+class80.df <- tissue_classifier(toa.df=tscores.df, tissue_threshold = 0.8, shared_threshold = 0.1)
+
+```
+
+
+```{r}
+
+
+
+```
+
+
+```{r}
+
+class.df <- tscores.df
+class.df$assigned_00 <- purrr::map(class.df$SIGNAL,function(sig){
+  tiss <- filter(class00.df,SIGNAL==sig)$classification 
+  ifelse(tiss=="Islet","islet",
+         ifelse(tiss=="Adipose","adipose",
+                ifelse(tiss=="Muscle","muscle",
+                       ifelse(tiss=="Liver","liver",tiss))))
+}) %>% as.character(.) 
+class.df$assigned_20 <- purrr::map(class.df$SIGNAL,function(sig){
+  tiss <- filter(class20.df,SIGNAL==sig)$classification 
+  ifelse(tiss=="Islet","islet",
+         ifelse(tiss=="Adipose","adipose",
+                ifelse(tiss=="Muscle","muscle",
+                       ifelse(tiss=="Liver","liver",tiss))))
+}) %>% as.character(.) 
+class.df$assigned_50 <- purrr::map(class.df$SIGNAL,function(sig){
+  tiss <- filter(class50.df,SIGNAL==sig)$classification 
+  ifelse(tiss=="Islet","islet",
+         ifelse(tiss=="Adipose","adipose",
+                ifelse(tiss=="Muscle","muscle",
+                       ifelse(tiss=="Liver","liver",tiss))))
+}) %>% as.character(.) 
+class.df$assigned_80 <- purrr::map(class.df$SIGNAL,function(sig){
+  tiss <- filter(class80.df,SIGNAL==sig)$classification 
+  ifelse(tiss=="Islet","islet",
+         ifelse(tiss=="Adipose","adipose",
+                ifelse(tiss=="Muscle","muscle",
+                       ifelse(tiss=="Liver","liver",tiss))))
+}) %>% as.character(.) 
+
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt") 
+
+class.df$symbol <- purrr::map(class.df$SIGNAL,function(sig){
+  filter(cred.df,CondID==sig)$symbol %>% unique(.)
+}) %>% as.character(.)
+
+names(class.df)[1:5] <- c("Locus.ID","adipose","islet","liver","muscle")
+
+```
+
+
+```{r}
+
+write.table(class.df,file.dir%&%"classified-loci_weighted_with-shared_v2.txt",sep="\t",quote=F,row.names=F)
+
+```
+
+
+

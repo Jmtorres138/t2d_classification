@@ -1,0 +1,99 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+library("data.table"); library("tidyverse")
+serv.dir <- "/home/jason/science/servers/FUSE5/"
+work.dir <- serv.dir %&% "projects/t2d_classification/tactical_analyses/"
+input.dir <- work.dir %&% "input_files/"
+
+```
+
+```{r}
+
+gtf.gr <- import(serv.dir %&% "datasets/gencode.v19.genes.v7.patched_contigs.gtf")
+gtf.df <- as.data.table(gtf.gr,stringsAsFactors=FALSE)
+
+gtf.gr2 <- import(serv.dir %&% "datasets/gencode.v30lift37.annotation.gtf.gz")
+gtf.df2 <- as.data.table(gtf.gr2,stringsAsFactors=FALSE)
+
+
+
+
+```
+
+
+
+```{r}
+
+gess.df <- fread(input.dir %&% "gene-expression-specificity-scores.txt")
+ess.df1 <- fread(input.dir %&% "expression_specificity_scores_v1.txt")
+ess.df2 <- fread(input.dir %&% "expression_specificity_scores_v2.txt")
+
+```
+
+
+```{r}
+
+id <- "ZFYVE28"
+
+gess.df[FEATURE_NAME==id]
+esid <- ess.df1[GeneName==id]$GeneID
+gtf.df[gene_id==esid & type=="gene"]
+gtf.df[grepl(x=gene_id,pattern=esid)][type=="gene"]
+
+```
+
+
+
+```{r}
+
+ess_process <- function(ess.df){
+  out.df <- c()
+  pb <- txtProgressBar(min=1,max=dim(ess.df)[1],style=3)
+  for (i in 1:dim(ess.df)[1]){
+    setTxtProgressBar(pb,i)
+    row.df <- ess.df[i,]
+    ensid <- row.df$GeneID
+    sub.df <- gtf.df[gene_id==ensid & type=="gene" & gene_type=="protein_coding"]
+    if (dim(sub.df)[1]>0){
+      chrom <- "chr" %&% sub.df$seqnames
+      start <- sub.df$start; end <- sub.df$end
+      build.df <- data.frame("FEATURE_ID"=strsplit(ensid,split=".",fixed=TRUE)[[1]][1],
+                             "FEATURE_NAME"=row.df$GeneName,"CHR"=chrom,"START"=start,"END"=end,
+                             "Islet"=row.df$islet.score,
+                             "Muscle"=row.df$muscle.score,
+                             "Adipose"=row.df$adipose.score,
+                             "Liver"=row.df$liver.score)
+      out.df <- rbind(out.df,build.df)
+    }    
+  }
+  return(na.omit(out.df))
+}
+
+```
+
+
+```{r}
+
+gess.df1 <- ess_process(ess.df1)
+gess.df2 <- ess_process(ess.df2)
+
+write.table(x=gess.df1,file = input.dir %&% "gene-expression-specificity-scores_v1.txt",
+            sep="\t",quote=F,row.names=F)
+write.table(x=gess.df2,file = input.dir %&% "gene-expression-specificity-scores_v2.txt",
+            sep="\t",quote=F,row.names=F)
+
+
+```
+

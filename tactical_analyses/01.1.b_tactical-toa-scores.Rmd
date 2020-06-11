@@ -1,0 +1,73 @@
+---
+title: "01.1_tactical-toa-scores.Rmd"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+library("tidyverse")
+library("data.table")
+
+serv.dir <- "/home/jason/science/servers/FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "tactical_analyses/"
+input.dir <- work.dir %&% "input_files/"
+file.dir <- work.dir %&% "analysis_files/"
+
+```
+
+
+```{r}
+
+toa.dt <- fread(file.dir%&%"classified-loci_weighted_with-shared.txt")
+toa.dt1 <- fread(file.dir%&%"classified-loci_weighted_with-shared_v1.txt")
+toa.dt2 <- fread(file.dir%&%"classified-loci_weighted_with-shared_v2.txt")
+
+```
+
+
+```{r}
+sum(toa.dt$assigned_00==toa.dt1$assigned_00) # 380 
+sum(toa.dt$assigned_20==toa.dt1$assigned_20) # 380
+sum(toa.dt$assigned_50==toa.dt1$assigned_50) # 380
+sum(toa.dt$assigned_80==toa.dt1$assigned_80) # 380 
+```
+
+
+Using the original and updated ESS input files does not effect the tissue classifications in any way! So no worries on that front; 
+
+
+```{r}
+
+sum(toa.dt1$assigned_00==toa.dt2$assigned_00) # 378 
+sum(toa.dt1$assigned_20==toa.dt2$assigned_20) # 378
+sum(toa.dt1$assigned_50==toa.dt2$assigned_50) # 379
+sum(toa.dt1$assigned_80==toa.dt2$assigned_80) # 380  
+
+```
+
+Including an additional 60 samples only changes the classification of 1-2 signals, from the 0.5 threshold and below 
+
+
+```{r}
+
+toa.dt[toa.dt$assigned_00!=toa.dt2$assigned_00]
+toa.dt1[toa.dt1$assigned_00!=toa.dt2$assigned_00]
+toa.dt2[toa.dt1$assigned_00!=toa.dt2$assigned_00]
+
+```
+
+Including an additional 60 islet samples had the following effects on two signals 
+1) changed GPSM1 signal (125_2) from "islet" (islet toa=0.3440; adipose toa=0.2439) to "shared"(islet toa=0.3408; adipose toa = 0.2463). NOTE that this signal was barely over the shared threshold (toa difference >= 0.10) to begin with.
+2) changed NEUROG3 signal (127_4) from "shared" (adipose toa=0.3562; islet toa=0.4524) to "adipose" (adipose=0.5071; islet toa=0.3014) signal; this change was more considerable but was the only occurance out of 380 signals, so I don't think changes the substance of the paper as we've already addressed relevant shortcoming in the dicussion and would not expect this to dramatically alter the validation/enrichment anlayses 
+
+
+
+
