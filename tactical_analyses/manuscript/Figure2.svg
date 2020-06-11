@@ -2389,11 +2389,11 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="2.0314876"
-     inkscape:cx="329.53013"
-     inkscape:cy="643.43257"
+     inkscape:zoom="1.3032116"
+     inkscape:cx="467.63841"
+     inkscape:cy="567.78972"
      inkscape:document-units="px"
-     inkscape:current-layer="layer2"
+     inkscape:current-layer="layer1"
      showgrid="false"
      inkscape:window-width="1920"
      inkscape:window-height="1056"
@@ -24391,7 +24391,10 @@
            id="tspan42280"
            sodipodi:role="line"
            y="818.96167"
-           x="382.70972 384.96695 387.89807 390.3786 393.30975 395.56696 396.69559 398.04749 399.39938 401.42926 403.68649 405.9437 408.20093 410.45816 412.71539 414.9726 417.22983 419.48706">LRFN2 (rs34298980)</tspan>
+           x="382.70972 384.96695 387.89807 390.3786 393.30975 395.56696 396.69559 398.04749 399.39938 401.42926 403.68649 405.9437 408.20093 410.45816 412.71539 414.9726 417.22983 419.48706"><tspan
+   style="font-style:italic"
+   id="tspan13850">LRFN2</tspan>
+ (rs34298980)</tspan>
       </text>
     </g>
     <path
@@ -24416,7 +24419,10 @@
            id="tspan42376"
            sodipodi:role="line"
            y="807.68713"
-           x="428.47479 431.40594 434.33707 436.8176 439.07483 441.78268 442.91129 444.26318 445.61508 447.64496 449.90219 452.15942 454.41666 456.67386 458.93109">HNF1B (rs10962)</tspan>
+           x="428.47479 431.40594 434.33707 436.8176 439.07483 441.78268 442.91129 444.26318 445.61508 447.64496 449.90219 452.15942 454.41666 456.67386 458.93109"><tspan
+   style="font-style:italic"
+   id="tspan13859">HNF1B</tspan>
+ (rs10962)</tspan>
       </text>
     </g>
     <path
@@ -24441,7 +24447,10 @@
            id="tspan42424"
            sodipodi:role="line"
            y="818.95007"
-           x="468.57361 471.28146 474.21262 476.92047 479.1777 480.3063 481.6582 483.0101 485.03998 487.29721 489.55444 491.81165 494.06888 496.32611 498.58334 500.84055 503.09778">ANK1 (rs13262861)</tspan>
+           x="468.57361 471.28146 474.21262 476.92047 479.1777 480.3063 481.6582 483.0101 485.03998 487.29721 489.55444 491.81165 494.06888 496.32611 498.58334 500.84055 503.09778"><tspan
+   style="font-style:italic"
+   id="tspan13861">ANK1</tspan>
+ (rs13262861)</tspan>
       </text>
     </g>
     <path
@@ -24469,7 +24478,10 @@
              x="0 1.946 7 11.669 15.757 17.702999 23.149 27.426001 31.318001 33.264 35.595001 37.925999 41.425999 45.318001 49.209999 53.102001 56.993999 60.886002 64.778 68.669998 72.561996 76.454002"
              y="0"
              sodipodi:role="line"
-             id="tspan42520">INS−IGF2 (rs555759341)</tspan>
+             id="tspan42520"><tspan
+   style="font-style:italic"
+   id="tspan13863">INS−IGF2</tspan>
+ (rs555759341)</tspan>
         </text>
       </g>
     </g>
@@ -24495,7 +24507,10 @@
            id="tspan42568"
            sodipodi:role="line"
            y="817.09418"
-           x="549.97174 551.10034 554.25885 556.73938 558.99658 561.70447 564.41229 566.66956 567.79816 569.15002 570.50195 572.5318 574.78906 577.04626 579.30353 581.56073 583.81793 586.0752 588.3324 590.58966 592.84686">IGF2BP2 (rs150111048)</tspan>
+           x="549.97174 551.10034 554.25885 556.73938 558.99658 561.70447 564.41229 566.66956 567.79816 569.15002 570.50195 572.5318 574.78906 577.04626 579.30353 581.56073 583.81793 586.0752 588.3324 590.58966 592.84686"><tspan
+   style="font-style:italic"
+   id="tspan13865">IGF2BP2</tspan>
+ (rs150111048)</tspan>
       </text>
     </g>
     <path
@@ -24517,12 +24532,17 @@
         <text
            transform="matrix(1,0,0,-1,432.53,445.79)"
            style="font-variant:normal;font-weight:normal;font-size:7px;font-family:Helvetica;-inkscape-font-specification:Helvetica;writing-mode:lr-tb;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none"
-           id="text42614">
+           id="text42614"
+           inkscape:export-xdpi="500"
+           inkscape:export-ydpi="500">
           <tspan
              x="0 4.6690001 9.7229996 14.777 20.223 24.115 26.061001 28.392 30.723 34.223 38.115002 42.007 45.898998 49.791 53.682999 57.575001 61.466999"
              y="0"
              sodipodi:role="line"
-             id="tspan42616">KCNQ1 (rs2283164)</tspan>
+             id="tspan42616"><tspan
+   style="font-style:italic"
+   id="tspan13869">KCNQ1</tspan>
+ (rs2283164)</tspan>
         </text>
       </g>
     </g>
@@ -24693,7 +24713,10 @@
            id="tspan42232"
            sodipodi:role="line"
            y="807.61755"
-           x="382.70972 386.54211 389.47327 392.40442 394.66165 396.91885 398.04749 399.39938 400.75128 402.78116 405.03839 407.29559 409.55283 411.81006 414.06729 416.32449 418.58173 420.83896 423.09619">WDR72 (rs528350911)</tspan>
+           x="382.70972 386.54211 389.47327 392.40442 394.66165 396.91885 398.04749 399.39938 400.75128 402.78116 405.03839 407.29559 409.55283 411.81006 414.06729 416.32449 418.58173 420.83896 423.09619"><tspan
+   style="font-style:italic"
+   id="tspan13852">WDR72</tspan>
+ (rs528350911)</tspan>
       </text>
     </g>
     <path
@@ -24718,7 +24741,10 @@
            id="tspan42184"
            sodipodi:role="line"
            y="796.15167"
-           x="382.70972 386.09149 388.57199 391.50314 394.4343 396.69153 399.39938 400.52798 401.87988 403.23178 405.26166 407.51889 409.77612 412.03336 414.29056 416.54779 418.80502 421.06226 423.31949">MTNR1B (rs10830963)</tspan>
+           x="382.70972 386.09149 388.57199 391.50314 394.4343 396.69153 399.39938 400.52798 401.87988 403.23178 405.26166 407.51889 409.77612 412.03336 414.29056 416.54779 418.80502 421.06226 423.31949"><tspan
+   style="font-style:italic"
+   id="tspan13854">MTNR1B</tspan>
+ (rs10830963)</tspan>
       </text>
     </g>
     <path
@@ -24748,7 +24774,10 @@
                id="tspan42328"
                sodipodi:role="line"
                y="0"
-               x="0 4.277 9.3310003 13.608 17.5 21.392 25.284 27.23 29.561001 31.892 35.391998 39.284 43.175999 47.068001 50.959999 54.852001 58.743999 62.636002 66.528 70.419998">TCF7L2 (rs140242150)</tspan>
+               x="0 4.277 9.3310003 13.608 17.5 21.392 25.284 27.23 29.561001 31.892 35.391998 39.284 43.175999 47.068001 50.959999 54.852001 58.743999 62.636002 66.528 70.419998"><tspan
+   style="font-style:italic"
+   id="tspan13856">TCF7L2</tspan>
+ (rs140242150)</tspan>
           </text>
         </g>
       </g>
@@ -24778,7 +24807,10 @@
              x="0 5.0539999 10.108 14.777 19.830999 23.723 28.392 32.48 37.148998 39.095001 41.425999 43.757 47.257 51.148998 55.041 58.932999 62.825001 66.717003 70.609001 74.500999 78.392998"
              y="0"
              sodipodi:role="line"
-             id="tspan42472">CDKN2A−B (rs76011118)</tspan>
+             id="tspan42472"><tspan
+   style="font-style:italic"
+   id="tspan13867">CDKN2A−B</tspan>
+ (rs76011118)</tspan>
         </text>
       </g>
     </g>
@@ -26492,6 +26524,7 @@
    id="tspan18163">IGF2BP2</tspan>
 
 
+
  (2)</tspan>
     </text>
     <text
@@ -26609,6 +26642,7 @@
          style="font-weight:bold"><tspan
    style="font-style:italic"
    id="tspan18165">ITGA1</tspan>
+
 
 
  (2)</tspan>
@@ -26787,6 +26821,7 @@
    id="tspan18157">ANK1</tspan>
 
 
+
  (1)</tspan>
     </text>
     <text
@@ -26849,6 +26884,7 @@
    id="tspan18153">SLC30A8</tspan>
 
 
+
  (1)</tspan>
     </text>
     <text
@@ -26899,6 +26935,7 @@
    id="tspan18161">CDKN2A−B</tspan>
 
 
+
  (3)</tspan>
     </text>
     <text
@@ -26914,6 +26951,7 @@
          style="font-weight:bold"><tspan
    style="font-style:italic"
    id="tspan17589">CDKN2A−B</tspan>
+
 
 
  (1)</tspan>
@@ -26933,6 +26971,7 @@
    id="tspan17587">CDKN2A−B</tspan>
 
 
+
  (4)</tspan>
     </text>
     <text
@@ -26950,6 +26989,7 @@
    id="tspan17585">MTNR1B</tspan>
 
 
+
  (1)</tspan>
     </text>
     <text
@@ -26965,6 +27005,7 @@
          style="font-weight:bold"><tspan
    style="font-style:italic"
    id="tspan18169">MTNR1B</tspan>
+
 
 
  (2)</tspan>
@@ -27027,6 +27068,7 @@
          style="font-weight:bold"><tspan
    style="font-style:italic"
    id="tspan18171">CCND2</tspan>
+
 
 
  (4)</tspan>
@@ -27206,6 +27248,7 @@
    id="tspan18167">GIPR</tspan>
 
 
+
  (1)</tspan>
     </text>
     <text
@@ -27266,6 +27309,7 @@
          style="font-weight:bold"><tspan
    style="font-style:italic"
    id="tspan18155">GIPR</tspan>
+
 
 
  (2)</tspan>
@@ -27385,6 +27429,7 @@
          style="font-weight:bold"><tspan
    style="font-style:italic"
    id="tspan18159">GNAS</tspan>
+
 
 
  (1)</tspan>
@@ -28695,6 +28740,7 @@
    id="tspan18191">ITGA1</tspan>
 
 
+
  (1)</tspan>
       </text>
       <text
@@ -28808,6 +28854,7 @@
    id="tspan18183">PHF15</tspan>
 
 
+
  (2)</tspan>
       </text>
       <text
@@ -28865,6 +28912,7 @@
            style="font-weight:bold"><tspan
    style="font-style:italic"
    id="tspan18177">MIR3668</tspan>
+
 
 
  (1)</tspan>
@@ -28980,6 +29028,7 @@
    id="tspan18173">ANK1</tspan>
 
 
+
  (3)</tspan>
       </text>
       <text
@@ -29039,6 +29088,7 @@
    id="tspan18189">HHEX−IDE</tspan>
 
 
+
  (2)</tspan>
       </text>
       <text
@@ -29055,6 +29105,7 @@
            x="449.25543 456.59241 464.53442 472.47644 481.03442 487.15039 490.20844 493.8714 499.98743"><tspan
    style="font-style:italic"
    id="tspan18187">KCNQ1</tspan>
+
 
 
  (9)</tspan>
@@ -29412,6 +29463,7 @@
    id="tspan18185">FAM57B</tspan>
 
 
+
  (2)</tspan>
       </text>
       <text
@@ -29469,6 +29521,7 @@
            style="font-weight:bold"><tspan
    style="font-style:italic"
    id="tspan18175">BCL2A</tspan>
+
 
 
  (1)</tspan>
@@ -30611,6 +30664,7 @@
    id="tspan18207">GLI2</tspan>
 
 
+
  (3)</tspan>
       </text>
       <text
@@ -30668,6 +30722,7 @@
            style="font-weight:bold"><tspan
    style="font-style:italic"
    id="tspan18205">GLI2</tspan>
+
 
 
  (1)</tspan>
@@ -30729,6 +30784,7 @@
    id="tspan18209">PPARG</tspan>
 
 
+
  (1)</tspan>
       </text>
       <text
@@ -30788,6 +30844,7 @@
    id="tspan18193">PPARG</tspan>
 
 
+
  (2)</tspan>
       </text>
       <text
@@ -30804,6 +30861,7 @@
            style="font-weight:bold"><tspan
    style="font-style:italic"
    id="tspan18201">PSMD6</tspan>
+
 
 
  (2)</tspan>
@@ -30919,6 +30977,7 @@
    id="tspan18211">ANKRD55</tspan>
 
 
+
  (1)</tspan>
       </text>
       <text
@@ -30978,6 +31037,7 @@
    id="tspan18195">ANKRD55</tspan>
 
 
+
  (2)</tspan>
       </text>
       <text
@@ -31035,6 +31095,7 @@
            style="font-weight:bold"><tspan
    style="font-style:italic"
    id="tspan18203">ANKRD55</tspan>
+
 
 
  (3)</tspan>
@@ -31204,6 +31265,7 @@
    id="tspan18219">MIR3668</tspan>
 
 
+
  (1)</tspan>
       </text>
       <text
@@ -31317,6 +31379,7 @@
    id="tspan18199">KCNQ1</tspan>
 
 
+
  (3)</tspan>
       </text>
       <text
@@ -31374,6 +31437,7 @@
            style="font-weight:bold"><tspan
    style="font-style:italic"
    id="tspan18213">CCND2</tspan>
+
 
 
  (6)</tspan>
@@ -31435,6 +31499,7 @@
    id="tspan18217">CCND2</tspan>
 
 
+
  (5)</tspan>
       </text>
       <text
@@ -31492,6 +31557,7 @@
            style="font-weight:bold"><tspan
    style="font-style:italic"
    id="tspan18221">CCND2</tspan>
+
 
 
  (1)</tspan>
@@ -31607,6 +31673,7 @@
    id="tspan18215">BCL2A</tspan>
 
 
+
  (1)</tspan>
       </text>
       <text
@@ -31664,6 +31731,7 @@
            style="font-weight:bold"><tspan
    style="font-style:italic"
    id="tspan18197">EYA2</tspan>
+
 
 
  (1)</tspan>
@@ -32912,6 +32980,7 @@
    id="tspan18225">ARL15</tspan>
 
 
+
  (1)</tspan>
       </text>
       <text
@@ -32968,6 +33037,7 @@
            style="font-weight:bold"><tspan
    style="font-style:italic"
    id="tspan18241">DGKB</tspan>
+
 
 
  (3)</tspan>
@@ -33081,6 +33151,7 @@
    id="tspan18237">HHEX−IDE</tspan>
 
 
+
  (3)</tspan>
       </text>
       <text
@@ -33109,6 +33180,7 @@
    id="tspan18227">HHEX−IDE</tspan>
 
 
+
  (1)</tspan>
       </text>
       <text
@@ -33125,6 +33197,7 @@
            style="font-weight:bold"><tspan
    style="font-style:italic"
    id="tspan18231">TCF7L2</tspan>
+
 
 
  (4)</tspan>
@@ -33185,6 +33258,7 @@
    id="tspan18229">TCF7L2</tspan>
 
 
+
  (3)</tspan>
       </text>
       <text
@@ -33243,6 +33317,7 @@
    id="tspan18235">INS−IGF2</tspan>
 
 
+
  (2)</tspan>
       </text>
       <text
@@ -33261,6 +33336,7 @@
    id="tspan18233">INS−IGF2</tspan>
 
 
+
  (4)</tspan>
       </text>
       <text
@@ -33277,6 +33353,7 @@
            style="font-weight:bold"><tspan
    style="font-style:italic"
    id="tspan18239">CCND2</tspan>
+
 
 
  (2)</tspan>
@@ -33337,6 +33414,7 @@
    id="tspan18243">HNF1A</tspan>
 
 
+
  (5)</tspan>
       </text>
       <text
@@ -33393,6 +33471,7 @@
            style="font-weight:bold"><tspan
    style="font-style:italic"
    id="tspan18247">HNF1A</tspan>
+
 
 
  (3)</tspan>
@@ -33559,6 +33638,7 @@
    id="tspan18223">HNF1B</tspan>
 
 
+
  (2)</tspan>
       </text>
       <text
@@ -33618,6 +33698,7 @@
            style="font-weight:bold"><tspan
    style="font-style:italic"
    id="tspan18245">HNF4A</tspan>
+
 
 
  (1)</tspan>
@@ -34807,6 +34888,7 @@
    id="tspan18261">TMEM18</tspan>
 
 
+
  (1)</tspan>
     </text>
     <text
@@ -34882,6 +34964,7 @@
          style="font-style:normal;font-weight:bold"><tspan
    style="font-style:italic"
    id="tspan18265">DGKB</tspan>
+
 
 
  (1)</tspan>
@@ -34961,6 +35044,7 @@
    id="tspan18249">NEUROG3</tspan>
 
 
+
  (2)</tspan>
     </text>
     <text
@@ -34976,6 +35060,7 @@
          style="font-style:normal;font-weight:bold"><tspan
    style="font-style:italic"
    id="tspan18273">NEUROG3</tspan>
+
 
 
  (1)</tspan>
@@ -34995,6 +35080,7 @@
    id="tspan18263">CCND2</tspan>
 
 
+
  (3)</tspan>
     </text>
     <text
@@ -35010,6 +35096,7 @@
          style="font-style:normal;font-weight:bold"><tspan
    style="font-style:italic"
    id="tspan18271">HMGA2</tspan>
+
 
 
  (1)</tspan>
@@ -35029,6 +35116,7 @@
    id="tspan18269">PCDH17</tspan>
 
 
+
  (2)</tspan>
     </text>
     <text
@@ -35044,6 +35132,7 @@
          style="font-weight:bold"><tspan
    style="font-style:italic"
    id="tspan18267">SRGAP2D</tspan>
+
 
 
  (2)</tspan>
