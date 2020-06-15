@@ -32,7 +32,6 @@ Prepare SNP input file
 gen.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt") %>% 
   dplyr::select(.,one_of("CondID","SNPID","CHR","POS","PPA"))
 names(gen.df) <- c("SIGNAL","SNPID","CHR","POS","VALUE")
-write.table(x=gen.df,file=input.dir %&% "credible-input.txt",sep="\t",quote=F,row.names=F,col.names=T)
 
 ```
 
@@ -46,47 +45,29 @@ Annotate SNPs
 
 snp.df <- annotate_snps(snp_file = input.dir%&%"credible-input.txt", 
                         tissue_path_file = input.dir%&%"tissue-file-paths.txt",
-                        tissue_annotation_file = input.dir%&%"tissue-annotations.txt", 
+                        tissue_annotation_file = input.dir%&%"tissue-annotations_alt.txt", 
                         genomic_path_file = input.dir%&%"genomic-file-paths.txt",
-                        genomic_annotation_file = input.dir%&%"genomic-annotations.txt")
+                        genomic_annotation_file = input.dir%&%"genomic-annotations_alt.txt")
 ```
 
-
-```{r}
-
-write.table(x=snp.df,file=file.dir%&%"annotated_snp-file.txt",quote=F,sep="\t",row.names=F)
-
-```
 
 
 Calculate SNP scores 
 
 ```{r}
 tvec.df <- calculate_tissue_vectors(snp.annotated.df = snp.df,
-                                    tissue_annotation_file = input.dir%&%"tissue-annotations.txt", 
-                                    genomic_annotation_file = input.dir%&%"genomic-annotations.txt",
+                                    tissue_annotation_file = input.dir%&%"tissue-annotations_alt.txt", 
+                                    genomic_annotation_file = input.dir%&%"genomic-annotations_alt.txt",
                                     ess.annot = "coding",
                                     ess.file = input.dir%&%"gene-expression-specificity-scores.txt")
 ```
 
-```{r}
-
-write.table(x=tvec.df,file=file.dir%&%"snp-score-file.txt",quote=F,sep="\t",row.names=F)
-
-```
 
 Calculate TOA scores 
 
 ```{r}
 
 tscores.df <- calculate_toa_scores(snp.tissvec.df = tvec.df)
-
-```
-
-
-```{r}
-
-write.table(x=tscores.df,file=file.dir%&%"toa-scores.txt",quote=F,sep="\t",row.names=F)
 
 ```
 
@@ -103,15 +84,6 @@ class80.df <- tissue_classifier(toa.df=tscores.df, tissue_threshold = 0.8, share
 
 ```
 
-
-```{r}
-
-write.table(x=class00.df,file=file.dir%&%"classified_p00.txt",quote=F,sep="\t",row.names=F)
-write.table(x=class20.df,file=file.dir%&%"classified_p20.txt",quote=F,sep="\t",row.names=F)
-write.table(x=class50.df,file=file.dir%&%"classified_p50.txt",quote=F,sep="\t",row.names=F)
-write.table(x=class80.df,file=file.dir%&%"classified_p80.txt",quote=F,sep="\t",row.names=F)
-
-```
 
 
 ```{r}
@@ -153,13 +125,6 @@ class.df$symbol <- map(class.df$SIGNAL,function(sig){
 }) %>% as.character(.)
 
 names(class.df)[1:5] <- c("Locus.ID","adipose","islet","liver","muscle")
-
-```
-
-
-```{r}
-
-write.table(class.df,file.dir%&%"classified-loci_weighted_with-shared.txt",sep="\t",quote=F,row.names=F)
 
 ```
 
@@ -179,14 +144,6 @@ class80.df <- tissue_classifier(toa.df=tscores.df, tissue_threshold = 0.8, share
 ```
 
 
-```{r}
-
-write.table(x=class00.df,file=file.dir%&%"classified_p00_s0.txt",quote=F,sep="\t",row.names=F)
-write.table(x=class20.df,file=file.dir%&%"classified_p20_s0.txt",quote=F,sep="\t",row.names=F)
-write.table(x=class50.df,file=file.dir%&%"classified_p50_s0.txt",quote=F,sep="\t",row.names=F)
-write.table(x=class80.df,file=file.dir%&%"classified_p80_s0.txt",quote=F,sep="\t",row.names=F)
-
-```
 
 
 ```{r}
@@ -234,7 +191,7 @@ names(class.df)[1:5] <- c("Locus.ID","adipose","islet","liver","muscle")
 
 ```{r}
 
-write.table(class.df,file.dir%&%"classified-loci_weighted.txt",sep="\t",quote=F,row.names=F)
+write.table(class.df,file.dir%&%"classified-loci_weighted_ALT.txt",sep="\t",quote=F,row.names=F)
 
 ```
 
