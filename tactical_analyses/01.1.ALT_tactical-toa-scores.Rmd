@@ -128,6 +128,11 @@ names(class.df)[1:5] <- c("Locus.ID","adipose","islet","liver","muscle")
 
 ```
 
+```{r}
+
+write.table(class.df,file.dir%&%"classified-loci_weighted_with-shared_ALT.txt",sep="\t",quote=F,row.names=F)
+
+```
 
 
 
