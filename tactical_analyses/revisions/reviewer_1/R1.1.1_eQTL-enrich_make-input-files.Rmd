@@ -1,0 +1,163 @@
+---
+title: "14.1_eQTL-enrich-revamp-make-inputs.Rmd"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+library("Homo.sapiens")
+
+serv.dir1 <- "/home/jason/science/servers/FUSE/" 
+serv.dir2 <- "/home/jason/science/servers/FUSE5/" 
+proj.dir <- serv.dir2 %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "tactical_analyses/"
+gtex.dir <- serv.dir2 %&% "datasets/GTEx/v7/eqtl/GTEx_Analysis_v7_eQTL/"
+out.dir <- work.dir %&% "enrichment_files/eqtls/"
+
+```
+
+
+GTEx eQTLs
+
+```{r}
+
+liv.df <- fread("cat " %&% gtex.dir %&% "Liver.v7.signif_variant_gene_pairs.txt.gz" %&% " | zmore")
+pb <- txtProgressBar(min=0,max=dim(liv.df)[1],style=3)
+liv.eqtls <- map(1:length(liv.df$variant_id),function(i){
+  setTxtProgressBar(pb,i)
+  vec <- liv.df$variant_id[i] %>% strsplit(.,split="_")
+  id <- vec[[1]][1] %&% ":" %&% vec[[1]][2]
+}) %>% as.character(.) %>% unique(.)
+
+mus.df <- fread("cat " %&% gtex.dir %&% "Muscle_Skeletal.v7.signif_variant_gene_pairs.txt.gz" %&% " | zmore")
+pb <- txtProgressBar(min=0,max=dim(mus.df)[1],style=3)
+mus.eqtls <- map(1:length(mus.df$variant_id),function(i){
+  setTxtProgressBar(pb,i)
+  vec <- mus.df$variant_id[i] %>% strsplit(.,split="_")
+  id <- vec[[1]][1] %&% ":" %&% vec[[1]][2]
+}) %>% as.character(.) %>% unique(.)
+
+adi.df <- fread("cat " %&% gtex.dir %&% "Adipose_Subcutaneous.v7.signif_variant_gene_pairs.txt.gz" %&% " | zmore")
+pb <- txtProgressBar(min=0,max=dim(adi.df)[1],style=3)
+adi.eqtls <- map(1:length(adi.df$variant_id),function(i){
+  setTxtProgressBar(pb,i)
+  vec <- adi.df$variant_id[i] %>% strsplit(.,split="_")
+  id <- vec[[1]][1] %&% ":" %&% vec[[1]][2]
+}) %>% as.character(.) %>% unique(.)
+
+
+```
+
+
+
+Islet eQTLs
+
+
+```{r}
+
+inspire.dir <- serv.dir2 %&% "datasets/INSPIRE_2019/"
+
+insp.exon.df <- fread(inspire.dir %&% "media-1.txt")
+pb <- txtProgressBar(min=0,max=dim(insp.exon.df)[1],style=3)
+insp.exon.eqtls <- map(1:dim(insp.exon.df)[1],function(i){
+  setTxtProgressBar(pb,i)
+  vec <- c(insp.exon.df$SNPchr[i],insp.exon.df$StartSNP[i])
+  id <- vec[1] %&% ":" %&% vec[2]
+}) %>% as.character(.) %>% unique(.)
+
+
+insp.gene.df <- fread(inspire.dir %&% "media-2.txt")
+pb <- txtProgressBar(min=0,max=dim(insp.gene.df)[1],style=3)
+insp.gene.eqtls <- map(1:dim(insp.gene.df)[1],function(i){
+  setTxtProgressBar(pb,i)
+  vec <- c(insp.gene.df$chrSNP[i],insp.gene.df$StartSNP[i])
+  id <- vec[1] %&% ":" %&% vec[2]
+}) %>% as.character(.) %>% unique(.)
+
+mvdb.df <- fread(serv.dir2 %&% "datasets/mvdb_eSNP_coords.txt",header=F)
+mvdb.eqtls <- mvdb.df$V1 %&% ":" %&% mvdb.df$V2
+
+
+fastqtl.df <- fread("cat " %&% out.dir %&% "snp_keyfile_fdr05.txt.gz" %&% " | zmore")
+pb <- txtProgressBar(min=0,max=dim(fastqtl.df)[1],style=3)
+fastqtl.eqtls <- map(1:dim(fastqtl.df)[1],function(i){
+  setTxtProgressBar(pb,i)
+  vec <- c(fastqtl.df$CHR[i],fastqtl.df$POS[i])
+  id <- strsplit(vec[1],split="chr")[[1]][2] %&% ":" %&% vec[2]
+}) %>% as.character(.)
+
+
+```
+
+
+```{r}
+
+islet.eqtls  <- c(insp.exon.eqtls,insp.gene.eqtls,mvdb.eqtls) %>% unique(.)
+islet.jmt.eqtls <- fastqtl.eqtls
+
+```
+
+Save tissue-specific eQTL sets 
+
+```{r}
+
+isl.spec <- islet.eqtls[!(islet.eqtls %in% c(mus.eqtls,liv.eqtls,adi.eqtls))]
+isl.jmt.spec <- islet.jmt.eqtls[!(islet.jmt.eqtls %in% c(mus.eqtls,liv.eqtls,adi.eqtls))]
+mus.spec <- mus.eqtls[!(mus.eqtls %in% c(islet.eqtls,liv.eqtls,adi.eqtls))]
+adi.spec <- adi.eqtls[!(adi.eqtls %in% c(islet.eqtls,liv.eqtls,mus.eqtls))]
+liv.spec <- liv.eqtls[!(liv.eqtls %in% c(islet.eqtls,adi.eqtls,mus.eqtls))]
+insp.exon.spec <- insp.exon.eqtls[!(insp.exon.eqtls %in% c(mus.eqtls,liv.eqtls,adi.eqtls))]
+insp.gene.spec <- insp.gene.eqtls[!(insp.gene.eqtls %in% c(mus.eqtls,liv.eqtls,adi.eqtls))]
+mvdb.spec <- mvdb.eqtls[!(mvdb.eqtls %in% c(mus.eqtls,liv.eqtls,adi.eqtls))]
+
+```
+
+
+```{r}
+
+write.table(x=isl.spec,file=out.dir %&% "islet-specific-esnps.txt",sep="\t",quote=F,row.names=F,col.names=F)
+write.table(x=mus.spec,file=out.dir %&% "muscle-specific-esnps.txt",sep="\t",quote=F,row.names=F,col.names=F)
+write.table(x=adi.spec,file=out.dir %&% "adipose-specific-esnps.txt",sep="\t",quote=F,row.names=F,col.names=F)
+write.table(x=liv.spec,file=out.dir %&% "liver-specific-esnps.txt",sep="\t",quote=F,row.names=F,col.names=F)
+write.table(x=insp.exon.spec,file=out.dir %&%
+              "inspExon-specific-esnps.txt",sep="\t",quote=F,row.names=F,col.names=F)
+write.table(x=insp.gene.spec,file=out.dir %&%
+              "inspGene-specific-esnps.txt",sep="\t",quote=F,row.names=F,col.names=F)
+write.table(x=mvdb.spec,file=out.dir %&%
+              "mvdbExon-specific-esnps.txt",sep="\t",quote=F,row.names=F,col.names=F)
+write.table(x=isl.jmt.spec,file=out.dir %&% "islet-specific-esnps_jmt.txt",sep="\t",quote=F,row.names=F,col.names=F)
+
+
+```
+
+
+# Generate TOA set input file for SNPSNAP  (Accession Aug 21, 2019)
+
+```{r}
+
+toa.df <- fread(work.dir %&% "analysis_files/classified-loci_weighted_with-shared.txt")
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
+
+pb <- txtProgressBar(min=0,max=dim(toa.df)[1],style=3)
+save.vec <- map(1:dim(toa.df)[1],function(i){
+  pb <- setTxtProgressBar(pb,i)
+  id <- toa.df$Locus.ID[i]
+  (filter(cred.df,CondID==id)$IndexSNP %>% unique(.) %>% strsplit(.,split="chr"))[[1]][2]
+}) %>% as.character(.)
+
+
+write.table(x=save.vec,file=out.dir %&% "snpsnap_input.txt",sep="\t",quote=F,row.names=F,col.names=F)
+
+```
+
+
