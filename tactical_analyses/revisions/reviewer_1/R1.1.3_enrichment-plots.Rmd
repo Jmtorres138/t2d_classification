@@ -20,10 +20,10 @@ library("data.table")
 library("viridis")
 
 
-serv.dir <- "/home/jason/science/servers/FUSE5/"
+serv.dir <- "/Users/jasont/science/servers/FUSE5/"
 
 proj.dir <- serv.dir %&% "projects/t2d_classification/"
-work.dir <- proj.dir %&% "tactical_analyses/"
+work.dir <- proj.dir %&% "tactical_analyses/revisions/reviewer_1/"
 plot.dir <- work.dir %&% "plots/"
 
 
@@ -64,15 +64,8 @@ eqtl.df$tissue_toa <- map(eqtl.df$tissue_toa,function(x){
       sep="", collapse=" ") 
 }) %>% as.character(.)
 
-plot(eqtl.df$enrichment,eqtl.df$enrichment_snpsnap)
-abline(a=0,b=1)
-
-lm(eqtl.df$enrichment~eqtl.df$enrichment_snpsnap) %>% summary(.)
 
 ```
-
-Both null distrubtion methods are correlated (adj_R2=0.83, pval<2.2e-16)
-but SNPSNAP method is more conservative, median and mean number of missing SNPs for SNPSNAP method are 3 and 3.65 SNPs, respectively (or 6.7% and 8.6% missing signals not matched by SNPSNAP) 
 
 
 eQTL enrichment plot 
@@ -83,19 +76,14 @@ eqtl.df$tissue_toa <- factor(eqtl.df$tissue_toa,
                              levels = c("Muscle","Adipose","Liver",
                                         "Islet","Shared","Unclassified"))
 eqtl.df$tissue_eqtl <- factor(eqtl.df$tissue_eqtl,
-                             levels = c("Muscle","Adipose","Liver",
-                                        "Islet","Islet_jmt",
-                                        "Inspire.gene","Inspire.exon",
-                                        "Mvdb.exon",
-                                        "Shared","Unclassified"))
+                             levels = c("Muscle","Adipose.both","Adipose.sub",
+                                        "Adipose.visc","Liver","Islet"))
 ```
 
 
 ```{r}
 
-ex.vec <- c("Islet","Inspire.exon","Mvdb.exon")#,"Inspire.gene")
-
-eqtl.df <- filter(eqtl.df,!(tissue_eqtl %in% ex.vec))
+#eqtl.df <- filter(eqtl.df,!(tissue_eqtl %in% ex.vec))
 
 eqtl.df$tissue_eqtl <- map(as.character(eqtl.df$tissue_eqtl),function(s){
   ifelse(s=="Inspire.gene","Islet (INSPIRE)",
@@ -144,8 +132,10 @@ eqtl_enrich_plot <- function(enrich.df,myname){
 
 plt <- eqtl_enrich_plot(eqtl.df,
                         myname="eQTL enrichment for classifed loci")
-ggsave(plot=plt,filename = plot.dir %&% "enrichment-eqtl.png",width=8,height=6)
-ggsave(plot=plt,filename = plot.dir %&% "enrichment-eqtl.pdf",width=8,height=6)
+ggsave(plot=plt,filename = plot.dir %&%
+         "enrichment-eqtl-expanded.png",width=8,height=6)
+ggsave(plot=plt,filename = plot.dir %&%
+         "enrichment-eqtl-expanded.pdf",width=8,height=6)
 
 ```
 
