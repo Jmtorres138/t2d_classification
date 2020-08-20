@@ -1,0 +1,72 @@
+---
+title: "R1.2.1_BMI-adjusted-evaluation"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+
+serv.dir <- "/Users/jasont/science/servers/FUSE5/"
+
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "tactical_analyses/revisions/reviewer_1/"
+plot.dir <- work.dir %&% "plots/"
+
+ref.df <- fread(work.dir %&% "reference/mahajan_2018b_ST3.txt",header=F)
+```
+
+Process Mahajan 2018b Table S3 
+
+```{r}
+
+names(ref.df)[c(1,2,3,4,17)] <- c("nearest.gene","index.rsid","chrom","pos","het.p")
+ref.df$het.p <- map(ref.df$het.p,function(s){
+  gsub("x10","e",s) 
+}) %>% as.numeric(.)
+ref.df$pos <- map(ref.df$pos,function(s){
+  gsub(",","",s) 
+}) %>% as.integer(.)
+het.df <- filter(ref.df,het.p < 0.00012)
+
+```
+
+
+```{r}
+toa.df <- fread(proj.dir %&%
+    "tactical_analyses/analysis_files/classified-loci_weighted_with-shared.txt")
+cred.df <- fread(proj.dir %&%
+    "tactical_analyses/genetic_credible_sets/gencred.txt")
+```
+
+Build merged data frame 
+
+```{r}
+
+full.df <- c()
+pb <- txtProgressBar(min=0,max=dim(het.df)[1],style=3)
+for (i in 1:dim(het.df)[1]){
+  setTxtProgressBar(pb,i)
+  row.df <- het.df[i,]
+  snp <- row.df$index.rsid
+  signal <- filter(cred.df,lead.rsid==snp)$CondID %>% unique(.)
+  build.df <- filter(toa.df,Locus.ID==signal)
+  full.df <- rbind(full.df,build.df)
+}
+
+write.table(x=full.df,file=work.dir %&% "bmi-het-signals.txt",
+            sep="\t",quote=F,row.names=F)
+
+```
+
+
+
