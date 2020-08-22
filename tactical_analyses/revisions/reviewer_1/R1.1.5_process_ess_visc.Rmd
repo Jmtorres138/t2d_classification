@@ -83,7 +83,16 @@ write.table(x=gess.df2,file = analysis.dir %&%
 
 ```{r}
 plot.df <- inner_join(gess.df1,gess.df2,by="FEATURE_ID")
+plot(plot.df$Adipose.x,plot.df$Adipose.y)
 ```
+
+
+```{r}
+
+cor.test(plot.df$Adipose.x,plot.df$Adipose.y,method="pearson")
+
+```
+
 
 Pearson's product-moment correlation
 
@@ -95,3 +104,29 @@ alternative hypothesis: true correlation is not equal to 0
 sample estimates:
       cor 
 0.9094248 
+
+
+```{r}
+
+cor.test(plot.df$Adipose.x,plot.df$Adipose.y,method="spearman")
+
+```
+
+Show in New WindowClear OutputExpand/Collapse Output
+Cannot compute exact p-value with ties
+	Spearman's rank correlation rho
+
+data:  plot.df$Adipose.x and plot.df$Adipose.y
+S = 9.0807e+10, p-value < 2.2e-16
+alternative hypothesis: true rho is not equal to 0
+sample estimates:
+      rho 
+0.9085729 
+
+```{r}
+cor.test(plot.df$Adipose.y,plot.df$Liver.x,method="spearman") # rho 0.001521062; p=0.8377
+cor.test(plot.df$Adipose.y,plot.df$Islet.x,method="spearman") # rho -0.4255487 ; p-value < 2.2e-16
+cor.test(plot.df$Adipose.y,plot.df$Muscle.x,method="spearman") # rho 0.02509856 ; 0.0007255
+
+```
+
