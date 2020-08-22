@@ -1,0 +1,81 @@
+---
+title: "01.1_tactical-toa-scores.Rmd"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+library("tidyverse")
+library("data.table")
+#devtools::install_github("jmtorres138/TACTICAL")
+library("TACTICAL")
+
+serv.dir <- "/Users/jasont/science/servers/FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "tactical_analyses/revisions/reviewer_1/"
+input.dir <- work.dir %&% "input_files/"
+file.dir <- work.dir %&% "analysis_files/"
+
+toa.df1 <- fread(proj.dir %&% "tactical_analyses/analysis_files/" %&% 
+                   "classified-loci_weighted_with-shared.txt")
+toa.df2 <- fread(file.dir%&%"classified-loci_weighted_with-shared-adiVisc.txt")
+
+```
+
+
+```{r}
+
+cor.test(toa.df1$adipose,toa.df2$adipose,method="pearson")
+
+```
+
+Show in New WindowClear OutputExpand/Collapse Output
+
+	Pearson's product-moment correlation
+
+data:  toa.df1$adipose and toa.df2$adipose
+t = 221.32, df = 378, p-value < 2.2e-16
+alternative hypothesis: true correlation is not equal to 0
+95 percent confidence interval:
+ 0.9953075 0.9968639
+sample estimates:
+      cor 
+0.9961637 
+
+```{r}
+
+cor.test(toa.df1$adipose,toa.df2$adipose,method="spearman")
+
+```
+
+	Spearman's rank correlation rho
+
+data:  toa.df1$adipose and toa.df2$adipose
+S = 6381.4, p-value < 2.2e-16
+alternative hypothesis: true rho is not equal to 0
+sample estimates:
+      rho 
+0.9993022 
+
+
+```{r}
+
+table(toa.df1$assigned_20)
+table(toa.df2$assigned_20)
+
+toa.df1[!(toa.df1$assigned_20 == toa.df2$assigned_20)]
+
+toa.df2[!(toa.df2$assigned_20 == toa.df1$assigned_20)]
+
+
+
+```
+
+
