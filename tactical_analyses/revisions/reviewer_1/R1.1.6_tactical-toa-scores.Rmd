@@ -17,9 +17,9 @@ library("data.table")
 #devtools::install_github("jmtorres138/TACTICAL")
 library("TACTICAL")
 
-serv.dir <- "/home/jason/science/servers/FUSE5/"
+serv.dir <- "/Users/jasont/science/servers/FUSE5/"
 proj.dir <- serv.dir %&% "projects/t2d_classification/"
-work.dir <- proj.dir %&% "tactical_analyses/"
+work.dir <- proj.dir %&% "tactical_analyses/revisions/reviewer_1/"
 input.dir <- work.dir %&% "input_files/"
 file.dir <- work.dir %&% "analysis_files/"
 
@@ -29,7 +29,7 @@ Prepare SNP input file
 
 ```{r}
 
-gen.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt") %>% 
+gen.df <- fread(proj.dir %&% "tactical_analyses/genetic_credible_sets/gencred.txt") %>% 
   dplyr::select(.,one_of("CondID","SNPID","CHR","POS","PPA"))
 names(gen.df) <- c("SIGNAL","SNPID","CHR","POS","VALUE")
 write.table(x=gen.df,file=input.dir %&% "credible-input.txt",sep="\t",quote=F,row.names=F,col.names=T)
@@ -66,7 +66,7 @@ tvec.df <- calculate_tissue_vectors(snp.annotated.df = snp.df,
                                     tissue_annotation_file = input.dir%&%"tissue-annotations.txt", 
                                     genomic_annotation_file = input.dir%&%"genomic-annotations.txt",
                                     ess.annot = "coding",
-                                    ess.file = input.dir%&%"gene-expression-specificity-scores.txt")
+                                    ess.file = input.dir%&%"gene-expression-specificity-scores_v2.txt")
 ```
 
 ```{r}
@@ -86,7 +86,7 @@ tscores.df <- calculate_toa_scores(snp.tissvec.df = tvec.df)
 
 ```{r}
 
-write.table(x=tscores.df,file=file.dir%&%"toa-scores.txt",quote=F,sep="\t",row.names=F)
+write.table(x=tscores.df,file=file.dir%&%"toa-scores-with-visc.txt",quote=F,sep="\t",row.names=F)
 
 ```
 
@@ -146,7 +146,7 @@ class.df$assigned_80 <- map(class.df$SIGNAL,function(sig){
                        ifelse(tiss=="Liver","liver",tiss))))
 }) %>% as.character(.) 
 
-cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt") 
+cred.df <- fread(proj.dir %&% "tactical_analyses/genetic_credible_sets/gencred.txt")
 
 class.df$symbol <- map(class.df$SIGNAL,function(sig){
   filter(cred.df,CondID==sig)$symbol %>% unique(.)
@@ -159,82 +159,10 @@ names(class.df)[1:5] <- c("Locus.ID","adipose","islet","liver","muscle")
 
 ```{r}
 
-write.table(class.df,file.dir%&%"classified-loci_weighted_with-shared.txt",sep="\t",quote=F,row.names=F)
+write.table(class.df,file.dir%&%"classified-loci_weighted_with-shared-adiVisc.txt",sep="\t",quote=F,row.names=F)
 
 ```
 
 
 
-
-Tissue Classifier without SHARED category (unless exact ties!!!)
-
-
-```{r}
-
-class00.df <- tissue_classifier(toa.df=tscores.df, tissue_threshold = 0.0, shared_threshold = 0.0)
-class20.df <- tissue_classifier(toa.df=tscores.df, tissue_threshold = 0.2, shared_threshold = 0.0)
-class50.df <- tissue_classifier(toa.df=tscores.df, tissue_threshold = 0.5, shared_threshold = 0.0)
-class80.df <- tissue_classifier(toa.df=tscores.df, tissue_threshold = 0.8, shared_threshold = 0.0)
-
-```
-
-
-```{r}
-
-write.table(x=class00.df,file=file.dir%&%"classified_p00_s0.txt",quote=F,sep="\t",row.names=F)
-write.table(x=class20.df,file=file.dir%&%"classified_p20_s0.txt",quote=F,sep="\t",row.names=F)
-write.table(x=class50.df,file=file.dir%&%"classified_p50_s0.txt",quote=F,sep="\t",row.names=F)
-write.table(x=class80.df,file=file.dir%&%"classified_p80_s0.txt",quote=F,sep="\t",row.names=F)
-
-```
-
-
-```{r}
-
-class.df <- tscores.df
-class.df$assigned_00 <- map(class.df$SIGNAL,function(sig){
-  tiss <- filter(class00.df,SIGNAL==sig)$classification 
-  ifelse(tiss=="Islet","islet",
-         ifelse(tiss=="Adipose","adipose",
-                ifelse(tiss=="Muscle","muscle",
-                       ifelse(tiss=="Liver","liver",tiss))))
-}) %>% as.character(.) 
-class.df$assigned_20 <- map(class.df$SIGNAL,function(sig){
-  tiss <- filter(class20.df,SIGNAL==sig)$classification 
-  ifelse(tiss=="Islet","islet",
-         ifelse(tiss=="Adipose","adipose",
-                ifelse(tiss=="Muscle","muscle",
-                       ifelse(tiss=="Liver","liver",tiss))))
-}) %>% as.character(.) 
-class.df$assigned_50 <- map(class.df$SIGNAL,function(sig){
-  tiss <- filter(class50.df,SIGNAL==sig)$classification 
-  ifelse(tiss=="Islet","islet",
-         ifelse(tiss=="Adipose","adipose",
-                ifelse(tiss=="Muscle","muscle",
-                       ifelse(tiss=="Liver","liver",tiss))))
-}) %>% as.character(.) 
-class.df$assigned_80 <- map(class.df$SIGNAL,function(sig){
-  tiss <- filter(class80.df,SIGNAL==sig)$classification 
-  ifelse(tiss=="Islet","islet",
-         ifelse(tiss=="Adipose","adipose",
-                ifelse(tiss=="Muscle","muscle",
-                       ifelse(tiss=="Liver","liver",tiss))))
-}) %>% as.character(.) 
-
-cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt") 
-
-class.df$symbol <- map(class.df$SIGNAL,function(sig){
-  filter(cred.df,CondID==sig)$symbol %>% unique(.)
-}) %>% as.character(.)
-
-names(class.df)[1:5] <- c("Locus.ID","adipose","islet","liver","muscle")
-
-```
-
-
-```{r}
-
-write.table(class.df,file.dir%&%"classified-loci_weighted.txt",sep="\t",quote=F,row.names=F)
-
-```
 
