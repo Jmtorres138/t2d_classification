@@ -1,0 +1,269 @@
+
+```{r}
+
+# Setup
+set.seed(1)
+"%&%" <- function(a,b) paste0(a,b)
+#library("tidyverse")
+library("dplyr")
+library("purrr")
+library("GenomicRanges")
+library("viridis")
+library("data.table")
+library("rtracklayer")
+library("Hmisc")
+library("plyr")
+library("readr")
+
+serv.dir <- "/Users/jasont/science/servers/FUSE5/"
+proj.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "tactical_analyses/revisions/reviewer_1/"
+
+tpm.dir <- proj.dir %&% "tactical_analyses/revisions/reviewer_1/analysis_files/"
+isl.tpm.df <- fread(tpm.dir %&% "islet_expression_tpm_v2.txt")
+liv.tpm.df <- fread(tpm.dir %&% "liver_expression_tpm.txt")
+mus.tpm.df <- fread(tpm.dir %&% "muscle_expression_tpm.txt")
+adisub.tpm.df <- fread(tpm.dir %&% "adipose_expression_tpm.txt")
+adivis.tpm.df <- fread(tpm.dir %&% "adipose-visceral_expression_tpm.txt")
+tpm.list <- list(isl.tpm.df,liv.tpm.df,mus.tpm.df,adisub.tpm.df,adivis.tpm.df)
+tpm.names <- c("islet","liver","muscle","adipose-sub","adipose-visc")
+
+
+```
+
+
+# Functions
+
+```{r}
+
+process_tpm_df <- function(tpm.df,samp.name){
+  gene.vec <- tpm.df$GeneName
+  df <- tpm.df %>% select(-one_of("GeneID","GeneName")) %>%
+    as.matrix(.) %>% t(.) %>% as.data.frame(.)
+  names(df) <- gene.vec
+  sample <- samp.name %&% "." %&%1:dim(df)[1]
+  out.df <- data.frame("Sample"=sample,df)
+  names(out.df)[2:dim(out.df)[2]] <- gene.vec
+  return(out.df)
+}
+
+```
+
+```{r}
+
+isl.tpm.df <- process_tpm_df(isl.tpm.df,"isl")
+liv.tpm.df <- process_tpm_df(liv.tpm.df,"liv")
+mus.tpm.df <- process_tpm_df(mus.tpm.df,"mus")
+sat.tpm.df <- process_tpm_df(adisub.tpm.df,"sat")
+vat.tpm.df <- process_tpm_df(adivis.tpm.df,"vat")
+
+```
+
+
+```{r}
+
+gene.vec <- names(liv.tpm.df)[2:dim(liv.tpm.df)[2]]
+col.vec <- c("Sample",gene.vec)
+dup.vec <- col.vec[duplicated(col.vec)]
+col.vec <- col.vec[!(col.vec %in% dup.vec)]
+```
+
+
+```{r}
+
+isl.tpm.df <- dplyr::select(isl.tpm.df,one_of(col.vec))
+liv.tpm.df <- dplyr::select(liv.tpm.df,one_of(col.vec))
+mus.tpm.df <- dplyr::select(mus.tpm.df,one_of(col.vec))
+sat.tpm.df <- dplyr::select(sat.tpm.df,one_of(col.vec))
+vat.tpm.df <- dplyr::select(vat.tpm.df,one_of(col.vec))
+
+full.df <- rbind(isl.tpm.df,liv.tpm.df)
+full.df <- rbind(full.df,mus.tpm.df)
+full.df <- rbind(full.df,sat.tpm.df)
+full.df <- rbind(full.df,vat.tpm.df)
+
+
+full.df <- full.df[, colSums(full.df != 0) > 0]
+
+```
+
+```{r}
+
+library("ggplot2")
+library("gridExtra")
+
+pr.out <- prcomp(dplyr::select(full.df,-one_of("Sample")),scale=TRUE) 
+write_rds(x=pr.out,path=tpm.dir %&% "pr.out.RDS")
+pca.df <- as.data.frame(pr.out$x) 
+pca.df$classification <- map(full.df$Sample,function(s){
+  strsplit(s,split=".",fixed=TRUE)[[1]][1]
+}) %>% as.character(.)
+
+pve <- ((pr.out$sdev^2) / (sum(pr.out$sdev^2)) * 100) %>% round(.,1)
+
+```
+
+```{r}
+
+pltA <- ggplot(data=dplyr::filter(pca.df),
+                       aes(x=PC1,y=PC2,fill=classification)) + 
+               geom_point(shape=21,alpha=0.8,color="black",size=2) +
+               scale_fill_brewer(palette = "Set1",name="Assigned Tissue") + 
+               theme_classic() + 
+               xlab("PC1 (" %&% pve[1] %&% "%)") + 
+               ylab("PC2 (" %&% pve[2] %&% "%)")
+
+pltB <- ggplot(data=dplyr::filter(pca.df),
+                       aes(x=PC2,y=PC3,fill=classification)) + 
+               geom_point(shape=21,alpha=0.8,color="black",size=2) + 
+               scale_fill_brewer(palette = "Set1",name="Assigned Tissue") + 
+               theme_classic() + 
+               xlab("PC2 (" %&% pve[2] %&% "%)") + 
+               ylab("PC3 (" %&% pve[3] %&% "%)")
+
+pltC <- ggplot(data=dplyr::filter(pca.df),
+                       aes(x=PC3,y=PC4,fill=classification)) + 
+               geom_point(shape=21,alpha=0.8,color="black",size=2) + 
+               scale_fill_brewer(palette = "Set1",name="Assigned Tissue") + 
+               theme_classic() + 
+               xlab("PC3 (" %&% pve[3] %&% "%)") + 
+               ylab("PC4 (" %&% pve[4] %&% "%)")
+
+
+grid.arrange(pltA,pltB,pltC,nrow=3)
+
+```
+
+
+
+Withhold ISLET 
+
+```{r}
+
+sub.df <- filter(full.df,!grepl("isl",Sample))
+sub.df <- sub.df[, colSums(sub.df != 0) > 0]
+pr.out2 <- prcomp(dplyr::select(sub.df,-one_of("Sample")),scale=TRUE) 
+write_rds(x=pr.out2,path=tpm.dir %&% "pr.out2.RDS")
+pca.df2 <- as.data.frame(pr.out2$x) 
+pca.df2$classification <- map(sub.df$Sample,function(s){
+  strsplit(s,split=".",fixed=TRUE)[[1]][1]
+}) %>% as.character(.)
+
+pve2 <- ((pr.out2$sdev^2) / (sum(pr.out2$sdev^2)) * 100) %>% round(.,1)
+
+
+pltAA <- ggplot(data=dplyr::filter(pca.df2),
+                       aes(x=PC1,y=PC2,fill=classification)) + 
+               geom_point(shape=21,alpha=0.8,color="black",size=2) +
+               scale_fill_brewer(palette = "Set1",name="Assigned Tissue") + 
+               theme_classic() + 
+               xlab("PC1 (" %&% pve2[1] %&% "%)") + 
+               ylab("PC2 (" %&% pve2[2] %&% "%)")
+
+pltBB <- ggplot(data=dplyr::filter(pca.df2),
+                       aes(x=PC2,y=PC3,fill=classification)) + 
+               geom_point(shape=21,alpha=0.8,color="black",size=2) + 
+               scale_fill_brewer(palette = "Set1",name="Assigned Tissue") + 
+               theme_classic() + 
+               xlab("PC2 (" %&% pve2[2] %&% "%)") + 
+               ylab("PC3 (" %&% pve2[3] %&% "%)")
+
+pltCC <- ggplot(data=dplyr::filter(pca.df2),
+                       aes(x=PC3,y=PC4,fill=classification)) + 
+               geom_point(shape=21,alpha=0.8,color="black",size=2) + 
+               scale_fill_brewer(palette = "Set1",name="Assigned Tissue") + 
+               theme_classic() + 
+               xlab("PC3 (" %&% pve2[3] %&% "%)") + 
+               ylab("PC4 (" %&% pve2[4] %&% "%)")
+
+
+grid.arrange(pltAA,pltBB,pltCC,nrow=3)
+
+```
+
+
+# TSNE 
+
+```{r}
+#library("M3C")
+library("Rtsne")
+tsne.vec <- 1:dim(full.df)[1] #sample(1:dim(full.df)[1],100)
+tsne.mat <- full.df[tsne.vec,] %>% select(-one_of("Sample")) %>% as.matrix(.)
+tsne.names <- full.df$Sample[tsne.vec]
+row.names(tsne.mat) <- tsne.names
+t.out <- Rtsne(tsne.mat)
+tsne.df <- t.out$Y %>% as.data.frame(.)
+tsne.df$classification <- map(tsne.names,function(s){
+  strsplit(s,split=".",fixed=TRUE)[[1]][1]
+}) %>% as.character(.)
+pltT <- ggplot(data=dplyr::filter(tsne.df),
+                       aes(x=V1,y=V2,fill=classification)) + 
+               geom_point(shape=21,alpha=0.8,color="black",size=2) +
+               scale_fill_brewer(palette = "Set1",name="Assigned Tissue") + 
+               theme_classic() + 
+               xlab("TSNE1") + 
+               ylab("TSNE2")
+
+```
+
+
+
+Hierarchical clustering, with Islet 
+
+```{r}
+library("dendextend")
+hc.vec <- 1:dim(full.df)[1]
+hc.df <- full.df[hc.vec,] %>% select(-one_of("Sample"))
+hc.names <- full.df$Sample[hc.vec]
+row.names(hc.df) <- hc.names
+
+```
+
+```{r}
+
+hc.df <- scale(hc.df)
+dist.mat <- dist(hc.df,method="euclidean")
+hclust.avg <- hclust(dist.mat,method="average")
+cut.avg <- cutree(hclust.avg,k=5)
+```
+
+
+```{r}
+#plot(hclust.avg)
+#rect.hclust(hclust.avg,k=4,border=2:7)
+
+avg.dend.obj <- as.dendrogram(hclust.avg)
+avg.col.dend <- color_branches(avg.dend.obj, k = 5)
+plot(avg.col.dend)
+```
+
+# Hierarchical w/o Islet 
+
+Hierarchical clustering, with Islet 
+
+```{r}
+library("dendextend")
+hc.vec2 <- 1:dim(sub.df)[1]
+hc.df2 <- sub.df[hc.vec2,] %>% select(-one_of("Sample"))
+hc.names2 <- sub.df$Sample[hc.vec2]
+row.names(hc.df2) <- hc.names2
+
+```
+
+```{r}
+
+hc.df2 <- scale(hc.df2)
+dist.mat2 <- dist(hc.df2,method="euclidean")
+hclust.avg2 <- hclust(dist.mat2,method="average")
+cut.avg2 <- cutree(hclust.avg2,k=4)
+```
+
+
+```{r}
+#plot(hclust.avg)
+#rect.hclust(hclust.avg,k=4,border=2:7)
+
+avg.dend.obj2 <- as.dendrogram(hclust.avg2)
+avg.col.dend2 <- color_branches(avg.dend.obj2,  h=100)
+plot(avg.col.dend2)
+```
