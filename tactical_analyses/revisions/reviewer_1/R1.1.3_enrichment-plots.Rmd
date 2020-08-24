@@ -160,9 +160,9 @@ All except Adipose(Both) category
 plt3 <- eqtl_enrich_plot(filter(eqtl.df, tissue_eqtl!="Adipose.both"),
                         myname="eQTL enrichment for classifed loci")
 ggsave(plot=plt3,filename = plot.dir %&%
-         "enrichment-eqtl-addVisc.png",width=8,height=7)
+         "enrichment-eqtl-addVisc.png",width=10,height=6)
 ggsave(plot=plt3,filename = plot.dir %&%
-         "enrichment-eqtl-addVisc.pdf",width=8,height=7)
+         "enrichment-eqtl-addVisc.pdf",width=10,height=7)
 
 ```
 
