@@ -107,15 +107,12 @@ eqtl_enrich_plot <- function(enrich.df,myname){
   plt <- ggplot(data=enrich.df,aes(x=threshold,y=enrichment_snpsnap)) + 
     geom_point(color="black",shape=21,size=3,
                aes(fill=-log(pvalue_snpsnap,base=10))) + 
-    facet_wrap(~tissue_eqtl+tissue_toa) + 
+    facet_wrap(~tissue_eqtl+tissue_toa,ncol=6) + 
     theme_bw() + 
     scale_y_log10(breaks=c(0.5,2,10,50)) +
     scale_fill_gradient2(low=viridis(n=50)[48],high=viridis(n=50)[10],
                          mid = viridis(n=50)[40],
                          midpoint=-log(0.05,base=10),name=expression(-log10(p))) + 
-    
-    #scale_size(range=c(2,3.5),name=expression(-log10(p))) + 
-    #scale_x_continuous(breaks=c(0,0.2,0.5,0.8)) + 
     xlab("Threshold") + ylab("Enrichment") + 
     ggtitle(myname) +
     theme(axis.text.x=element_text(vjust=0.6),
@@ -133,10 +130,39 @@ eqtl_enrich_plot <- function(enrich.df,myname){
 plt <- eqtl_enrich_plot(eqtl.df,
                         myname="eQTL enrichment for classifed loci")
 ggsave(plot=plt,filename = plot.dir %&%
-         "enrichment-eqtl-expanded.png",width=8,height=6)
+         "enrichment-eqtl-expanded.png",width=8,height=8)
 ggsave(plot=plt,filename = plot.dir %&%
-         "enrichment-eqtl-expanded.pdf",width=8,height=6)
+         "enrichment-eqtl-expanded.pdf",width=8,height=8)
 
 ```
 
+
+Only adipose results 
+
+```{r}
+
+plt2 <- eqtl_enrich_plot(filter(eqtl.df,
+                                tissue_eqtl%in%c("Adipose.visc","Adipose.sub","Adipose.both")),
+                        myname="eQTL enrichment for classifed loci")
+ggsave(plot=plt2,filename = plot.dir %&%
+         "enrichment-eqtl-adipose.png",width=8,height=4)
+ggsave(plot=plt2,filename = plot.dir %&%
+         "enrichment-eqtl-adipose.pdf",width=8,height=4)
+
+```
+
+
+All except Adipose(Both) category 
+
+
+```{r}
+
+plt3 <- eqtl_enrich_plot(filter(eqtl.df, tissue_eqtl!="Adipose.both"),
+                        myname="eQTL enrichment for classifed loci")
+ggsave(plot=plt3,filename = plot.dir %&%
+         "enrichment-eqtl-addVisc.png",width=8,height=7)
+ggsave(plot=plt3,filename = plot.dir %&%
+         "enrichment-eqtl-addVisc.pdf",width=8,height=7)
+
+```
 
