@@ -43,6 +43,12 @@ col.vec <- c("Sample",gene.vec)
 dup.vec <- col.vec[duplicated(col.vec)]
 col.vec <- col.vec[!(col.vec %in% dup.vec)]
 
+isl.tpm.df <- isl.tpm.df[,names(isl.tpm.df) %in% col.vec]
+liv.tpm.df <- liv.tpm.df[,names(liv.tpm.df) %in% col.vec]
+mus.tpm.df <- mus.tpm.df[,names(mus.tpm.df) %in% col.vec]
+sat.tpm.df <- sat.tpm.df[,names(sat.tpm.df) %in% col.vec]
+vat.tpm.df <- vat.tpm.df[,names(vat.tpm.df) %in% col.vec]
+
 isl.tpm.df <- dplyr::select(isl.tpm.df,one_of(col.vec))
 liv.tpm.df <- dplyr::select(liv.tpm.df,one_of(col.vec))
 mus.tpm.df <- dplyr::select(mus.tpm.df,one_of(col.vec))
@@ -56,7 +62,6 @@ full.df <- rbind(full.df,vat.tpm.df)
 
 
 full.df <- full.df[, colSums(full.df != 0) > 0]
-
 
 
 hc.vec <- 1:dim(full.df)[1]
@@ -73,7 +78,7 @@ euc.mat <- dist.mat %>% as.matrix(.)
 
 
 euc.df <- c()
-pb <- txtProgressBar(min=0,max=dim(euc.mat)[1],style = 3) # 
+pb <- txtProgressBar(min=0,max=dim(euc.mat)[1],style = 3) #
 track.vec <- c()
 for (i in 1:dim(euc.mat)[1]){
   setTxtProgressBar(pb,i)
@@ -94,4 +99,21 @@ for (i in 1:dim(euc.mat)[1]){
 }
 
 write.table(x=euc.df,file=tpm.dir %&% "euclidean-distances.txt",sep="\t",
+            row.names=F,quote=F)
+
+
+diff.df <- c()
+group.vec1 <- euc.df$group1 %>% unique(.)
+group.vec2 <- euc.df$group2 %>% unique(.)
+for (g1 in group.vec1){
+  for (g2 in group.vec2){
+    sub <- filter(euc.df,group1==g1,group2==g2)
+    euc.avg <- sub$distance %>% mean(.)
+    build.df <- data.frame("group1"=g1,"group2"=g2,"avg.euc.dist"=euc.avg,
+                           stringsAsFactors = FALSE)
+    diff.df <- rbind(diff.df,build.df)
+  }
+}
+
+write.table(x=diff.df,file=tpm.dir %&% "average-euclidean-distances.txt",sep="\t",
             row.names=F,quote=F)
