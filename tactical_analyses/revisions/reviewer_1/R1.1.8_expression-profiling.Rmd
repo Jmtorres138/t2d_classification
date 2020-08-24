@@ -104,11 +104,13 @@ pve <- ((pr.out$sdev^2) / (sum(pr.out$sdev^2)) * 100) %>% round(.,1)
 ```
 
 ```{r}
+col.vec <- c("olivedrab1","brown","red","yellow","orange")
+
 
 pltA <- ggplot(data=dplyr::filter(pca.df),
                        aes(x=PC1,y=PC2,fill=classification)) + 
                geom_point(shape=21,alpha=0.8,color="black",size=2) +
-               scale_fill_brewer(palette = "Set1",name="Assigned Tissue") + 
+               scale_fill_manual(values=col.vec,name="Assigned Tissue") + 
                theme_classic() + 
                xlab("PC1 (" %&% pve[1] %&% "%)") + 
                ylab("PC2 (" %&% pve[2] %&% "%)")
@@ -116,7 +118,7 @@ pltA <- ggplot(data=dplyr::filter(pca.df),
 pltB <- ggplot(data=dplyr::filter(pca.df),
                        aes(x=PC2,y=PC3,fill=classification)) + 
                geom_point(shape=21,alpha=0.8,color="black",size=2) + 
-               scale_fill_brewer(palette = "Set1",name="Assigned Tissue") + 
+               scale_fill_manual(values=col.vec,name="Assigned Tissue") + 
                theme_classic() + 
                xlab("PC2 (" %&% pve[2] %&% "%)") + 
                ylab("PC3 (" %&% pve[3] %&% "%)")
@@ -124,7 +126,7 @@ pltB <- ggplot(data=dplyr::filter(pca.df),
 pltC <- ggplot(data=dplyr::filter(pca.df),
                        aes(x=PC3,y=PC4,fill=classification)) + 
                geom_point(shape=21,alpha=0.8,color="black",size=2) + 
-               scale_fill_brewer(palette = "Set1",name="Assigned Tissue") + 
+               scale_fill_manual(values=col.vec,name="Assigned Tissue") + 
                theme_classic() + 
                xlab("PC3 (" %&% pve[3] %&% "%)") + 
                ylab("PC4 (" %&% pve[4] %&% "%)")
@@ -150,12 +152,12 @@ pca.df2$classification <- map(sub.df$Sample,function(s){
 }) %>% as.character(.)
 
 pve2 <- ((pr.out2$sdev^2) / (sum(pr.out2$sdev^2)) * 100) %>% round(.,1)
-
+col.vec2 <- c("brown","red","yellow","orange")
 
 pltAA <- ggplot(data=dplyr::filter(pca.df2),
                        aes(x=PC1,y=PC2,fill=classification)) + 
                geom_point(shape=21,alpha=0.8,color="black",size=2) +
-               scale_fill_brewer(palette = "Set1",name="Assigned Tissue") + 
+               scale_fill_manual(values=col.vec2,name="Assigned Tissue") + 
                theme_classic() + 
                xlab("PC1 (" %&% pve2[1] %&% "%)") + 
                ylab("PC2 (" %&% pve2[2] %&% "%)")
@@ -163,7 +165,7 @@ pltAA <- ggplot(data=dplyr::filter(pca.df2),
 pltBB <- ggplot(data=dplyr::filter(pca.df2),
                        aes(x=PC2,y=PC3,fill=classification)) + 
                geom_point(shape=21,alpha=0.8,color="black",size=2) + 
-               scale_fill_brewer(palette = "Set1",name="Assigned Tissue") + 
+               scale_fill_manual(values=col.vec2,name="Assigned Tissue") + 
                theme_classic() + 
                xlab("PC2 (" %&% pve2[2] %&% "%)") + 
                ylab("PC3 (" %&% pve2[3] %&% "%)")
@@ -171,7 +173,7 @@ pltBB <- ggplot(data=dplyr::filter(pca.df2),
 pltCC <- ggplot(data=dplyr::filter(pca.df2),
                        aes(x=PC3,y=PC4,fill=classification)) + 
                geom_point(shape=21,alpha=0.8,color="black",size=2) + 
-               scale_fill_brewer(palette = "Set1",name="Assigned Tissue") + 
+               scale_fill_manual(values=col.vec2,name="Assigned Tissue") + 
                theme_classic() + 
                xlab("PC3 (" %&% pve2[3] %&% "%)") + 
                ylab("PC4 (" %&% pve2[4] %&% "%)")
@@ -199,7 +201,7 @@ tsne.df$classification <- map(tsne.names,function(s){
 pltT <- ggplot(data=dplyr::filter(tsne.df),
                        aes(x=V1,y=V2,fill=classification)) + 
                geom_point(shape=21,alpha=0.8,color="black",size=2) +
-               scale_fill_brewer(palette = "Set1",name="Assigned Tissue") + 
+               scale_fill_manual(values=col.vec,name="Assigned Tissue") + 
                theme_classic() + 
                xlab("TSNE1") + 
                ylab("TSNE2")
@@ -208,7 +210,7 @@ pltT <- ggplot(data=dplyr::filter(tsne.df),
 
 
 
-Hierarchical clustering, with Islet 
+# Hierarchical clustering, with Islet 
 
 ```{r}
 library("dendextend")
@@ -223,18 +225,51 @@ row.names(hc.df) <- hc.names
 
 hc.df <- scale(hc.df)
 dist.mat <- dist(hc.df,method="euclidean")
-hclust.avg <- hclust(dist.mat,method="average")
-cut.avg <- cutree(hclust.avg,k=5)
+
+euc.mat <- dist.mat %>% as.matrix(.)
+
+#hclust.avg <- hclust(dist.mat,method="average")
+#cut.avg <- cutree(hclust.avg,k=5)
 ```
+
+Determine average pairwise euclidean distance between and within groups! 
 
 
 ```{r}
-#plot(hclust.avg)
-#rect.hclust(hclust.avg,k=4,border=2:7)
 
-avg.dend.obj <- as.dendrogram(hclust.avg)
-avg.col.dend <- color_branches(avg.dend.obj, k = 5)
-plot(avg.col.dend)
+euc.df <- c()
+pb <- txtProgressBar(min=0,max=dim(euc.mat)[1],style = 3) # 
+track.vec <- c()
+for (i in 1:dim(euc.mat)[1]){
+  setTxtProgressBar(pb,i)
+  samp1 <- row.names(euc.mat)[i]
+  group1 <- (samp1 %>% strsplit(.,split=".",fixed=TRUE))[[1]][1]
+  for (j in 1:dim(euc.mat)[2]){
+    samp2 <- colnames(euc.mat)[j]
+    group2 <- (samp2 %>% strsplit(.,split=".",fixed=TRUE))[[1]][1]
+    if (samp2 != samp1 & !(samp2 %in% track.vec)){
+      euc.dist <- euc.mat[i,j]
+      build.df <- data.frame("sample1"=samp1,"sample2"=samp2,
+                             "group1"=group1,"group2"=group2,"distance"=euc.dist,
+                             stringsAsFactors = FALSE)
+      euc.df <- rbind(euc.df,build.df)
+    }
+  }
+  track.vec <- append(track.vec,samp1)
+}
+
+
+```
+
+
+
+```{r}
+##plot(hclust.avg)
+##rect.hclust(hclust.avg,k=4,border=2:7)
+
+#avg.dend.obj <- as.dendrogram(hclust.avg)
+#avg.col.dend <- color_branches(avg.dend.obj, k = 5)
+#plot(avg.col.dend)
 ```
 
 # Hierarchical w/o Islet 
@@ -242,28 +277,28 @@ plot(avg.col.dend)
 Hierarchical clustering, with Islet 
 
 ```{r}
-library("dendextend")
-hc.vec2 <- 1:dim(sub.df)[1]
-hc.df2 <- sub.df[hc.vec2,] %>% select(-one_of("Sample"))
-hc.names2 <- sub.df$Sample[hc.vec2]
-row.names(hc.df2) <- hc.names2
+#library("dendextend")
+#hc.vec2 <- 1:dim(sub.df)[1]
+#hc.df2 <- sub.df[hc.vec2,] %>% select(-one_of("Sample"))
+#hc.names2 <- sub.df$Sample[hc.vec2]
+#row.names(hc.df2) <- hc.names2
 
 ```
 
 ```{r}
 
-hc.df2 <- scale(hc.df2)
-dist.mat2 <- dist(hc.df2,method="euclidean")
-hclust.avg2 <- hclust(dist.mat2,method="average")
-cut.avg2 <- cutree(hclust.avg2,k=4)
+#hc.df2 <- scale(hc.df2)
+#dist.mat2 <- dist(hc.df2,method="euclidean")
+#hclust.avg2 <- hclust(dist.mat2,method="average")
+#cut.avg2 <- cutree(hclust.avg2,k=4)
 ```
 
 
 ```{r}
-#plot(hclust.avg)
-#rect.hclust(hclust.avg,k=4,border=2:7)
+##plot(hclust.avg)
+##rect.hclust(hclust.avg,k=4,border=2:7)
 
-avg.dend.obj2 <- as.dendrogram(hclust.avg2)
-avg.col.dend2 <- color_branches(avg.dend.obj2,  h=100)
-plot(avg.col.dend2)
+#avg.dend.obj2 <- as.dendrogram(hclust.avg2)
+#avg.col.dend2 <- color_branches(avg.dend.obj2,  h=100)
+#plot(avg.col.dend2)
 ```
