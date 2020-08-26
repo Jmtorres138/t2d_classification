@@ -114,6 +114,7 @@ for (g1 in group.vec1){
     diff.df <- rbind(diff.df,build.df)
   }
 }
+diff.df <- na.omit(diff.df)
 
 write.table(x=diff.df,file=tpm.dir %&% "average-euclidean-distances.txt",sep="\t",
             row.names=F,quote=F)
