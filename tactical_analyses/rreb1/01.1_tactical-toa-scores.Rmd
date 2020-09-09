@@ -17,24 +17,15 @@ library("data.table")
 #devtools::install_github("jmtorres138/TACTICAL")
 library("TACTICAL")
 
-serv.dir <- "/home/jason/science/servers/FUSE5/"
+serv.dir <- "/Users/jasont/science/servers/FUSE5/"
 proj.dir <- serv.dir %&% "projects/t2d_classification/"
-work.dir <- proj.dir %&% "tactical_analyses/"
+work.dir <- proj.dir %&% "tactical_analyses/rreb1/"
 input.dir <- work.dir %&% "input_files/"
 file.dir <- work.dir %&% "analysis_files/"
 
 ```
 
-Prepare SNP input file 
 
-```{r}
-
-gen.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt") %>% 
-  dplyr::select(.,one_of("CondID","SNPID","CHR","POS","PPA"))
-names(gen.df) <- c("SIGNAL","SNPID","CHR","POS","VALUE")
-write.table(x=gen.df,file=input.dir %&% "credible-input.txt",sep="\t",quote=F,row.names=F,col.names=T)
-
-```
 
 
 # TACTICAL Steps 1-4 
@@ -54,7 +45,8 @@ snp.df <- annotate_snps(snp_file = input.dir%&%"credible-input.txt",
 
 ```{r}
 
-write.table(x=snp.df,file=file.dir%&%"annotated_snp-file.txt",quote=F,sep="\t",row.names=F)
+#write.table(x=snp.df,file=file.dir%&%"annotated_snp-file.txt",quote=F,sep="\t",row.names=F)
+write.table(x=snp.df,file=file.dir%&%"annotated_snp-file_osteo-dhs.txt",quote=F,sep="\t",row.names=F)
 
 ```
 
@@ -64,14 +56,15 @@ Calculate SNP scores
 ```{r}
 tvec.df <- calculate_tissue_vectors(snp.annotated.df = snp.df,
                                     tissue_annotation_file = input.dir%&%"tissue-annotations.txt", 
-                                    genomic_annotation_file = input.dir%&%"genomic-annotations.txt",
-                                    ess.annot = "coding",
-                                    ess.file = input.dir%&%"gene-expression-specificity-scores.txt")
+                                    genomic_annotation_file = input.dir%&%"genomic-annotations.txt")#,
+                                    #ess.annot = "coding",
+                                    #ess.file = input.dir%&%"gene-expression-specificity-scores.txt")
 ```
 
 ```{r}
 
-write.table(x=tvec.df,file=file.dir%&%"snp-score-file.txt",quote=F,sep="\t",row.names=F)
+#write.table(x=tvec.df,file=file.dir%&%"snp-score-file.txt",quote=F,sep="\t",row.names=F)
+write.table(x=tvec.df,file=file.dir%&%"snp-score-file_osteo-dhs.txt",quote=F,sep="\t",row.names=F)
 
 ```
 
@@ -86,7 +79,8 @@ tscores.df <- calculate_toa_scores(snp.tissvec.df = tvec.df)
 
 ```{r}
 
-write.table(x=tscores.df,file=file.dir%&%"toa-scores.txt",quote=F,sep="\t",row.names=F)
+#write.table(x=tscores.df,file=file.dir%&%"toa-scores.txt",quote=F,sep="\t",row.names=F)
+write.table(x=tscores.df,file=file.dir%&%"toa-scores_osteo-dhs.txt",quote=F,sep="\t",row.names=F)
 
 ```
 
@@ -103,138 +97,46 @@ class80.df <- tissue_classifier(toa.df=tscores.df, tissue_threshold = 0.8, share
 
 ```
 
-
-```{r}
-
-write.table(x=class00.df,file=file.dir%&%"classified_p00.txt",quote=F,sep="\t",row.names=F)
-write.table(x=class20.df,file=file.dir%&%"classified_p20.txt",quote=F,sep="\t",row.names=F)
-write.table(x=class50.df,file=file.dir%&%"classified_p50.txt",quote=F,sep="\t",row.names=F)
-write.table(x=class80.df,file=file.dir%&%"classified_p80.txt",quote=F,sep="\t",row.names=F)
-
-```
+  SIGNAL classification                               tissues
+1   78_2     Osteoblast                            Osteoblast
+2   78_3         Muscle                                Muscle
+3   78_1         shared Adipose,Islet,Liver,Muscle,Osteoblast
 
 
-```{r}
-
-class.df <- tscores.df
-class.df$assigned_00 <- map(class.df$SIGNAL,function(sig){
-  tiss <- filter(class00.df,SIGNAL==sig)$classification 
-  ifelse(tiss=="Islet","islet",
-         ifelse(tiss=="Adipose","adipose",
-                ifelse(tiss=="Muscle","muscle",
-                       ifelse(tiss=="Liver","liver",tiss))))
-}) %>% as.character(.) 
-class.df$assigned_20 <- map(class.df$SIGNAL,function(sig){
-  tiss <- filter(class20.df,SIGNAL==sig)$classification 
-  ifelse(tiss=="Islet","islet",
-         ifelse(tiss=="Adipose","adipose",
-                ifelse(tiss=="Muscle","muscle",
-                       ifelse(tiss=="Liver","liver",tiss))))
-}) %>% as.character(.) 
-class.df$assigned_50 <- map(class.df$SIGNAL,function(sig){
-  tiss <- filter(class50.df,SIGNAL==sig)$classification 
-  ifelse(tiss=="Islet","islet",
-         ifelse(tiss=="Adipose","adipose",
-                ifelse(tiss=="Muscle","muscle",
-                       ifelse(tiss=="Liver","liver",tiss))))
-}) %>% as.character(.) 
-class.df$assigned_80 <- map(class.df$SIGNAL,function(sig){
-  tiss <- filter(class80.df,SIGNAL==sig)$classification 
-  ifelse(tiss=="Islet","islet",
-         ifelse(tiss=="Adipose","adipose",
-                ifelse(tiss=="Muscle","muscle",
-                       ifelse(tiss=="Liver","liver",tiss))))
-}) %>% as.character(.) 
-
-cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt") 
-
-class.df$symbol <- map(class.df$SIGNAL,function(sig){
-  filter(cred.df,CondID==sig)$symbol %>% unique(.)
-}) %>% as.character(.)
-
-names(class.df)[1:5] <- c("Locus.ID","adipose","islet","liver","muscle")
-
-```
+-bash-4.2$ more toa-scores.txt 
+SIGNAL	Adipose	Islet	Liver	Muscle	Osteoblast	unclassified
+78_2	4e-04	0.0585	4e-04	0.0043	0.0849	0.8414
+78_3	9e-04	9e-04	9e-04	0.2667	0.0018	0.722
+78_1	0.1985	0.1985	0.1985	0.1985	0.1985	0
+-bash-4.2$ more toa-scores_v1.txt 
+SIGNAL	Adipose	Islet	Liver	Muscle	Osteoblast	unclassified
+78_2	4e-04	0.0585	4e-04	0.0043	0.0849	0.8414
+78_3	9e-04	9e-04	9e-04	0.2667	0.0018	0.722
+78_1	0.1985	0.1985	0.1985	0.1985	0.1985	0
+-bash-4.2$ more toa-scores_osteo-dhs.txt 
+SIGNAL	Osteoblast	unclassified
+78_2	0.0109	0.9791
+78_3	0.0288	0.9646
+78_1	0.9927	0
 
 
-```{r}
+  Locus.ID     IndexSNP symbol        SNPID  CHR     POS     PPA coding CondID lead.rsid
+1      121 chr6:7231843  RREB1 chr6:7231843 chr6 7231843 0.99266      1   78_1 rs9379084
+NOTE: this maps coding but no "open chromatin" in ChIP-atlas 
 
-write.table(class.df,file.dir%&%"classified-loci_weighted_with-shared.txt",sep="\t",quote=F,row.names=F)
+INDEXSNP: rs112498319; note: 798 SNPs in credible set 
+  Locus.ID     IndexSNP symbol        SNPID  CHR     POS      PPA coding CondID
+1      119 chr6:7035734  RREB1 chr6:7035734 chr6 7035734 0.194430      0   78_2
+2      119 chr6:7035734  RREB1 chr6:7109097 chr6 7109097 0.115610      0   78_2
+3      119 chr6:7035734  RREB1 chr6:7033860 chr6 7033860 0.108780      0   78_2
+4      119 chr6:7035734  RREB1 chr6:7037738 chr6 7037738 0.085869      0   78_2
 
-```
-
-
-
-
-Tissue Classifier without SHARED category (unless exact ties!!!)
-
-
-```{r}
-
-class00.df <- tissue_classifier(toa.df=tscores.df, tissue_threshold = 0.0, shared_threshold = 0.0)
-class20.df <- tissue_classifier(toa.df=tscores.df, tissue_threshold = 0.2, shared_threshold = 0.0)
-class50.df <- tissue_classifier(toa.df=tscores.df, tissue_threshold = 0.5, shared_threshold = 0.0)
-class80.df <- tissue_classifier(toa.df=tscores.df, tissue_threshold = 0.8, shared_threshold = 0.0)
-
-```
+INDEXSNP: rs9505097; note 22 SNPs in credible set 
+  Locus.ID     IndexSNP symbol        SNPID  CHR     POS      PPA coding CondID
+1      120 chr6:7255650  RREB1 chr6:7255650 chr6 7255650 0.184030      0   78_3
+2      120 chr6:7255650  RREB1 chr6:7196323 chr6 7196323 0.143750      0   78_3
+3      120 chr6:7255650  RREB1 chr6:7196324 chr6 7196324 0.135520      0   78_3
+4      120 chr6:7255650  RREB1 chr6:7255610 chr6 7255610 0.067887      0   78_3
 
 
-```{r}
-
-write.table(x=class00.df,file=file.dir%&%"classified_p00_s0.txt",quote=F,sep="\t",row.names=F)
-write.table(x=class20.df,file=file.dir%&%"classified_p20_s0.txt",quote=F,sep="\t",row.names=F)
-write.table(x=class50.df,file=file.dir%&%"classified_p50_s0.txt",quote=F,sep="\t",row.names=F)
-write.table(x=class80.df,file=file.dir%&%"classified_p80_s0.txt",quote=F,sep="\t",row.names=F)
-
-```
-
-
-```{r}
-
-class.df <- tscores.df
-class.df$assigned_00 <- map(class.df$SIGNAL,function(sig){
-  tiss <- filter(class00.df,SIGNAL==sig)$classification 
-  ifelse(tiss=="Islet","islet",
-         ifelse(tiss=="Adipose","adipose",
-                ifelse(tiss=="Muscle","muscle",
-                       ifelse(tiss=="Liver","liver",tiss))))
-}) %>% as.character(.) 
-class.df$assigned_20 <- map(class.df$SIGNAL,function(sig){
-  tiss <- filter(class20.df,SIGNAL==sig)$classification 
-  ifelse(tiss=="Islet","islet",
-         ifelse(tiss=="Adipose","adipose",
-                ifelse(tiss=="Muscle","muscle",
-                       ifelse(tiss=="Liver","liver",tiss))))
-}) %>% as.character(.) 
-class.df$assigned_50 <- map(class.df$SIGNAL,function(sig){
-  tiss <- filter(class50.df,SIGNAL==sig)$classification 
-  ifelse(tiss=="Islet","islet",
-         ifelse(tiss=="Adipose","adipose",
-                ifelse(tiss=="Muscle","muscle",
-                       ifelse(tiss=="Liver","liver",tiss))))
-}) %>% as.character(.) 
-class.df$assigned_80 <- map(class.df$SIGNAL,function(sig){
-  tiss <- filter(class80.df,SIGNAL==sig)$classification 
-  ifelse(tiss=="Islet","islet",
-         ifelse(tiss=="Adipose","adipose",
-                ifelse(tiss=="Muscle","muscle",
-                       ifelse(tiss=="Liver","liver",tiss))))
-}) %>% as.character(.) 
-
-cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt") 
-
-class.df$symbol <- map(class.df$SIGNAL,function(sig){
-  filter(cred.df,CondID==sig)$symbol %>% unique(.)
-}) %>% as.character(.)
-
-names(class.df)[1:5] <- c("Locus.ID","adipose","islet","liver","muscle")
-
-```
-
-
-```{r}
-
-write.table(class.df,file.dir%&%"classified-loci_weighted.txt",sep="\t",quote=F,row.names=F)
-
-```
 
