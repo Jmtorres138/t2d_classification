@@ -15,7 +15,7 @@ analysis.dir <- work.dir %&% "analysis_files/"
 cred.df <- fread(proj.dir %&%"tactical_analyses/genetic_credible_sets/gencred.txt")
 class.df <- fread(proj.dir %&% "tactical_analyses/analysis_files/"
                   %&% "classified-loci_weighted_with-shared.txt")
-het.df <- fread(work.dir %&% "bmi-het-signals.txt")
+het.df <- fread(work.dir %&% "bmi-het-signals_26.txt")
 het.sigs <- het.df$Locus.ID 
 non.het.sigs <- class.df$Locus.ID[!(class.df$Locus.ID %in% het.sigs)]
 
@@ -250,7 +250,7 @@ out.df <- data.frame(annotation_class=c("Repressed.T2Dtiss","Quiescent.T2Dtiss",
                      mean.cum.ppa.non.hetero=c(rep.unclass,qui.unclass,brain.enh.unclass,brain.tss.unclass),
                      pval=c(rep.pval,qui.pval,brain.enh.pval,brain.tss.pval),stringsAsFactors = F)
 
-write.table(x=out.df,file=work.dir%&%"heteroBMI-signal-enrich.txt",sep="\t",quote=F,row.names=F)
+write.table(x=out.df,file=work.dir%&%"heteroBMI-signal-enrich_26.txt",sep="\t",quote=F,row.names=F)
 
 
 

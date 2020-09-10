@@ -29,7 +29,14 @@ Process Mahajan 2018b Table S3
 
 ```{r}
 
-names(ref.df)[c(1,2,3,4,17)] <- c("nearest.gene","index.rsid","chrom","pos","het.p")
+names(ref.df)[c(1,2,3,4,11,15,17)] <- c("nearest.gene","index.rsid","chrom","pos",
+                                        "p.unadj","p.adj","het.p")
+ref.df$p.unadj <- map(ref.df$p.unadj,function(s){
+  gsub("x10","e",s) 
+}) %>% as.numeric(.)
+ref.df$p.adj <- map(ref.df$p.adj,function(s){
+  gsub("x10","e",s) 
+}) %>% as.numeric(.)
 ref.df$het.p <- map(ref.df$het.p,function(s){
   gsub("x10","e",s) 
 }) %>% as.numeric(.)
@@ -37,7 +44,7 @@ ref.df$pos <- map(ref.df$pos,function(s){
   gsub(",","",s) 
 }) %>% as.integer(.)
 het.df <- filter(ref.df,het.p < 0.00012)
-
+het.sub <- filter(het.df,p.unadj < p.adj)
 ```
 
 
@@ -68,5 +75,22 @@ write.table(x=full.df,file=work.dir %&% "bmi-het-signals.txt",
 
 ```
 
+```{r}
+
+full.sub <- c()
+pb <- txtProgressBar(min=0,max=dim(het.sub)[1],style=3)
+for (i in 1:dim(het.sub)[1]){
+  setTxtProgressBar(pb,i)
+  row.df <- het.sub[i,]
+  snp <- row.df$index.rsid
+  signal <- filter(cred.df,lead.rsid==snp)$CondID %>% unique(.)
+  build.df <- filter(toa.df,Locus.ID==signal)
+  full.sub <- rbind(full.sub,build.df)
+}
+
+write.table(x=full.sub,file=work.dir %&% "bmi-het-signals_26.txt",
+            sep="\t",quote=F,row.names=F)
+
+```
 
 
