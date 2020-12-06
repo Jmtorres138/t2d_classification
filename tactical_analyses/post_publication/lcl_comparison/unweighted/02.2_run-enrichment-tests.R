@@ -16,10 +16,10 @@ serv.dir1 <- "/well/got2d/jason/" ## "/home/jason/science/servers/FUSE/" #
 serv.dir2 <- "/well/mccarthy/users/jason/" # "/home/jason/science/servers/FUSE5/" #
 proj.dir <- serv.dir2 %&% "projects/t2d_classification/"
 work.dir0 <- proj.dir %&% "tactical_analyses/"
-work.dir <- proj.dir %&% "tactical_analyses/revisions/reviewer_1/"
+work.dir <- proj.dir %&% "tactical_analyses/post_publication/lcl_comparison/unweighted/"
 out.dir <- work.dir %&% "enrichment_files/eqtls/"
 
-toa.df <- fread(work.dir0 %&% "analysis_files/classified-loci_weighted_with-shared.txt")
+toa.df <- fread(work.dir0 %&% "analysis_files/classified-loci_unweighted_with-shared.txt")
 cred.df <- fread(work.dir0 %&% "genetic_credible_sets/gencred.txt")
 
 snpsnap.df <- fread(out.dir %&% "SNPsnap_oneK_5_20_20_50_rsq5/matched_snps.txt") # Note that only 359/380 (94%) signals were matched with SNPSNAP
@@ -28,9 +28,8 @@ snpsnap.df <- fread(out.dir %&% "SNPsnap_oneK_5_20_20_50_rsq5/matched_snps.txt")
 isl.spec <- fread(out.dir %&% "islet-specific-esnps.txt",sep="\t",header=FALSE)$V1
 mus.spec <- fread(out.dir %&% "muscle-specific-esnps.txt",sep="\t",header=FALSE)$V1
 liv.spec <- fread(out.dir %&% "liver-specific-esnps.txt",sep="\t",header=FALSE)$V1
-adi.visc.spec <- fread(out.dir %&% "adipose-visc-specific-esnps.txt",sep="\t",header=FALSE)$V1
+adi.visc.spec <- fread(out.dir %&% "lcl-specific-esnps.txt",sep="\t",header=FALSE)$V1
 adi.sub.spec <- fread(out.dir %&% "adipose-sub-specific-esnps.txt",sep="\t",header=FALSE)$V1
-adi.union.spec <- fread(out.dir %&% "adipose-union-specific-esnps.txt",sep="\t",header=FALSE)$V1
 
 
 stringToQuoser <- function(varName) {
@@ -86,8 +85,8 @@ enrich_test_snpsnap <- function(query.vec, eqtl.vec){
 
 get_build_df <- function(tissue,threshold){
   query.vec <- extract_query_vec(tissue,threshold)
-  eqtl.list <- list(isl.spec,mus.spec,liv.spec,adi.visc.spec,adi.sub.spec,adi.union.spec)
-  eqtl.names <- c("islet","muscle","liver","adipose.visc","adipose.sub","adipose.both")
+  eqtl.list <- list(isl.spec,mus.spec,liv.spec,lcl.spec,adi.sub.spec)
+  eqtl.names <- c("islet","muscle","liver","lcl","adipose.sub")
   out.df <- c()
   for (i in 1:length(eqtl.list)){
     eqtl.vec = eqtl.list[[i]]
@@ -104,7 +103,7 @@ get_build_df <- function(tissue,threshold){
 
 build_enrich_df <- function(){
   out.df <- c()
-  tiss.vec <- c("islet","liver","muscle","adipose","shared","unclassified")
+  tiss.vec <- c("islet","liver","lcl","muscle","adipose","shared","unclassified")
   thresh.vec <- c("00","20","50","80")
   out.df <- c()
   for (tiss in tiss.vec){
