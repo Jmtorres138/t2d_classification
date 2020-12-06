@@ -1,0 +1,68 @@
+
+
+"%&%" <- function(a,b) paste0(a,b)
+
+library("tidyverse")
+library("data.table")
+library("Homo.sapiens")
+
+serv.dir1 <- "/well/got2d/jason/"
+serv.dir2 <- "/well/mccarthy/users/jason/"
+proj.dir <- serv.dir2 %&% "projects/t2d_classification/"
+work.dir <- proj.dir %&% "tactical_analyses/post_publication/lcl_comparison/unweighted/"
+gtex.dir <- serv.dir2 %&% "datasets/GTEx/v7/eqtl/GTEx_Analysis_v7_eQTL/"
+out.dir <- work.dir %&% "enrichment_files/eqtls/"
+
+liv.df <- fread("cat " %&% gtex.dir %&% "Liver.v7.signif_variant_gene_pairs.txt.gz" %&% " | zmore")
+pb <- txtProgressBar(min=0,max=dim(liv.df)[1],style=3)
+liv.eqtls <- map(1:length(liv.df$variant_id),function(i){
+  setTxtProgressBar(pb,i)
+  vec <- liv.df$variant_id[i] %>% strsplit(.,split="_")
+  id <- vec[[1]][1] %&% ":" %&% vec[[1]][2]
+}) %>% as.character(.) %>% unique(.)
+
+mus.df <- fread("cat " %&% gtex.dir %&% "Muscle_Skeletal.v7.signif_variant_gene_pairs.txt.gz" %&% " | zmore")
+pb <- txtProgressBar(min=0,max=dim(mus.df)[1],style=3)
+mus.eqtls <- map(1:length(mus.df$variant_id),function(i){
+  setTxtProgressBar(pb,i)
+  vec <- mus.df$variant_id[i] %>% strsplit(.,split="_")
+  id <- vec[[1]][1] %&% ":" %&% vec[[1]][2]
+}) %>% as.character(.) %>% unique(.)
+
+adi.sub.df <- fread("cat " %&% gtex.dir %&% "Adipose_Subcutaneous.v7.signif_variant_gene_pairs.txt.gz" %&% " | zmore")
+pb <- txtProgressBar(min=0,max=dim(adi.sub.df)[1],style=3)
+adi.sub.eqtls <- map(1:length(adi.sub.df$variant_id),function(i){
+  setTxtProgressBar(pb,i)
+  vec <- adi.sub.df$variant_id[i] %>% strsplit(.,split="_")
+  id <- vec[[1]][1] %&% ":" %&% vec[[1]][2]
+}) %>% as.character(.) %>% unique(.)
+
+lcl.df <- fread("cat " %&% gtex.dir %&% "Cells_EBV-transformed_lymphocytes.v7.signif_variant_gene_pairs.txt.gz" %&% " | zmore")
+pb <- txtProgressBar(min=0,max=dim(lcl.df)[1],style=3)
+lcl.eqtls <- map(1:length(lcl.df$variant_id),function(i){
+  setTxtProgressBar(pb,i)
+  vec <- lcl.df$variant_id[i] %>% strsplit(.,split="_")
+  id <- vec[[1]][1] %&% ":" %&% vec[[1]][2]
+}) %>% as.character(.) %>% unique(.)
+
+fastqtl.df <- fread("cat " %&% out.dir %&% "snp_keyfile_fdr05.txt.gz" %&% " | zmore")
+pb <- txtProgressBar(min=0,max=dim(fastqtl.df)[1],style=3)
+fastqtl.eqtls <- map(1:dim(fastqtl.df)[1],function(i){
+  setTxtProgressBar(pb,i)
+  vec <- c(fastqtl.df$CHR[i],fastqtl.df$POS[i])
+  id <- strsplit(vec[1],split="chr")[[1]][2] %&% ":" %&% vec[2]
+}) %>% as.character(.)
+
+islet.eqtls  <-  fastqtl.eqtls
+
+isl.spec <- islet.eqtls[!(islet.eqtls %in% c(mus.eqtls,liv.eqtls,adi.sub.eqtls))]
+mus.spec <- mus.eqtls[!(mus.eqtls %in% c(islet.eqtls,liv.eqtls,adi.sub.eqtls))]
+liv.spec <- liv.eqtls[!(liv.eqtls %in% c(islet.eqtls,adi.sub.eqtls,mus.eqtls))]
+lcl.spec <- lcl.eqtls[!(lcl.eqtls %in% c(islet.eqtls,liv.eqtls,mus.eqtls,adi.sub.eqtls))]
+adi.sub.spec <- adi.sub.eqtls[!(adi.sub.eqtls %in% c(islet.eqtls,liv.eqtls,mus.eqtls,lcl.eqtls))]
+
+write.table(x=isl.spec,file=out.dir %&% "islet-specific-esnps.txt",sep="\t",quote=F,row.names=F,col.names=F)
+write.table(x=mus.spec,file=out.dir %&% "muscle-specific-esnps.txt",sep="\t",quote=F,row.names=F,col.names=F)
+write.table(x=lcl.spec,file=out.dir %&% "lcl-specific-esnps.txt",sep="\t",quote=F,row.names=F,col.names=F)
+write.table(x=adi.sub.spec,file=out.dir %&% "adipose-sub-specific-esnps.txt",sep="\t",quote=F,row.names=F,col.names=F)
+write.table(x=liv.spec,file=out.dir %&% "liver-specific-esnps.txt",sep="\t",quote=F,row.names=F,col.names=F)
