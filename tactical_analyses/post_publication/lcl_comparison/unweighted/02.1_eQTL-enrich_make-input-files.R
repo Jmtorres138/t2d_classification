@@ -4,7 +4,7 @@
 
 library("tidyverse")
 library("data.table")
-library("Homo.sapiens")
+#library("Homo.sapiens")
 
 serv.dir1 <- "/well/got2d/jason/"
 serv.dir2 <- "/well/mccarthy/users/jason/"
