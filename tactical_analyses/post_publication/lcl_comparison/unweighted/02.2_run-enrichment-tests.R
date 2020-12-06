@@ -28,7 +28,7 @@ snpsnap.df <- fread(out.dir %&% "SNPsnap_oneK_5_20_20_50_rsq5/matched_snps.txt")
 isl.spec <- fread(out.dir %&% "islet-specific-esnps.txt",sep="\t",header=FALSE)$V1
 mus.spec <- fread(out.dir %&% "muscle-specific-esnps.txt",sep="\t",header=FALSE)$V1
 liv.spec <- fread(out.dir %&% "liver-specific-esnps.txt",sep="\t",header=FALSE)$V1
-adi.visc.spec <- fread(out.dir %&% "lcl-specific-esnps.txt",sep="\t",header=FALSE)$V1
+lcl.spec <- fread(out.dir %&% "lcl-specific-esnps.txt",sep="\t",header=FALSE)$V1
 adi.sub.spec <- fread(out.dir %&% "adipose-sub-specific-esnps.txt",sep="\t",header=FALSE)$V1
 
 
