@@ -22,9 +22,10 @@ library("GenomicRanges")
 library('rtracklayer')
 library("GenABEL")
 
-fuse.path <- "/home/jason/science/servers/"
+fuse.path <- "/Users/jasont/science/servers/"
 serv.dir <- fuse.path %&% "FUSE5/"
-work.dir <- serv.dir %&% "projects/t2d_classification/"
+work.dir <- serv.dir %&% "projects/t2d_classification/tactical_analyses/" %&% 
+  "post_publication/lcl_comparison/unweighted/"
 afile.dir <- work.dir %&% "analysis_files/"
 gtex.dir <- serv.dir %&% "datasets/GTEx/v7/"
 
@@ -83,73 +84,12 @@ Note of the gene that interect, lengths seem to be mostly concordant, however, t
 
 # Oxford Islets (Unstranded)
 
-```{r}
-
-#vcf.dir <- "/well/mccarthy/projects/118_islets_vandeBunt_plosgen_2015/genotypes/"
-# Id file info obtained from header line in any file from vcf.dir 
-id.df <- fread(work.dir %&% "input_data/oxford-islet-ids.txt")
-id.vec <- id.df$ID
-#exp.dir <- "/well/got2d/rna-seq/data/Oxford_islets/unstranded_libraries/"
-# Count data copied from exp.dir data above 
-unstranded.df <- fread(work.dir %&% "input_data/28.03.2017.unstranded_libraries.gene.counts.tsv")
-stranded.df <- fread(work.dir %&% "input_data/17.03.2017.stranded_libraries.gene.counts.tsv")
-
-
-islet.df <- inner_join(unstranded.df,stranded.df,by="GeneID") %>% 
-  dplyr::select(.,one_of("GeneID","GeneName.x",id.vec))
-
-#Warning message:
-#Unknown variables: `H262`, `ISL-79`, `R032`, `R036` # Legacy samples, much lower read depths, wouldn't want to use these anyways, use the 114 
-# These IDs are not available in the count matrices 
-
-ensids <- islet.df$GeneID
-symb.vec <-islet.df$GeneName.x
-ensid.vec <- ensids 
-pb <- txtProgressBar(min=0,max=length(ensid.vec),style=3)
-gl.vec <- purrr::map(1:length(ensid.vec),function(i){
-  setTxtProgressBar(pb,i)
-  ens <- ensid.vec[i]
-  filter(ensid.v2.df,ensid==ens)$gene.length
-}) %>% as.integer(.) 
-
-gl.df <- data.frame(ensembl=ensids,symbol=symb.vec,ensid=ensid.vec,gene.length=gl.vec,
-                    stringsAsFactors = FALSE)
-
-```
-
 
 ## TPM Normalization 
 
 
 ```{r}
 
-gl.kb.vec <- gl.vec /1000 # gene lengths in kilo bases 
-step1.mat <- dplyr::select(islet.df,-one_of("GeneID","GeneName.x")) %>% as.matrix(.)
-row.names(step1.mat) <- islet.df$GeneID
-#step2.mat <- (step1.mat / gl.vec) %>% na.omit(.)
-step2.mat <- (step1.mat / gl.kb.vec) %>% na.omit(.)
-
-norm.factors <- colSums(step2.mat) / 1e6
-
-for (i in 1:dim(step2.mat)[2]){
-  nf <- norm.factors[i]
-  step2.mat[,i] <- step2.mat[,i] / nf 
-}
-
-pb <- txtProgressBar(min=0,max=length(row.names(step2.mat)),style=3)
-GeneName=purrr::map(1:length(row.names(step2.mat)),function(i){
-  setTxtProgressBar(pb,i)
-  id <- row.names(step2.mat)[i];
-  filter(islet.df,GeneID==id)$GeneName.x}) %>% as.character(.)
-
-islet.tpm.df <- cbind(GeneID=row.names(step2.mat),
-                      GeneName,
-                        as.data.frame(step2.mat))
-islet.tpm.df$GeneID <- as.character(islet.tpm.df$GeneID)
-islet.tpm.df$GeneName <- as.character(islet.tpm.df$GeneName)
-
-write.table(islet.tpm.df,file=afile.dir%&%"islet_expression_tpm_v1.txt",
-            sep="\t",quote=F,row.names=F)
 islet.tpm.df <- fread(afile.dir%&%"islet_expression_tpm_v1.txt")
 
 ```
@@ -159,49 +99,6 @@ islet.tpm.df <- fread(afile.dir%&%"islet_expression_tpm_v1.txt")
 
 ```{r}
 
-all.ids <- c(names(unstranded.df)[3:length(names(unstranded.df))],
-            names(stranded.df)[3:length(names(stranded.df))]) %>% unique(.)
-id.vec2 <- all.ids[all.ids%in%ins.ids] # Get sample names for those included in InsPIRE 
-islet.df2 <- inner_join(unstranded.df,stranded.df,by="GeneID") %>% 
-  dplyr::select(.,one_of("GeneID","GeneName.x",id.vec2))
-ensids2 <- islet.df2$GeneID
-symb.vec2 <-islet.df2$GeneName.x
-ensid.vec2 <- ensids2 
-pb <- txtProgressBar(min=0,max=length(ensid.vec2),style=3)
-gl.vec2 <- purrr::map(1:length(ensid.vec2),function(i){
-  setTxtProgressBar(pb,i)
-  ens <- ensid.vec2[i]
-  filter(ensid.v2.df,ensid==ens)$gene.length
-}) %>% as.integer(.) 
-
-gl.df2 <- data.frame(ensembl=ensids2,symbol=symb.vec2,ensid=ensid.vec2,gene.length=gl.vec2,
-                    stringsAsFactors = FALSE)
-gl.kb.vec2 <- gl.vec2 /1000 # gene lengths in kilo bases 
-step1.mat2 <- dplyr::select(islet.df2,-one_of("GeneID","GeneName.x")) %>% as.matrix(.)
-row.names(step1.mat2) <- islet.df2$GeneID
-step2.mat2 <- (step1.mat2 / gl.kb.vec2) %>% na.omit(.)
-
-norm.factors2 <- colSums(step2.mat2) / 1e6
-
-for (i in 1:dim(step2.mat2)[2]){
-  nf <- norm.factors2[i]
-  step2.mat2[,i] <- step2.mat2[,i] / nf 
-}
-
-pb <- txtProgressBar(min=0,max=length(row.names(step2.mat2)),style=3)
-GeneName=purrr::map(1:length(row.names(step2.mat2)),function(i){
-  setTxtProgressBar(pb,i)
-  id <- row.names(step2.mat2)[i];
-  filter(islet.df2,GeneID==id)$GeneName.x}) %>% as.character(.)
-
-islet.tpm.df2 <- cbind(GeneID=row.names(step2.mat2),
-                      GeneName,
-                        as.data.frame(step2.mat2))
-islet.tpm.df2$GeneID <- as.character(islet.tpm.df2$GeneID)
-islet.tpm.df2$GeneName <- as.character(islet.tpm.df2$GeneName)
-
-write.table(islet.tpm.df2,file=afile.dir%&%"islet_expression_tpm_v2.txt",
-            sep="\t",quote=F,row.names=F)
 islet.tpm.df2 <- fread(afile.dir%&%"islet_expression_tpm_v2.txt")
 
 ```
@@ -219,6 +116,7 @@ unique(samp.df$SMTSD)
 mus.ids <- filter(samp.df,SMTSD=="Muscle - Skeletal")$SAMPID
 adi.ids <- filter(samp.df,SMTSD=="Adipose - Subcutaneous")$SAMPID
 liv.ids <- filter(samp.df,SMTSD=="Liver")$SAMPID
+lcl.ids <- filter(samp.df,SMTSD=="Cells - EBV-transformed lymphocytes")$SAMPID
 
 expr.df <- fread(gtex.dir %&% "expression/GTEx_Analysis_2016-01-15_v7_RNASeQCv1.1.8_gene_reads.gct")
 # Note: ran the above lines in the server due to the memory requirements, after subsetting, ran remaining analysis here 
@@ -226,16 +124,19 @@ expr.df <- fread(gtex.dir %&% "expression/GTEx_Analysis_2016-01-15_v7_RNASeQCv1.
 mus.df <- dplyr::select(expr.df,one_of("Name","Description",mus.ids))
 adi.df <- dplyr::select(expr.df,one_of("Name","Description",adi.ids))
 liv.df <- dplyr::select(expr.df,one_of("Name","Description",liv.ids))
-write.table(mus.df,file=gtex.dir%&%"expression/muscle_counts.txt",
-            sep="\t",quote=F,row.names=F)
-write.table(adi.df,file=gtex.dir%&%"expression/adipose_counts.txt",
-            sep="\t",quote=F,row.names=F)
-write.table(liv.df,file=gtex.dir%&%"expression/liver_counts.txt",
+lcl.df <- dplyr::select(expr.df,one_of("Name","Description",lcl.ids))
+#write.table(mus.df,file=gtex.dir%&%"expression/muscle_counts.txt",
+#            sep="\t",quote=F,row.names=F)
+#write.table(adi.df,file=gtex.dir%&%"expression/adipose_counts.txt",
+#            sep="\t",quote=F,row.names=F)
+#write.table(liv.df,file=gtex.dir%&%"expression/liver_counts.txt",
+#            sep="\t",quote=F,row.names=F)
+write.table(lcl.df,file=gtex.dir%&%"expression/lcl_counts.txt",
             sep="\t",quote=F,row.names=F)
 mus.df <- fread(gtex.dir%&%"expression/muscle_counts.txt")
 adi.df <- fread(gtex.dir%&%"expression/adipose_counts.txt")
 liv.df <- fread(gtex.dir%&%"expression/liver_counts.txt")
-
+lcl.df <- fread(gtex.dir%&%"expression/lcl_counts.txt")
 ```
 
 ## GTEx TPM Normalization 
@@ -243,6 +144,7 @@ liv.df <- fread(gtex.dir%&%"expression/liver_counts.txt")
 ```{r}
 
 all(mus.df$Name == adi.df$Name) & all(mus.df$Name ==liv.df$Name) # Check 
+all(mus.df$Name ==lcl.df$Name)
 
 ensid.vec <- mus.df$Name
 symb.vec <-mus.df$Description
@@ -294,166 +196,7 @@ gtex_tpm_normalize <- function(df,gl.vec,tissue.name){
 mus.tpm.df <- gtex_tpm_normalize(mus.df,gl.vec,"muscle")
 adi.tpm.df <- gtex_tpm_normalize(adi.df,gl.vec,"adipose")
 liv.tpm.df <- gtex_tpm_normalize(liv.df,gl.vec,"liver")
-
-```
-
-
-
-
-
-# RNTransfrom 
-
-```{r}
-
-islet.tpm.df <- fread(afile.dir%&%"islet_expression_tpm.txt")
-mus.tpm.df <- fread(afile.dir%&%"muscle"%&%"_expression_tpm.txt")  
-adi.tpm.df <- fread(afile.dir%&%"adipose"%&%"_expression_tpm.txt")  
-liv.tpm.df <- fread(afile.dir%&%"liver"%&%"_expression_tpm.txt")  
-
-test.df <- summarise(islet.tpm.df,islet=mean("H186":"R051"))
-
-average_tpm_rn <- function(tpm.df){
-  out.df <- c()
-  pb <- txtProgressBar(min=0,max=dim(tpm.df)[1],style=3)
-  for (i in 1:(dim(tpm.df)[1])){
-    setTxtProgressBar(pb,i)
-    GeneID <- tpm.df$GeneID[i]
-    GeneName <- tpm.df$GeneName[i]
-    Avg <- tpm.df[i,3:dim(tpm.df)[2]] %>% as.numeric(.) %>% mean(.)
-    build.df <- data.frame(GeneID,GeneName,Avg,stringsAsFactors = FALSE)
-    out.df <- rbind(out.df,build.df)
-  }
-  RN <- rntransform(out.df$Avg)
-  out.df$RN <- RN
-  return(out.df)
-}
-
-average_tpm_rr <- function(tpm.df){ # Reverse Rank approach # alternative
-  out.df <- c()
-  pb <- txtProgressBar(min=0,max=dim(tpm.df)[1],style=3)
-  for (i in 1:(dim(tpm.df)[1])){
-    setTxtProgressBar(pb,i)
-    GeneID <- tpm.df$GeneID[i]
-    GeneName <- tpm.df$GeneName[i]
-    Avg <- tpm.df[i,3:dim(tpm.df)[2]] %>% as.numeric(.) %>% mean(.)
-    build.df <- data.frame(GeneID,GeneName,Avg,stringsAsFactors = FALSE)
-    out.df <- rbind(out.df,build.df)
-  }
-  RN <- rank(out.df$Avg)
-  out.df$RN <- RN
-  return(out.df)
-}
-
-build_rn_df <- function(){
-  df1 <- average_tpm_rn(islet.tpm.df)
-  df2 <- average_tpm_rn(mus.tpm.df)
-  df3 <- average_tpm_rn(adi.tpm.df)
-  df4 <- average_tpm_rn(liv.tpm.df)
-  df <- inner_join(df1,df2,by="GeneID")
-  df <- inner_join(df,df3,by="GeneID")
-  df <- inner_join(df,df4,by="GeneID")
-  df <- dplyr::select(df,one_of("GeneID","GeneName.x","RN.x","RN.y","RN.x.x","RN.y.y"))
-  names(df) <- c("GeneID","GeneName","islet","muscle","adipose","liver")
-  return(df)
-}
-
-build_rr_df <- function(){
-  df1 <- average_tpm_rr(islet.tpm.df)
-  df2 <- average_tpm_rr(mus.tpm.df)
-  df3 <- average_tpm_rr(adi.tpm.df)
-  df4 <- average_tpm_rr(liv.tpm.df)
-  df <- inner_join(df1,df2,by="GeneID")
-  df <- inner_join(df,df3,by="GeneID")
-  df <- inner_join(df,df4,by="GeneID")
-  df <- dplyr::select(df,one_of("GeneID","GeneName.x","RN.x","RN.y","RN.x.x","RN.y.y"))
-  names(df) <- c("GeneID","GeneName","islet","muscle","adipose","liver")
-  return(df)
-}
-
-ess_rn_scores <- function(rn.df){
-  rn.df$islet <- rn.df$islet 
-  rn.df$muscle <- rn.df$muscle  
-  rn.df$adipose <- rn.df$adipose 
-  rn.df$liver <- rn.df$liver 
-  out.df <- c()
-  pb <- txtProgressBar(min=0,max=dim(rn.df)[1],style=3)
-  for (i in 1:dim(rn.df)[1]){
-    setTxtProgressBar(pb,i)
-    tot <- dplyr::select(rn.df[i,],-one_of("GeneID","GeneName")) %>% as.numeric(.) %>% sum(.)
-    ens <- rn.df$GeneID[i]; ensname <- rn.df$GeneName[i]
-    
-    if (tot<0){
-      islet.score <- 0.25
-      muscle.score <- 0.25
-      adipose.score <- 0.25
-      liver.score <- 0.25     
-    } else{
-      vec <- dplyr::select(rn.df[i,],-one_of("GeneID","GeneName")) %>%
-        as.numeric(.)
-      vec[vec<0] <- 0
-      tot <- vec %>% sum(.)
-      val <- ifelse(rn.df$islet[i]>0,rn.df$islet[i],0)
-      islet.score <- val / tot
-      val <- ifelse(rn.df$muscle[i]>0,rn.df$muscle[i],0)
-      muscle.score <- val / tot
-      val <- ifelse(rn.df$adipose[i]>0,rn.df$adipose[i],0)
-      adipose.score <- val / tot
-      val <- ifelse(rn.df$liver[i]>0,rn.df$liver[i],0)
-      liver.score <- val / tot      
-    }
-
-    build.df <- data.frame(GeneID=ens,GeneName=ensname,islet.score,muscle.score,
-                           adipose.score,liver.score,stringsAsFactors=FALSE)
-    out.df <- rbind(out.df,build.df)
-  }
-  return(out.df)
-}
-
-ess_rr_scores <- function(rr.df){
-  rr.df$islet <- rr.df$islet 
-  rr.df$muscle <- rr.df$muscle 
-  rr.df$adipose <- rr.df$adipose 
-  rr.df$liver <- rr.df$liver 
-  out.df <- c()
-  pb <- txtProgressBar(min=0,max=dim(rr.df)[1],style=3)
-  for (i in 1:dim(rn.df)[1]){
-    setTxtProgressBar(pb,i)
-    tot <- dplyr::select(rr.df[i,],-one_of("GeneID","GeneName")) %>% as.numeric(.) %>% sum(.)
-    ens <- rr.df$GeneID[i]; ensname <- rr.df$GeneName[i]
-    islet.score <- rr.df$islet[i] / tot
-    muscle.score <- rr.df$muscle[i] / tot
-    adipose.score <- rr.df$adipose[i] / tot
-    liver.score <- rr.df$liver[i] / tot
-    build.df <- data.frame(GeneID=ens,GeneName=ensname,islet.score,muscle.score,
-                           adipose.score,liver.score,stringsAsFactors=FALSE)
-    out.df <- rbind(out.df,build.df)
-  }
-  return(out.df)
-}
-
-
-```
-
-
-```{r}
-
-rn.df <- build_rn_df()
-write.table(rn.df,file=afile.dir%&%
-            "rntransform.txt",
-            sep="\t",quote=F,row.names=F)
-#rn.df <- fread(afile.dir%&%"rntransform.txt")
-
-rr.df <- build_rr_df()
-write.table(rr.df,file=afile.dir%&%
-            "reverse-rank.txt",
-            sep="\t",quote=F,row.names=F)
-#rr.df <- fread(afile.dir%&%"reverse-rank.txt")
-
-
-ess.rn.df <- ess_rn_scores(rn.df)
-write.table(ess.rn.df,file=afile.dir%&%"expression_specificity_scores-rntransform.txt",
-            sep="\t",quote=F,row.names=F)
-
+lcl.tpm.df <- gtex_tpm_normalize(liv.df,gl.vec,"lcl")
 ```
 
 
@@ -466,7 +209,7 @@ all(islet.tpm.df$GeneID %in% mus.tpm.df$GeneID)
 all(mus.tpm.df$GeneID %in% islet.tpm.df$GeneID)
 all(adi.tpm.df$GeneID == mus.tpm.df$GeneID)
 all(liv.tpm.df$GeneID == mus.tpm.df$GeneID)
-
+all(lcl.tpm.df$GeneID == mus.tpm.df$GeneID)
 
 build_ess_df <- function(){
   ess.df <- c() 
@@ -480,12 +223,17 @@ build_ess_df <- function(){
     mus.vec <- filter(mus.tpm.df,GeneID==ens) %>% dplyr::select(.,-one_of("GeneID","GeneName")) %>% as.numeric(.)
     adi.vec <- filter(adi.tpm.df,GeneID==ens) %>% dplyr::select(.,-one_of("GeneID","GeneName")) %>% as.numeric(.)
     liv.vec <- filter(liv.tpm.df,GeneID==ens) %>% dplyr::select(.,-one_of("GeneID","GeneName")) %>% as.numeric(.)
-    tot <- median(islet.vec) + median(mus.vec) + median(adi.vec) + median(liv.vec) 
+    lcl.vec <- filter(lcl.tpm.df,GeneID==ens) %>% dplyr::select(.,-one_of("GeneID","GeneName")) %>% as.numeric(.)
+
+    tot <- median(islet.vec) + median(mus.vec) + median(adi.vec) + median(liv.vec) + median(lcl.vec) 
     islet.score <- median(islet.vec) / tot 
     muscle.score <- median(mus.vec) / tot 
     adipose.score <- median(adi.vec) / tot 
     liver.score <- median(liv.vec) / tot 
-    build.df <- data.frame(GeneID=ens,GeneName=ensname,islet.score,muscle.score,adipose.score,liver.score,stringsAsFactors=FALSE)
+    lcl.score <- median(lcl.vec) / tot 
+    build.df <- data.frame(GeneID=ens,GeneName=ensname,islet.score,muscle.score,
+                           adipose.score,liver.score,lcl.score,
+                           stringsAsFactors=FALSE)
     ess.df <- rbind(ess.df,build.df)
   }
   return(ess.df)
@@ -497,6 +245,7 @@ write.table(ess.df,file=afile.dir%&%"expression_specificity_scores_v1.txt",
             sep="\t",quote=F,row.names=F)
 
 ```
+
 ```{r}
 
 build_ess_df_v2 <- function(){
@@ -511,12 +260,17 @@ build_ess_df_v2 <- function(){
     mus.vec <- filter(mus.tpm.df,GeneID==ens) %>% dplyr::select(.,-one_of("GeneID","GeneName")) %>% as.numeric(.)
     adi.vec <- filter(adi.tpm.df,GeneID==ens) %>% dplyr::select(.,-one_of("GeneID","GeneName")) %>% as.numeric(.)
     liv.vec <- filter(liv.tpm.df,GeneID==ens) %>% dplyr::select(.,-one_of("GeneID","GeneName")) %>% as.numeric(.)
-    tot <- median(islet.vec) + median(mus.vec) + median(adi.vec) + median(liv.vec) 
+    lcl.vec <- filter(lcl.tpm.df,GeneID==ens) %>% dplyr::select(.,-one_of("GeneID","GeneName")) %>% as.numeric(.)
+    tot <- median(islet.vec) + median(mus.vec) + median(adi.vec) + median(liv.vec) + median(lcl.vec) 
     islet.score <- median(islet.vec) / tot 
     muscle.score <- median(mus.vec) / tot 
     adipose.score <- median(adi.vec) / tot 
     liver.score <- median(liv.vec) / tot 
-    build.df <- data.frame(GeneID=ens,GeneName=ensname,islet.score,muscle.score,adipose.score,liver.score,stringsAsFactors=FALSE)
+    lcl.score <- median(lcl.vec) / tot 
+
+    build.df <- data.frame(GeneID=ens,GeneName=ensname,islet.score,muscle.score,
+                           adipose.score,liver.score,lcl.score,
+                           stringsAsFactors=FALSE)
     ess.df <- rbind(ess.df,build.df)
   }
   return(ess.df)
