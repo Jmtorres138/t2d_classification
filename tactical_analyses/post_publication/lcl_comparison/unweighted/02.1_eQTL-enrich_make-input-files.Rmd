@@ -1,5 +1,5 @@
 ---
-title: "14.1_eQTL-enrich-revamp-make-inputs.Rmd"
+title: "02.1"
 output: html_document
 ---
 
@@ -17,10 +17,10 @@ library("tidyverse")
 library("data.table")
 library("Homo.sapiens")
 
-serv.dir1 <- "/Users/jasont/science/servers/FUSE/" 
-serv.dir2 <- "/Users/jasont/science/servers/FUSE5/" 
+serv.dir1 <- "/Users/jasont/science/servers/FUSE/"
+serv.dir2 <- "/Users/jasont/science/servers/FUSE5/"
 proj.dir <- serv.dir2 %&% "projects/t2d_classification/"
-work.dir <- proj.dir %&% "tactical_analyses/revisions/reviewer_1/"
+work.dir <- proj.dir %&% "tactical_analyses/post_publication/lcl_comparison/unweighted/"
 gtex.dir <- serv.dir2 %&% "datasets/GTEx/v7/eqtl/GTEx_Analysis_v7_eQTL/"
 out.dir <- work.dir %&% "enrichment_files/eqtls/"
 
@@ -55,11 +55,11 @@ adi.sub.eqtls <- map(1:length(adi.sub.df$variant_id),function(i){
   id <- vec[[1]][1] %&% ":" %&% vec[[1]][2]
 }) %>% as.character(.) %>% unique(.)
 
-adi.visc.df <- fread("cat " %&% gtex.dir %&% "Adipose_Visceral_Omentum.v7.signif_variant_gene_pairs.txt.gz" %&% " | zmore")
-pb <- txtProgressBar(min=0,max=dim(adi.visc.df)[1],style=3)
-adi.visc.eqtls <- map(1:length(adi.visc.df$variant_id),function(i){
+lcl.df <- fread("cat " %&% gtex.dir %&% "Cells_EBV-transformed_lymphocytes.v7.signif_variant_gene_pairs.txt.gz" %&% " | zmore")
+pb <- txtProgressBar(min=0,max=dim(lcl.df)[1],style=3)
+lcl.eqtls <- map(1:length(lcl.df$variant_id),function(i){
   setTxtProgressBar(pb,i)
-  vec <- adi.visc.df$variant_id[i] %>% strsplit(.,split="_")
+  vec <- lcl.df$variant_id[i] %>% strsplit(.,split="_")
   id <- vec[[1]][1] %&% ":" %&% vec[[1]][2]
 }) %>% as.character(.) %>% unique(.)
 
@@ -71,29 +71,6 @@ Islet eQTLs
 
 
 ```{r}
-
-inspire.dir <- serv.dir2 %&% "datasets/INSPIRE_2019/"
-
-insp.exon.df <- fread(inspire.dir %&% "media-1.txt")
-pb <- txtProgressBar(min=0,max=dim(insp.exon.df)[1],style=3)
-insp.exon.eqtls <- map(1:dim(insp.exon.df)[1],function(i){
-  setTxtProgressBar(pb,i)
-  vec <- c(insp.exon.df$SNPchr[i],insp.exon.df$StartSNP[i])
-  id <- vec[1] %&% ":" %&% vec[2]
-}) %>% as.character(.) %>% unique(.)
-
-
-insp.gene.df <- fread(inspire.dir %&% "media-2.txt")
-pb <- txtProgressBar(min=0,max=dim(insp.gene.df)[1],style=3)
-insp.gene.eqtls <- map(1:dim(insp.gene.df)[1],function(i){
-  setTxtProgressBar(pb,i)
-  vec <- c(insp.gene.df$chrSNP[i],insp.gene.df$StartSNP[i])
-  id <- vec[1] %&% ":" %&% vec[2]
-}) %>% as.character(.) %>% unique(.)
-
-mvdb.df <- fread(serv.dir2 %&% "datasets/mvdb_eSNP_coords.txt",header=F)
-mvdb.eqtls <- mvdb.df$V1 %&% ":" %&% mvdb.df$V2
-
 
 fastqtl.df <- fread("cat " %&% out.dir %&% "snp_keyfile_fdr05.txt.gz" %&% " | zmore")
 pb <- txtProgressBar(min=0,max=dim(fastqtl.df)[1],style=3)
@@ -113,17 +90,15 @@ islet.eqtls  <-  fastqtl.eqtls
 
 ```
 
-Save tissue-specific eQTL sets 
+Save tissue-specific eQTL sets
 
 ```{r}
 
-adi.union.eqtls <- c(adi.sub.eqtls,adi.visc.eqtls) %>% unique(.)
-isl.spec <- islet.eqtls[!(islet.eqtls %in% c(mus.eqtls,liv.eqtls,adi.union.eqtls))]
-mus.spec <- mus.eqtls[!(mus.eqtls %in% c(islet.eqtls,liv.eqtls,adi.union.eqtls))]
-liv.spec <- liv.eqtls[!(liv.eqtls %in% c(islet.eqtls,adi.union.eqtls,mus.eqtls))]
-adi.union.spec <- adi.union.eqtls[!(adi.union.eqtls %in% c(islet.eqtls,liv.eqtls,mus.eqtls))]
-adi.visc.spec <- adi.visc.eqtls[!(adi.visc.eqtls %in% c(islet.eqtls,liv.eqtls,mus.eqtls,adi.sub.eqtls))]
-adi.sub.spec <- adi.sub.eqtls[!(adi.sub.eqtls %in% c(islet.eqtls,liv.eqtls,mus.eqtls,adi.visc.eqtls))]
+isl.spec <- islet.eqtls[!(islet.eqtls %in% c(mus.eqtls,liv.eqtls,adi.sub.eqtls))]
+mus.spec <- mus.eqtls[!(mus.eqtls %in% c(islet.eqtls,liv.eqtls,adi.sub.eqtls))]
+liv.spec <- liv.eqtls[!(liv.eqtls %in% c(islet.eqtls,adi.sub.eqtls,mus.eqtls))]
+lcl.spec <- lcl.eqtls[!(lcl.eqtls %in% c(islet.eqtls,liv.eqtls,mus.eqtls,adi.sub.eqtls))]
+adi.sub.spec <- adi.sub.eqtls[!(adi.sub.eqtls %in% c(islet.eqtls,liv.eqtls,mus.eqtls,lcl.eqtls))]
 
 ```
 
@@ -132,14 +107,10 @@ adi.sub.spec <- adi.sub.eqtls[!(adi.sub.eqtls %in% c(islet.eqtls,liv.eqtls,mus.e
 
 write.table(x=isl.spec,file=out.dir %&% "islet-specific-esnps.txt",sep="\t",quote=F,row.names=F,col.names=F)
 write.table(x=mus.spec,file=out.dir %&% "muscle-specific-esnps.txt",sep="\t",quote=F,row.names=F,col.names=F)
-write.table(x=adi.union.spec,file=out.dir %&% "adipose-union-specific-esnps.txt",sep="\t",quote=F,row.names=F,col.names=F)
-write.table(x=adi.visc.spec,file=out.dir %&% "adipose-visc-specific-esnps.txt",sep="\t",quote=F,row.names=F,col.names=F)
+write.table(x=lcl.spec,file=out.dir %&% "lcl-specific-esnps.txt",sep="\t",quote=F,row.names=F,col.names=F)
 write.table(x=adi.sub.spec,file=out.dir %&% "adipose-sub-specific-esnps.txt",sep="\t",quote=F,row.names=F,col.names=F)
 write.table(x=liv.spec,file=out.dir %&% "liver-specific-esnps.txt",sep="\t",quote=F,row.names=F,col.names=F)
 
 
 
 ```
-
-
-
