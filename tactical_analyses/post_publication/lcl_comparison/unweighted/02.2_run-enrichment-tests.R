@@ -19,8 +19,8 @@ work.dir0 <- proj.dir %&% "tactical_analyses/"
 work.dir <- proj.dir %&% "tactical_analyses/post_publication/lcl_comparison/unweighted/"
 out.dir <- work.dir %&% "enrichment_files/eqtls/"
 
-toa.df <- fread(work.dir0 %&% "analysis_files/classified-loci_unweighted_with-shared.txt")
-cred.df <- fread(work.dir0 %&% "genetic_credible_sets/gencred.txt")
+toa.df <- fread(work.dir %&% "analysis_files/classified-loci_unweighted_with-shared.txt")
+cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt")
 
 snpsnap.df <- fread(out.dir %&% "SNPsnap_oneK_5_20_20_50_rsq5/matched_snps.txt") # Note that only 359/380 (94%) signals were matched with SNPSNAP
 
