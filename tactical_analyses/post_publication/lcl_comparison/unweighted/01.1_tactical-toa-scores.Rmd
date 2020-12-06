@@ -17,9 +17,9 @@ library("data.table")
 #devtools::install_github("jmtorres138/TACTICAL")
 library("TACTICAL")
 
-serv.dir <- "/home/jason/science/servers/FUSE5/"
+serv.dir <- "/Users/jasont/science/servers/FUSE5/"
 proj.dir <- serv.dir %&% "projects/t2d_classification/"
-work.dir <- proj.dir %&% "tactical_analyses/"
+work.dir <- proj.dir %&% "tactical_analyses/post_publication/lcl_comparison/unweighted/"
 input.dir <- work.dir %&% "input_files/"
 file.dir <- work.dir %&% "analysis_files/"
 
@@ -66,7 +66,7 @@ tvec.df <- calculate_tissue_vectors(snp.annotated.df = snp.df,
                                     tissue_annotation_file = input.dir%&%"tissue-annotations.txt", 
                                     genomic_annotation_file = input.dir%&%"genomic-annotations.txt",
                                     ess.annot = "coding",
-                                    ess.file = input.dir%&%"gene-expression-specificity-scores.txt")
+                                    ess.file = input.dir%&%"gene-expression-specificity-scores_v1.txt")
 ```
 
 ```{r}
@@ -117,49 +117,53 @@ write.table(x=class80.df,file=file.dir%&%"classified_p80.txt",quote=F,sep="\t",r
 ```{r}
 
 class.df <- tscores.df
-class.df$assigned_00 <- map(class.df$SIGNAL,function(sig){
+class.df$assigned_00 <- purrr::map(class.df$SIGNAL,function(sig){
   tiss <- filter(class00.df,SIGNAL==sig)$classification 
   ifelse(tiss=="Islet","islet",
+         ifelse(tiss=="LCL","lcl",
          ifelse(tiss=="Adipose","adipose",
                 ifelse(tiss=="Muscle","muscle",
-                       ifelse(tiss=="Liver","liver",tiss))))
+                       ifelse(tiss=="Liver","liver",tiss)))))
 }) %>% as.character(.) 
-class.df$assigned_20 <- map(class.df$SIGNAL,function(sig){
+class.df$assigned_20 <- purrr::map(class.df$SIGNAL,function(sig){
   tiss <- filter(class20.df,SIGNAL==sig)$classification 
   ifelse(tiss=="Islet","islet",
+         ifelse(tiss=="LCL","lcl",
          ifelse(tiss=="Adipose","adipose",
                 ifelse(tiss=="Muscle","muscle",
-                       ifelse(tiss=="Liver","liver",tiss))))
+                       ifelse(tiss=="Liver","liver",tiss)))))
 }) %>% as.character(.) 
-class.df$assigned_50 <- map(class.df$SIGNAL,function(sig){
+class.df$assigned_50 <- purrr::map(class.df$SIGNAL,function(sig){
   tiss <- filter(class50.df,SIGNAL==sig)$classification 
   ifelse(tiss=="Islet","islet",
+         ifelse(tiss=="LCL","lcl",
          ifelse(tiss=="Adipose","adipose",
                 ifelse(tiss=="Muscle","muscle",
-                       ifelse(tiss=="Liver","liver",tiss))))
+                       ifelse(tiss=="Liver","liver",tiss)))))
 }) %>% as.character(.) 
-class.df$assigned_80 <- map(class.df$SIGNAL,function(sig){
+class.df$assigned_80 <- purrr::map(class.df$SIGNAL,function(sig){
   tiss <- filter(class80.df,SIGNAL==sig)$classification 
   ifelse(tiss=="Islet","islet",
+         ifelse(tiss=="LCL","lcl",
          ifelse(tiss=="Adipose","adipose",
                 ifelse(tiss=="Muscle","muscle",
-                       ifelse(tiss=="Liver","liver",tiss))))
+                       ifelse(tiss=="Liver","liver",tiss)))))
 }) %>% as.character(.) 
 
 cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt") 
 
-class.df$symbol <- map(class.df$SIGNAL,function(sig){
+class.df$symbol <- purrr::map(class.df$SIGNAL,function(sig){
   filter(cred.df,CondID==sig)$symbol %>% unique(.)
 }) %>% as.character(.)
 
-names(class.df)[1:5] <- c("Locus.ID","adipose","islet","liver","muscle")
+names(class.df)[1:6] <- c("Locus.ID","adipose","islet","lcl","liver","muscle")
 
 ```
 
 
 ```{r}
 
-write.table(class.df,file.dir%&%"classified-loci_weighted_with-shared.txt",sep="\t",quote=F,row.names=F)
+write.table(class.df,file.dir%&%"classified-loci_unweighted_with-shared.txt",sep="\t",quote=F,row.names=F)
 
 ```
 
@@ -192,49 +196,53 @@ write.table(x=class80.df,file=file.dir%&%"classified_p80_s0.txt",quote=F,sep="\t
 ```{r}
 
 class.df <- tscores.df
-class.df$assigned_00 <- map(class.df$SIGNAL,function(sig){
+class.df$assigned_00 <- purrr::map(class.df$SIGNAL,function(sig){
   tiss <- filter(class00.df,SIGNAL==sig)$classification 
   ifelse(tiss=="Islet","islet",
+         ifelse(tiss=="LCL","lcl",
          ifelse(tiss=="Adipose","adipose",
                 ifelse(tiss=="Muscle","muscle",
-                       ifelse(tiss=="Liver","liver",tiss))))
+                       ifelse(tiss=="Liver","liver",tiss)))))
 }) %>% as.character(.) 
-class.df$assigned_20 <- map(class.df$SIGNAL,function(sig){
+class.df$assigned_20 <- purrr::map(class.df$SIGNAL,function(sig){
   tiss <- filter(class20.df,SIGNAL==sig)$classification 
   ifelse(tiss=="Islet","islet",
+         ifelse(tiss=="LCL","lcl",
          ifelse(tiss=="Adipose","adipose",
                 ifelse(tiss=="Muscle","muscle",
-                       ifelse(tiss=="Liver","liver",tiss))))
+                       ifelse(tiss=="Liver","liver",tiss)))))
 }) %>% as.character(.) 
-class.df$assigned_50 <- map(class.df$SIGNAL,function(sig){
+class.df$assigned_50 <- purrr::map(class.df$SIGNAL,function(sig){
   tiss <- filter(class50.df,SIGNAL==sig)$classification 
   ifelse(tiss=="Islet","islet",
+         ifelse(tiss=="LCL","lcl",
          ifelse(tiss=="Adipose","adipose",
                 ifelse(tiss=="Muscle","muscle",
-                       ifelse(tiss=="Liver","liver",tiss))))
-}) %>% as.character(.) 
-class.df$assigned_80 <- map(class.df$SIGNAL,function(sig){
+                       ifelse(tiss=="Liver","liver",tiss)))))
+}) %>% as.character(.)  
+class.df$assigned_80 <- purrr::map(class.df$SIGNAL,function(sig){
   tiss <- filter(class80.df,SIGNAL==sig)$classification 
   ifelse(tiss=="Islet","islet",
+         ifelse(tiss=="LCL","lcl",
          ifelse(tiss=="Adipose","adipose",
                 ifelse(tiss=="Muscle","muscle",
-                       ifelse(tiss=="Liver","liver",tiss))))
+                       ifelse(tiss=="Liver","liver",tiss)))))
 }) %>% as.character(.) 
 
 cred.df <- fread(work.dir %&% "genetic_credible_sets/gencred.txt") 
 
-class.df$symbol <- map(class.df$SIGNAL,function(sig){
+class.df$symbol <- purrr::map(class.df$SIGNAL,function(sig){
   filter(cred.df,CondID==sig)$symbol %>% unique(.)
 }) %>% as.character(.)
 
-names(class.df)[1:5] <- c("Locus.ID","adipose","islet","liver","muscle")
+names(class.df)[1:6] <- c("Locus.ID","adipose","islet","lcl","liver","muscle")
 
 ```
 
 
 ```{r}
 
-write.table(class.df,file.dir%&%"classified-loci_weighted.txt",sep="\t",quote=F,row.names=F)
+write.table(class.df,file.dir%&%"classified-loci_unweighted.txt",sep="\t",quote=F,row.names=F)
 
 ```
 
